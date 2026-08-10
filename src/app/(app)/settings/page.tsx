@@ -1,0 +1,108 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { toast } from "sonner";
+import { ThemeToggle } from "@/components/layout/theme-toggle";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
+
+export default function SettingsPage() {
+  const [encryptionConfigured, setEncryptionConfigured] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    void fetch("/api/auth/status")
+      .then((r) => r.json())
+      .then((data: { encryptionConfigured?: boolean }) => {
+        setEncryptionConfigured(Boolean(data.encryptionConfigured));
+      });
+  }, []);
+
+  async function changePassword(e: React.FormEvent) {
+    e.preventDefault();
+    setSaving(true);
+    const res = await fetch("/api/auth/password", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ currentPassword, newPassword }),
+    });
+    const data = (await res.json()) as { error?: string };
+    setSaving(false);
+    if (!res.ok) {
+      toast.error(data.error || "Failed to change password");
+      return;
+    }
+    toast.success("Password updated");
+    setCurrentPassword("");
+    setNewPassword("");
+  }
+
+  return (
+    <div className="mx-auto max-w-2xl space-y-10">
+      <div>
+        <h1 className="text-3xl font-semibold tracking-tight">Settings</h1>
+        <p className="mt-1 text-muted-foreground">
+          Local security and appearance for your private Bussola instance.
+        </p>
+      </div>
+
+      <section className="space-y-3 border-b border-border pb-8">
+        <h2 className="text-lg font-medium">Appearance</h2>
+        <div className="flex items-center justify-between gap-4">
+          <p className="text-sm text-muted-foreground">
+            Light and dark mode follow the Bussola palette.
+          </p>
+          <ThemeToggle />
+        </div>
+      </section>
+
+      <section className="space-y-3 border-b border-border pb-8">
+        <h2 className="text-lg font-medium">Encryption</h2>
+        <div className="flex items-center gap-2">
+          <Badge variant={encryptionConfigured ? "secondary" : "outline"}>
+            {encryptionConfigured ? "Custom key set" : "Dev fallback key"}
+          </Badge>
+        </div>
+        <p className="text-sm text-muted-foreground">
+          Set <code className="text-foreground">BUSSOLA_ENCRYPTION_KEY</code> in
+          your environment to a 64-char hex string for production-grade local
+          secret storage.
+        </p>
+      </section>
+
+      <section className="space-y-4">
+        <h2 className="text-lg font-medium">Change password</h2>
+        <form onSubmit={changePassword} className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="current">Current password</Label>
+            <Input
+              id="current"
+              type="password"
+              value={currentPassword}
+              onChange={(e) => setCurrentPassword(e.target.value)}
+              required
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="next">New password</Label>
+            <Input
+              id="next"
+              type="password"
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              minLength={8}
+              required
+            />
+          </div>
+          <Button type="submit" disabled={saving}>
+            {saving ? "Updating…" : "Update password"}
+          </Button>
+        </form>
+      </section>
+    </div>
+  );
+}
