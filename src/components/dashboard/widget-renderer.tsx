@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/table";
 import { KpiCard } from "@/components/tremor/kpi-card";
 import { Tracker } from "@/components/tremor/tracker";
+import { DeployHealth } from "@/components/tremor/deploy-health";
 import { BarCompare } from "@/components/tremor/bar-compare";
 import { AccountPie } from "@/components/tremor/account-pie";
 import { BalanceLine } from "@/components/tremor/balance-line";
@@ -30,6 +31,7 @@ import type {
   NetlifyBuildMinutes,
   NetlifyDeployItem,
   NetlifyFormItem,
+  RailwayDeployHealth,
   RailwayDeployItem,
   RailwayFleetHealth,
   RailwayResourceSnapshot,
@@ -207,29 +209,11 @@ export function WidgetRenderer({ type }: WidgetRendererProps) {
 
   switch (type) {
     case "railway-tracker": {
-      const items = (data.items as StatusItem[]) || [];
-      const trackers =
-        (data.trackers as Record<string, TrackerPoint[]>) || {};
-      const first = items[0];
-      const points = first ? trackers[first.id] || [] : [];
-
-      if (!first) {
+      const health = data.deployHealth as RailwayDeployHealth | null | undefined;
+      if (!health) {
         return <NoData label="No services found for this connection." />;
       }
-      if (points.length === 0) {
-        return <NoData label="No deployment history yet." />;
-      }
-
-      return (
-        <div className="flex h-full flex-col justify-center gap-3">
-          <p className="truncate text-sm font-medium">{first.name}</p>
-          <Tracker data={points} hoverEffect />
-          <p className="text-xs text-muted-foreground">
-            {first.detail}
-            {items.length > 1 ? ` · +${items.length - 1} more` : ""}
-          </p>
-        </div>
-      );
+      return <DeployHealth health={health} />;
     }
     case "railway-services": {
       const items = (data.items as StatusItem[]) || [];
@@ -541,7 +525,7 @@ export function WidgetRenderer({ type }: WidgetRendererProps) {
         <div className="flex h-full flex-col justify-center gap-3">
           <BarCompare
             rows={forms.slice(0, 5).map((form) => ({
-              label: form.name,
+              label: `${form.name} · ${form.siteName}`,
               value: form.submissionCount,
               display: String(form.submissionCount),
               tone: "neutral" as const,

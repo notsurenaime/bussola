@@ -8,7 +8,7 @@ const AUTH_PUBLIC = new Set([
   "/api/auth/status",
 ]);
 
-export function middleware(request: NextRequest) {
+export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   if (

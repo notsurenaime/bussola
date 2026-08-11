@@ -104,6 +104,45 @@ export type RailwayDeployItem = {
   status: TrackerPoint["status"];
   rawStatus: string;
   createdAt: string;
+  label?: string;
+  commitHash?: string;
+  branch?: string;
+  stage?: string;
+};
+
+/** One failed/in-flight attempt sitting above the live deploy. */
+export type RailwayDeployAttempt = {
+  id: string;
+  createdAt: string;
+  rawStatus: string;
+  /** Where it broke or currently is (Build, Deploy, Runtime, …). */
+  stage: string;
+  /** Commit message or short fallback label. */
+  label: string;
+  commitHash?: string;
+  branch?: string;
+};
+
+/**
+ * “How far behind is the live deploy?” — active health plus newer failed attempts.
+ */
+export type RailwayDeployHealth = {
+  serviceId: string;
+  serviceName: string;
+  projectName: string;
+  /** What’s currently serving traffic. */
+  active: {
+    status: "healthy" | "crashed" | "sleeping" | "unknown";
+    createdAt?: string;
+    label?: string;
+    commitHash?: string;
+    rawStatus?: string;
+  };
+  /** Failed deploys newer than the live one. */
+  behindCount: number;
+  failedSinceActive: RailwayDeployAttempt[];
+  /** Newest in-progress deploy, if any. */
+  inFlight: RailwayDeployAttempt | null;
 };
 
 export type RailwayFleetHealth = {
@@ -131,6 +170,8 @@ export type RailwayUsageItem = {
 export type RailwayDashboard = {
   items: StatusItem[];
   trackers: Record<string, TrackerPoint[]>;
+  /** Worst / most relevant service for the Deploy Health card. */
+  deployHealth: RailwayDeployHealth | null;
   fleet: RailwayFleetHealth;
   recentDeploys: RailwayDeployItem[];
   resources: RailwayResourceSnapshot;

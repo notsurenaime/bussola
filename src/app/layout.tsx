@@ -1,13 +1,15 @@
 import type { Metadata } from "next";
-import { Elms_Sans, Geist_Mono } from "next/font/google";
+import { Geist_Mono } from "next/font/google";
+import localFont from "next/font/local";
 import { AppProviders } from "@/components/providers/app-providers";
 import "./globals.css";
 
-const elmsSans = Elms_Sans({
+const elmsSans = localFont({
+  src: "../fonts/elms-sans-latin-wght-normal.woff2",
   variable: "--font-elms-sans",
-  subsets: ["latin"],
-  weight: ["300", "400", "500", "600", "700"],
-  adjustFontFallback: false,
+  weight: "100 900",
+  display: "swap",
+  adjustFontFallback: "Arial",
 });
 
 const geistMono = Geist_Mono({

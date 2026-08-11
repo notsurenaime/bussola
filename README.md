@@ -43,7 +43,7 @@ Without a connection, widgets show an empty state and link to Connections.
 | Widget | Source |
 |---|---|
 | Service Status | Railway latest deploy status per service |
-| Deploy Health | Railway recent deploy trail |
+| Deploy Health | Railway live status + failed deploys since |
 | Fleet Health | Railway healthy/total services |
 | CPU & Memory | Railway avg resources (last hour) |
 | Usage This Cycle | Railway estimated billing-cycle usage |
