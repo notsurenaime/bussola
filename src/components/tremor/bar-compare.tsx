@@ -33,10 +33,10 @@ export function BarCompare({ rows, className }: BarCompareProps) {
 
   return (
     <div className={cn("flex h-full flex-col justify-center gap-4", className)}>
-      {rows.map((row) => {
+      {rows.map((row, index) => {
         const width = `${Math.max((Math.abs(row.value) / max) * 100, 4)}%`;
         return (
-          <div key={row.label} className="space-y-1.5">
+          <div key={`${row.label}-${index}`} className="space-y-1.5">
             <div className="flex items-baseline justify-between gap-3 text-sm">
               <span className="text-muted-foreground">{row.label}</span>
               <span className="font-medium tabular-nums text-foreground">

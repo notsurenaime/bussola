@@ -53,9 +53,9 @@ export const WIDGET_REGISTRY: WidgetDefinition[] = [
   {
     type: "railway-tracker",
     name: "Deploy Health",
-    description: "Recent deploy trail for a Railway service",
+    description: "Live deploy status and how many newer deploys failed",
     provider: "railway",
-    defaultW: 6,
+    defaultW: 4,
     defaultH: 3,
     minW: 3,
     minH: 2,

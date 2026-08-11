@@ -2,6 +2,8 @@ import type {
   ConnectionCredentials,
   Connector,
   RailwayDashboard,
+  RailwayDeployAttempt,
+  RailwayDeployHealth,
   RailwayDeployItem,
   RailwayFleetHealth,
   RailwayResourceSnapshot,
@@ -15,6 +17,7 @@ import { friendlyStatusLabel, toUserFacingError } from "./errors";
 const ENDPOINT = "https://backboard.railway.com/graphql/v2";
 const DEPLOY_TRAIL_LEN = 24;
 const RECENT_DEPLOYS = 25;
+const FAILED_ATTEMPTS_SHOWN = 3;
 const METRICS_LOOKBACK_MS = 60 * 60 * 1000;
 
 type AuthMode = "account" | "project";
@@ -200,6 +203,7 @@ type ProjectNode = {
                 id?: string;
                 status: string;
                 createdAt: string;
+                meta?: Record<string, unknown> | null;
               } | null;
             };
           }>;
@@ -214,7 +218,189 @@ type DeploymentNode = {
   status: string;
   createdAt: string;
   serviceId: string;
+  meta?: Record<string, unknown> | null;
 };
+
+function metaString(
+  meta: Record<string, unknown> | null | undefined,
+  ...keys: string[]
+): string | undefined {
+  if (!meta) return undefined;
+  for (const key of keys) {
+    const value = meta[key];
+    if (typeof value === "string" && value.trim()) return value.trim();
+  }
+  return undefined;
+}
+
+function deployLabel(meta?: Record<string, unknown> | null): string {
+  const message = metaString(meta, "commitMessage", "message", "title");
+  if (message) {
+    const oneLine = message.split("\n")[0].trim();
+    return oneLine.length > 72 ? `${oneLine.slice(0, 69)}…` : oneLine;
+  }
+  const hash = metaString(meta, "commitHash", "commitSha", "sha");
+  if (hash) return hash.slice(0, 7);
+  return "Deploy";
+}
+
+function deployCommitHash(
+  meta?: Record<string, unknown> | null,
+): string | undefined {
+  const hash = metaString(meta, "commitHash", "commitSha", "sha");
+  return hash ? hash.slice(0, 7) : undefined;
+}
+
+function deployBranch(
+  meta?: Record<string, unknown> | null,
+): string | undefined {
+  return metaString(meta, "branch", "branchName");
+}
+
+/** Infer human stage from Railway status (+ light meta hints). */
+function deployStage(
+  rawStatus: string,
+  meta?: Record<string, unknown> | null,
+): string {
+  const s = rawStatus.toUpperCase();
+  const reason = metaString(meta, "reason", "error", "failureReason");
+  if (s === "FAILED") {
+    if (reason) {
+      const lower = reason.toLowerCase();
+      if (lower.includes("build")) return "Build failed";
+      if (lower.includes("health")) return "Healthcheck failed";
+      if (lower.includes("deploy")) return "Deploy failed";
+    }
+    return "Failed to ship";
+  }
+  if (s === "CRASHED") return "Crashed at runtime";
+  if (s === "BUILDING") return "Building";
+  if (s === "DEPLOYING") return "Deploying";
+  if (s === "INITIALIZING") return "Starting";
+  if (s === "QUEUED") return "Queued";
+  if (s === "WAITING") return "Waiting";
+  if (s === "SUCCESS") return "Running";
+  if (s === "SLEEPING") return "Sleeping";
+  if (s === "REMOVED" || s === "REMOVING") return "Removed";
+  if (s === "SKIPPED") return "Skipped";
+  return rawStatusLabel(rawStatus);
+}
+
+function toAttempt(d: DeploymentNode): RailwayDeployAttempt {
+  return {
+    id: d.id,
+    createdAt: d.createdAt,
+    rawStatus: d.status,
+    stage: deployStage(d.status, d.meta),
+    label: deployLabel(d.meta),
+    commitHash: deployCommitHash(d.meta),
+    branch: deployBranch(d.meta),
+  };
+}
+
+function isInFlightStatus(status: string): boolean {
+  const s = status.toUpperCase();
+  return (
+    s === "BUILDING" ||
+    s === "DEPLOYING" ||
+    s === "INITIALIZING" ||
+    s === "QUEUED" ||
+    s === "WAITING"
+  );
+}
+
+function isFailedAttemptStatus(status: string): boolean {
+  return status.toUpperCase() === "FAILED";
+}
+
+function isLiveCandidateStatus(status: string): boolean {
+  const s = status.toUpperCase();
+  return s === "SUCCESS" || s === "SLEEPING" || s === "CRASHED";
+}
+
+function activeStatusFromRaw(
+  raw?: string,
+): RailwayDeployHealth["active"]["status"] {
+  if (!raw) return "unknown";
+  const s = raw.toUpperCase();
+  if (s === "SUCCESS") return "healthy";
+  if (s === "CRASHED") return "crashed";
+  if (s === "SLEEPING") return "sleeping";
+  return "unknown";
+}
+
+/**
+ * Live deploy + how many newer failed attempts sit on top of it
+ * (“2 behind” when live is old SUCCESS and newer deploys FAILED).
+ */
+function buildServiceDeployHealth(
+  deployments: DeploymentNode[],
+  service: { id: string; name: string; projectName: string },
+): RailwayDeployHealth {
+  const newestFirst = [...deployments].sort(
+    (a, b) =>
+      new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+  );
+
+  const failedSinceActive: RailwayDeployAttempt[] = [];
+  let inFlight: RailwayDeployAttempt | null = null;
+  let live: DeploymentNode | undefined;
+
+  for (const d of newestFirst) {
+    const s = d.status.toUpperCase();
+    if (s === "REMOVED" || s === "REMOVING" || s === "SKIPPED") continue;
+
+    if (isInFlightStatus(d.status)) {
+      if (!inFlight) inFlight = toAttempt(d);
+      continue;
+    }
+
+    if (isFailedAttemptStatus(d.status)) {
+      if (!live) failedSinceActive.push(toAttempt(d));
+      continue;
+    }
+
+    if (isLiveCandidateStatus(d.status)) {
+      live = d;
+      break;
+    }
+  }
+
+  return {
+    serviceId: service.id,
+    serviceName: service.name,
+    projectName: service.projectName,
+    active: live
+      ? {
+          status: activeStatusFromRaw(live.status),
+          createdAt: live.createdAt,
+          label: deployLabel(live.meta),
+          commitHash: deployCommitHash(live.meta),
+          rawStatus: live.status,
+        }
+      : { status: "unknown" },
+    behindCount: failedSinceActive.length,
+    failedSinceActive: failedSinceActive.slice(0, FAILED_ATTEMPTS_SHOWN),
+    inFlight,
+  };
+}
+
+function pickPrimaryDeployHealth(
+  candidates: RailwayDeployHealth[],
+): RailwayDeployHealth | null {
+  if (candidates.length === 0) return null;
+  return [...candidates].sort((a, b) => {
+    const rank = (h: RailwayDeployHealth) => {
+      if (h.active.status === "crashed") return 300 + h.behindCount;
+      if (h.behindCount > 0) return 200 + h.behindCount;
+      if (h.inFlight) return 100;
+      if (h.active.status === "sleeping") return 10;
+      if (h.active.status === "healthy") return 1;
+      return 0;
+    };
+    return rank(b) - rank(a);
+  })[0];
+}
 
 /** Honest deploy trail: last N deploys as discrete points (oldest → newest). */
 function buildDeployTrail(
@@ -292,6 +478,7 @@ async function fetchServiceDeployments(
             status
             createdAt
             serviceId
+            meta
           }
         }
       }
@@ -331,6 +518,7 @@ async function fetchProjectDeployments(
               status
               createdAt
               serviceId
+              meta
             }
           }
         }
@@ -600,6 +788,7 @@ const PROJECT_QUERY = `query ($id: String!) {
                   id
                   status
                   createdAt
+                  meta
                 }
               }
             }
@@ -638,6 +827,7 @@ const ACCOUNT_PROJECTS_QUERY = `query {
                       id
                       status
                       createdAt
+                      meta
                     }
                   }
                 }
@@ -704,6 +894,7 @@ export async function fetchRailwayDashboard(
 
   const items: StatusItem[] = [];
   const trackers: Record<string, TrackerPoint[]> = {};
+  const deployHealthCandidates: RailwayDeployHealth[] = [];
   const recentDeploys: RailwayDeployItem[] = [];
   const serviceNameById = new Map<string, { name: string; projectName: string }>();
   const environmentIds = new Set<string>();
@@ -738,27 +929,65 @@ export async function fetchRailwayDashboard(
       if (instanceEnv) environmentIds.add(instanceEnv);
 
       let deployments = projectDeploys.filter((d) => d.serviceId === service.id);
-      if (deployments.length === 0) {
+      const hasLive = deployments.some((d) => isLiveCandidateStatus(d.status));
+      if (deployments.length === 0 || !hasLive) {
         try {
-          deployments = await fetchServiceDeployments(token, auth.mode, {
-            projectId: project.id,
-            environmentId,
-            serviceId: service.id,
-          });
+          const serviceDeploys = await fetchServiceDeployments(
+            token,
+            auth.mode,
+            {
+              projectId: project.id,
+              environmentId,
+              serviceId: service.id,
+            },
+          );
+          if (serviceDeploys.length > 0) deployments = serviceDeploys;
         } catch {
-          deployments = [];
+          // Keep whatever project-level list we already have.
         }
       }
 
+      // Ensure latestDeployment is represented even if list is thin.
+      if (
+        latest?.id &&
+        !deployments.some((d) => d.id === latest.id)
+      ) {
+        deployments = [
+          {
+            id: latest.id,
+            status: latest.status,
+            createdAt: latest.createdAt,
+            serviceId: service.id,
+            meta: latest.meta,
+          },
+          ...deployments,
+        ];
+      }
+
       const trail = buildDeployTrail(deployments, service.name, latest?.status);
+      const health = buildServiceDeployHealth(deployments, {
+        id: service.id,
+        name: service.name,
+        projectName: project.name,
+      });
+      deployHealthCandidates.push(health);
+
+      const behindHint =
+        health.behindCount > 0
+          ? `${health.behindCount} behind live`
+          : health.active.status === "crashed"
+            ? "Live crashed"
+            : health.active.status === "healthy"
+              ? "Up to date"
+              : trail.detail;
 
       items.push({
         id: service.id,
         name: `${project.name} / ${service.name}`,
         provider: "railway",
         status,
-        detail: trail.detail,
-        updatedAt: latest?.createdAt,
+        detail: behindHint,
+        updatedAt: health.active.createdAt || latest?.createdAt,
       });
       trackers[service.id] = trail.points;
 
@@ -771,6 +1000,10 @@ export async function fetchRailwayDashboard(
           status: statusColor(d.status),
           rawStatus: d.status,
           createdAt: d.createdAt,
+          label: deployLabel(d.meta),
+          commitHash: deployCommitHash(d.meta),
+          branch: deployBranch(d.meta),
+          stage: deployStage(d.status, d.meta),
         });
       }
     }
@@ -778,15 +1011,19 @@ export async function fetchRailwayDashboard(
     // Project-level deploys not tied above (edge case).
     for (const d of projectDeploys) {
       if (recentDeploys.some((x) => x.id === d.id)) continue;
-      const meta = serviceNameById.get(d.serviceId);
+      const named = serviceNameById.get(d.serviceId);
       recentDeploys.push({
         id: d.id,
         serviceId: d.serviceId,
-        serviceName: meta?.name || "Service",
-        projectName: meta?.projectName || project.name,
+        serviceName: named?.name || "Service",
+        projectName: named?.projectName || project.name,
         status: statusColor(d.status),
         rawStatus: d.status,
         createdAt: d.createdAt,
+        label: deployLabel(d.meta),
+        commitHash: deployCommitHash(d.meta),
+        branch: deployBranch(d.meta),
+        stage: deployStage(d.status, d.meta),
       });
     }
   }
@@ -795,6 +1032,8 @@ export async function fetchRailwayDashboard(
     (a, b) =>
       new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
   );
+
+  const deployHealth = pickPrimaryDeployHealth(deployHealthCandidates);
 
   const fleet: RailwayFleetHealth = {
     healthy: items.filter((i) => isHealthyService(i.status)).length,
@@ -837,6 +1076,7 @@ export async function fetchRailwayDashboard(
   return {
     items,
     trackers,
+    deployHealth,
     fleet,
     recentDeploys: recentDeploys.slice(0, RECENT_DEPLOYS),
     resources,

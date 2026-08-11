@@ -30,6 +30,38 @@ export function WidgetPreview({
 function previewContent(type: WidgetType) {
   switch (type) {
     case "railway-tracker":
+      return (
+        <g>
+          <circle cx="14" cy="14" r="2.5" className="fill-success" />
+          <text x="22" y="17" className="fill-muted-foreground" fontSize="8">
+            api · Healthy
+          </text>
+          <text
+            x="12"
+            y="40"
+            className="fill-destructive"
+            fontSize="15"
+            fontWeight="600"
+          >
+            2 behind
+          </text>
+          <text x="12" y="52" className="fill-muted-foreground" fontSize="7">
+            live 14h · edfcd04
+          </text>
+          <text x="78" y="38" className="fill-muted-foreground" fontSize="7">
+            13h
+          </text>
+          <text x="96" y="38" className="fill-destructive" fontSize="7">
+            Deploy failed
+          </text>
+          <text x="78" y="50" className="fill-muted-foreground" fontSize="7">
+            14h
+          </text>
+          <text x="96" y="50" className="fill-destructive" fontSize="7">
+            Deploy failed
+          </text>
+        </g>
+      );
     case "netlify-tracker":
       return (
         <g>
