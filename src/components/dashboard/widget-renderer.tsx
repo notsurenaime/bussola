@@ -24,6 +24,7 @@ import {
   formatCores,
   formatGb,
   NoData,
+  paymentBadgeVariant,
   StaleNotice,
   StatusDot,
   StatusList,
@@ -32,6 +33,13 @@ import {
 } from "@/components/dashboard/renderers/shared";
 import { formatMoney, formatSignedMoney } from "@/lib/format/money";
 import type {
+  PaymentItem,
+  ResendDomainItem,
+  ResendEmailItem,
+  RevenueSummary,
+  SentryIssueItem,
+  MoneyPoint,
+  VercelDeployItem,
   BalanceHistory,
   BalanceInfo,
   CashflowPeriod,
@@ -700,6 +708,293 @@ function renderWidget(
             From settled transactions
             {history.incomplete ? " · partial window" : ""}
           </p>
+        </div>
+      );
+    }
+    case "stripe-mrr":
+    case "lemonsqueezy-mrr": {
+      const revenue = data.revenue as RevenueSummary | undefined;
+      if (!revenue) return <NoData label="No subscription data yet." />;
+      return (
+        <KpiCard
+          label="Monthly recurring revenue"
+          value={formatMoney(revenue.mrr, revenue.currency.toUpperCase())}
+          hint={`${revenue.activeSubscriptions} active${
+            revenue.trialingSubscriptions > 0
+              ? ` · ${revenue.trialingSubscriptions} trialing`
+              : ""
+          }`}
+          trend={revenue.truncated ? "Partial — very large account" : undefined}
+          trendTone="neutral"
+        />
+      );
+    }
+    case "stripe-revenue": {
+      const volume = data.volume30d as MoneyPoint | undefined;
+      const revenue = data.revenue as RevenueSummary | undefined;
+      if (!volume) return <NoData label="No payments in the last 30 days." />;
+      return (
+        <KpiCard
+          label="Revenue (30 days)"
+          value={formatMoney(
+            volume.value,
+            (revenue?.currency ?? "eur").toUpperCase(),
+          )}
+          hint={volume.display}
+        />
+      );
+    }
+    case "lemonsqueezy-revenue": {
+      const volume = data.revenue30d as MoneyPoint | undefined;
+      const revenue = data.revenue as RevenueSummary | undefined;
+      if (!volume) return <NoData label="No store revenue yet." />;
+      return (
+        <KpiCard
+          label="Revenue (30 days)"
+          value={formatMoney(
+            volume.value,
+            (revenue?.currency ?? "usd").toUpperCase(),
+          )}
+          hint={volume.display}
+        />
+      );
+    }
+    case "stripe-payments":
+    case "lemonsqueezy-orders": {
+      const payments =
+        ((data.payments ?? data.orders) as PaymentItem[] | undefined) || [];
+      if (payments.length === 0) {
+        return <NoData label="No payments yet." />;
+      }
+      return (
+        <div className="min-h-0 flex-1 overflow-auto overscroll-contain">
+          <Table>
+            <TableHeader className="sticky top-0 z-10 bg-card">
+              <TableRow>
+                <TableHead className="h-9">Payment</TableHead>
+                <TableHead className="h-9">Status</TableHead>
+                <TableHead className="h-9 text-right">Amount</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {payments.map((payment) => (
+                <TableRow key={payment.id}>
+                  <TableCell className="py-2">
+                    <div className="flex min-w-0 flex-col gap-0.5">
+                      <span className="truncate font-medium">
+                        {payment.description}
+                      </span>
+                      <span className="truncate text-xs text-muted-foreground">
+                        {payment.customer ||
+                          format(new Date(payment.createdAt), "d MMM, HH:mm")}
+                      </span>
+                    </div>
+                  </TableCell>
+                  <TableCell className="py-2">
+                    <Badge variant={paymentBadgeVariant(payment.status)}>
+                      {payment.status}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="py-2 text-right font-medium tabular-nums">
+                    {formatMoney(payment.amount, payment.currency.toUpperCase())}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      );
+    }
+    case "sentry-issues": {
+      const unresolved = Number(data.unresolved ?? 0);
+      const events = Number(data.events24h ?? 0);
+      return (
+        <KpiCard
+          label="Unresolved issues"
+          value={data.truncated ? `${unresolved}+` : String(unresolved)}
+          hint={`${events.toLocaleString()} events in 24h`}
+          trend={unresolved === 0 ? "All clear" : undefined}
+          trendTone={unresolved === 0 ? "positive" : "neutral"}
+        />
+      );
+    }
+    case "sentry-recent": {
+      const issues = (data.issues as SentryIssueItem[]) || [];
+      if (issues.length === 0) {
+        return <NoData label="No unresolved issues. " />;
+      }
+      return (
+        <div className="min-h-0 flex-1 overflow-auto overscroll-contain">
+          <Table>
+            <TableHeader className="sticky top-0 z-10 bg-card">
+              <TableRow>
+                <TableHead className="h-9">Issue</TableHead>
+                <TableHead className="h-9 text-right">Events</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {issues.map((issue) => (
+                <TableRow key={issue.id}>
+                  <TableCell className="py-2">
+                    <div className="flex min-w-0 items-start gap-2">
+                      <StatusDot status={issue.status} />
+                      <div className="flex min-w-0 flex-col gap-0.5">
+                        <span className="truncate font-medium">
+                          {issue.title}
+                        </span>
+                        <span className="truncate text-xs text-muted-foreground">
+                          {issue.projectName || issue.culprit || issue.level}
+                        </span>
+                      </div>
+                    </div>
+                  </TableCell>
+                  <TableCell className="py-2 text-right tabular-nums">
+                    {issue.count.toLocaleString()}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      );
+    }
+    case "sentry-projects": {
+      const projects = (data.projects as StatusItem[]) || [];
+      if (projects.length === 0) {
+        return <NoData label="No Sentry projects found." />;
+      }
+      return <StatusList items={projects} />;
+    }
+    case "resend-domains": {
+      const domains = (data.domains as ResendDomainItem[]) || [];
+      if (domains.length === 0) {
+        return <NoData label="No sending domains configured." />;
+      }
+      return (
+        <StatusList
+          items={domains.map((domain) => ({
+            id: domain.id,
+            name: domain.name,
+            status: domain.status,
+            detail: domain.rawStatus,
+            provider: "resend",
+          }))}
+        />
+      );
+    }
+    case "resend-emails": {
+      if (data.emailsUnavailable) {
+        return (
+          <WidgetMessage
+            title="This Resend key cannot list sent emails. Use a key with full access to see them here."
+            action={{ href: "/connections", label: "Update key" }}
+          />
+        );
+      }
+      const emails = (data.emails as ResendEmailItem[]) || [];
+      if (emails.length === 0) {
+        return <NoData label="No emails sent yet." />;
+      }
+      return (
+        <div className="min-h-0 flex-1 overflow-auto overscroll-contain">
+          <Table>
+            <TableHeader className="sticky top-0 z-10 bg-card">
+              <TableRow>
+                <TableHead className="h-9">Email</TableHead>
+                <TableHead className="h-9 text-right">Status</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {emails.map((email) => (
+                <TableRow key={email.id}>
+                  <TableCell className="py-2">
+                    <div className="flex min-w-0 flex-col gap-0.5">
+                      <span className="truncate font-medium">
+                        {email.subject}
+                      </span>
+                      <span className="truncate text-xs text-muted-foreground">
+                        {email.to}
+                      </span>
+                    </div>
+                  </TableCell>
+                  <TableCell className="py-2 text-right">
+                    <Badge variant="secondary">{email.status}</Badge>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      );
+    }
+    case "vercel-tracker": {
+      const trackers = (data.trackers as Record<string, TrackerPoint[]>) || {};
+      const entries = Object.entries(trackers).filter(
+        ([, points]) => points.length > 0,
+      );
+      if (entries.length === 0) {
+        return <NoData label="No Vercel deployments yet." />;
+      }
+      return (
+        <div className="min-h-0 flex-1 space-y-3 overflow-auto overscroll-contain">
+          {entries.map(([name, points]) => (
+            <div key={name} className="space-y-1.5">
+              <p className="truncate text-xs text-muted-foreground">{name}</p>
+              <Tracker data={points} />
+            </div>
+          ))}
+        </div>
+      );
+    }
+    case "vercel-projects": {
+      const items = (data.items as StatusItem[]) || [];
+      if (items.length === 0) {
+        return <NoData label="No Vercel projects found." />;
+      }
+      return <StatusList items={items} />;
+    }
+    case "vercel-deploys": {
+      const deploys = (data.recentDeploys as VercelDeployItem[]) || [];
+      if (deploys.length === 0) {
+        return <NoData label="No recent deployments." />;
+      }
+      return (
+        <div className="min-h-0 flex-1 overflow-auto overscroll-contain">
+          <Table>
+            <TableHeader className="sticky top-0 z-10 bg-card">
+              <TableRow>
+                <TableHead className="h-9">Project</TableHead>
+                <TableHead className="h-9">Status</TableHead>
+                <TableHead className="h-9 text-right">When</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {deploys.map((deploy) => (
+                <TableRow key={deploy.id}>
+                  <TableCell className="py-2">
+                    <div className="flex min-w-0 flex-col gap-0.5">
+                      <span className="truncate font-medium">
+                        {deploy.projectName}
+                      </span>
+                      {deploy.branch || deploy.commitMessage ? (
+                        <span className="truncate text-xs text-muted-foreground">
+                          {deploy.commitMessage || deploy.branch}
+                        </span>
+                      ) : null}
+                    </div>
+                  </TableCell>
+                  <TableCell className="py-2">
+                    <Badge variant={deployBadgeVariant(deploy.status)}>
+                      {deploy.rawState}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="py-2 text-right text-xs text-muted-foreground">
+                    {format(new Date(deploy.createdAt), "d MMM, HH:mm")}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
         </div>
       );
     }

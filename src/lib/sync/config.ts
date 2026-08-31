@@ -12,14 +12,27 @@ export const DASHBOARD_KIND = "dashboard";
  * calls, so it is deliberately the slowest.
  */
 export const SYNC_INTERVAL_SECONDS: Record<Provider, number> = {
+  // Deploy platforms: people watch these while shipping, so keep them brisk.
   railway: 60,
   netlify: 60,
-  supabase: 120,
-  qonto: 180,
-  stripe: 180,
-  polar: 180,
-  attio: 300,
   vercel: 60,
+  supabase: 120,
+  // Error tracking is worth knowing about quickly.
+  sentry: 90,
+  // Revenue moves slowly and these are rate-limited more tightly.
+  stripe: 180,
+  lemonsqueezy: 300,
+  resend: 300,
+  // Banking API with strict limits, and its dashboard fans out over several
+  // paginated calls of its own.
+  qonto: 180,
+  // Not implemented yet; never scheduled, but the map must stay total.
+  github: 300,
+  gitlab: 300,
+  linear: 300,
+  notion: 600,
+  polar: 300,
+  attio: 300,
   webtraffic: 300,
 };
 

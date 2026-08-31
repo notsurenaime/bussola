@@ -22,7 +22,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import type { Provider } from "@/lib/providers";
+import type { CredentialField, Provider } from "@/lib/providers";
 
 type Connection = {
   id: string;
@@ -35,7 +35,13 @@ type Connection = {
 
 const PROVIDER_META: Record<
   string,
-  { name: string; hint: string; fields: Array<"apiKey" | "login" | "secretKey"> }
+  {
+    name: string;
+    hint: string;
+    fields: CredentialField[];
+    /** Label for the optional scope field, when the provider needs one. */
+    orgSlugLabel?: string;
+  }
 > = {
   railway: {
     name: "Railway",
@@ -52,6 +58,33 @@ const PROVIDER_META: Record<
     hint: "Personal access token (starts with sbp_) from supabase.com/dashboard/account/tokens — not a project anon/service key",
     fields: ["apiKey"],
   },
+  vercel: {
+    name: "Vercel",
+    hint: "Access token from vercel.com/account/tokens. For a team account, add the team id as well",
+    fields: ["apiKey", "orgSlug"],
+    orgSlugLabel: "Team ID (optional)",
+  },
+  sentry: {
+    name: "Sentry",
+    hint: "Auth token from sentry.io → Settings → Auth Tokens, with project:read and org:read scopes",
+    fields: ["apiKey", "orgSlug"],
+    orgSlugLabel: "Organization slug (optional)",
+  },
+  stripe: {
+    name: "Stripe",
+    hint: "A restricted key with read access to Charges, Subscriptions and Balance — never your live secret key",
+    fields: ["apiKey"],
+  },
+  lemonsqueezy: {
+    name: "Lemon Squeezy",
+    hint: "API key from Settings → API in your Lemon Squeezy dashboard",
+    fields: ["apiKey"],
+  },
+  resend: {
+    name: "Resend",
+    hint: "API key from resend.com/api-keys. Full access is needed to list sent emails; a sending key still shows domains",
+    fields: ["apiKey"],
+  },
   qonto: {
     name: "Qonto",
     hint: "From Qonto → Integrations → API key: paste login:secret, or enter login and secret separately",
@@ -59,22 +92,27 @@ const PROVIDER_META: Record<
   },
 };
 
-const COMING_SOON = ["stripe", "polar", "attio", "vercel", "webtraffic"];
-
 export default function ConnectionsPage() {
   const [connections, setConnections] = useState<Connection[]>([]);
+  const [comingSoon, setComingSoon] = useState<Provider[]>([]);
   const [provider, setProvider] = useState<Provider>("railway");
   const [label, setLabel] = useState("");
   const [apiKey, setApiKey] = useState("");
   const [login, setLogin] = useState("");
   const [secretKey, setSecretKey] = useState("");
+  const [orgSlug, setOrgSlug] = useState("");
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
 
   async function load() {
     const res = await fetch("/api/connections");
-    const data = (await res.json()) as { connections?: Connection[] };
+    const data = (await res.json()) as {
+      connections?: Connection[];
+      comingSoon?: Provider[];
+    };
     setConnections(data.connections || []);
+    // The server owns which providers are live, so the list is not duplicated here.
+    setComingSoon(data.comingSoon || []);
   }
 
   useEffect(() => {
@@ -93,6 +131,7 @@ export default function ConnectionsPage() {
           apiKey: apiKey || undefined,
           login: login || undefined,
           secretKey: secretKey || undefined,
+          orgSlug: orgSlug || undefined,
         },
         test: true,
       }),
@@ -210,6 +249,19 @@ export default function ConnectionsPage() {
                     />
                   </div>
                 ) : null}
+                {meta?.fields.includes("orgSlug") ? (
+                  <div className="space-y-2">
+                    <Label htmlFor="orgSlug">
+                      {meta.orgSlugLabel || "Organization"}
+                    </Label>
+                    <Input
+                      id="orgSlug"
+                      value={orgSlug}
+                      onChange={(e) => setOrgSlug(e.target.value)}
+                      autoComplete="off"
+                    />
+                  </div>
+                ) : null}
                 {provider === "qonto" ? (
                   <>
                     <div className="space-y-2">
@@ -320,10 +372,10 @@ export default function ConnectionsPage() {
       <section className="space-y-3">
         <SectionHeading title="Coming soon" />
         <div className="flex flex-wrap gap-2">
-          {COMING_SOON.map((p) => (
+          {comingSoon.map((p) => (
             <Badge key={p} variant="outline" className="gap-1.5 capitalize">
-              <SourceIcon provider={p as Provider} className="size-3" />
-              {p}
+              <SourceIcon provider={p} className="size-3" />
+              {PROVIDER_META[p]?.name || p}
             </Badge>
           ))}
         </div>

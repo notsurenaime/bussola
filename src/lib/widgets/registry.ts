@@ -26,6 +26,20 @@ export type WidgetType =
   | "qonto-liquidity"
   | "qonto-accounts"
   | "qonto-history"
+  | "stripe-mrr"
+  | "stripe-revenue"
+  | "stripe-payments"
+  | "lemonsqueezy-mrr"
+  | "lemonsqueezy-revenue"
+  | "lemonsqueezy-orders"
+  | "sentry-issues"
+  | "sentry-recent"
+  | "sentry-projects"
+  | "resend-domains"
+  | "resend-emails"
+  | "vercel-tracker"
+  | "vercel-projects"
+  | "vercel-deploys"
   | "status-board";
 
 export type WidgetDefinition = {
@@ -300,6 +314,146 @@ export const WIDGET_REGISTRY: WidgetDefinition[] = [
     minW: 4,
     minH: 3,
   },
+  {
+    type: "stripe-mrr",
+    name: "MRR",
+    description: "Monthly recurring revenue across active Stripe subscriptions",
+    provider: "stripe",
+    defaultW: 3,
+    defaultH: 2,
+    minW: 2,
+    minH: 2,
+  },
+  {
+    type: "stripe-revenue",
+    name: "Revenue (30d)",
+    description: "Gross Stripe volume over the last 30 days",
+    provider: "stripe",
+    defaultW: 3,
+    defaultH: 2,
+    minW: 2,
+    minH: 2,
+  },
+  {
+    type: "stripe-payments",
+    name: "Recent Payments",
+    description: "Latest Stripe charges and their outcome",
+    provider: "stripe",
+    defaultW: 6,
+    defaultH: 4,
+    minW: 4,
+    minH: 3,
+  },
+  {
+    type: "lemonsqueezy-mrr",
+    name: "MRR",
+    description: "Recurring revenue across active Lemon Squeezy subscriptions",
+    provider: "lemonsqueezy",
+    defaultW: 3,
+    defaultH: 2,
+    minW: 2,
+    minH: 2,
+  },
+  {
+    type: "lemonsqueezy-revenue",
+    name: "Revenue (30d)",
+    description: "Lemon Squeezy store revenue over the last 30 days",
+    provider: "lemonsqueezy",
+    defaultW: 3,
+    defaultH: 2,
+    minW: 2,
+    minH: 2,
+  },
+  {
+    type: "lemonsqueezy-orders",
+    name: "Recent Orders",
+    description: "Latest Lemon Squeezy orders",
+    provider: "lemonsqueezy",
+    defaultW: 6,
+    defaultH: 4,
+    minW: 4,
+    minH: 3,
+  },
+  {
+    type: "sentry-issues",
+    name: "Unresolved Issues",
+    description: "Open Sentry issues and events in the last 24 hours",
+    provider: "sentry",
+    defaultW: 3,
+    defaultH: 2,
+    minW: 2,
+    minH: 2,
+  },
+  {
+    type: "sentry-recent",
+    name: "Recent Errors",
+    description: "Newest unresolved Sentry issues",
+    provider: "sentry",
+    defaultW: 6,
+    defaultH: 4,
+    minW: 4,
+    minH: 3,
+  },
+  {
+    type: "sentry-projects",
+    name: "Projects Board",
+    description: "Sentry projects and whether they are reporting",
+    provider: "sentry",
+    defaultW: 5,
+    defaultH: 4,
+    minW: 3,
+    minH: 3,
+  },
+  {
+    type: "resend-domains",
+    name: "Sending Domains",
+    description: "Resend domain verification status",
+    provider: "resend",
+    defaultW: 5,
+    defaultH: 3,
+    minW: 3,
+    minH: 2,
+  },
+  {
+    type: "resend-emails",
+    name: "Recent Emails",
+    description: "Latest emails sent through Resend",
+    provider: "resend",
+    defaultW: 6,
+    defaultH: 4,
+    minW: 4,
+    minH: 3,
+  },
+  {
+    type: "vercel-tracker",
+    name: "Deploy Health",
+    description: "Recent Vercel deploy trail per project",
+    provider: "vercel",
+    defaultW: 5,
+    defaultH: 4,
+    minW: 3,
+    minH: 3,
+  },
+  {
+    type: "vercel-projects",
+    name: "Projects Board",
+    description: "Latest deploy state for every Vercel project",
+    provider: "vercel",
+    defaultW: 5,
+    defaultH: 4,
+    minW: 3,
+    minH: 3,
+  },
+  {
+    type: "vercel-deploys",
+    name: "Recent Deploys",
+    description: "Vercel deployment feed",
+    provider: "vercel",
+    defaultW: 6,
+    defaultH: 4,
+    minW: 4,
+    minH: 3,
+  },
 ];
 
 export function getWidgetDefinition(type: string): WidgetDefinition | undefined {
@@ -349,4 +503,24 @@ export function isNetlifyWidget(type: WidgetType): boolean {
     type === "netlify-builds" ||
     type === "netlify-forms"
   );
+}
+
+export function isStripeWidget(type: WidgetType): boolean {
+  return type.startsWith("stripe-");
+}
+
+export function isLemonSqueezyWidget(type: WidgetType): boolean {
+  return type.startsWith("lemonsqueezy-");
+}
+
+export function isSentryWidget(type: WidgetType): boolean {
+  return type.startsWith("sentry-");
+}
+
+export function isResendWidget(type: WidgetType): boolean {
+  return type.startsWith("resend-");
+}
+
+export function isVercelWidget(type: WidgetType): boolean {
+  return type.startsWith("vercel-");
 }

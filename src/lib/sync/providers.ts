@@ -1,8 +1,13 @@
 import {
+  fetchLemonSqueezyDashboard,
   fetchNetlifyDashboard,
   fetchQontoDashboard,
   fetchRailwayDashboard,
+  fetchResendDashboard,
+  fetchSentryDashboard,
+  fetchStripeDashboard,
   fetchSupabaseDashboard,
+  fetchVercelDashboard,
   type ConnectionCredentials,
 } from "@/lib/connectors";
 import type { Provider } from "@/lib/providers";
@@ -18,6 +23,11 @@ const FETCHERS: Partial<
   netlify: (c) => fetchNetlifyDashboard(c.apiKey || ""),
   supabase: (c) => fetchSupabaseDashboard(c.apiKey || ""),
   qonto: (c) => fetchQontoDashboard(c),
+  stripe: (c) => fetchStripeDashboard(c),
+  lemonsqueezy: (c) => fetchLemonSqueezyDashboard(c),
+  sentry: (c) => fetchSentryDashboard(c),
+  resend: (c) => fetchResendDashboard(c),
+  vercel: (c) => fetchVercelDashboard(c),
 };
 
 export function isSyncable(provider: string): provider is Provider {

@@ -4,7 +4,7 @@
 
 Local-first, plug-and-play dashboard for connecting infrastructure and finance sources into customizable canvases.
 
-**MVP connectors:** Railway · Netlify · Supabase · Qonto  
+**Connectors:** Railway · Vercel · Netlify · Supabase · Sentry · Stripe · Lemon Squeezy · Resend · Qonto  
 **Stack:** Next.js · TypeScript · Tailwind v4 · shadcn/ui · Tremor Raw · Postgres
 
 <p align="center">
@@ -187,6 +187,9 @@ Self-hosted keeps everything.
 | CPU & Memory | Railway avg resources (last hour) |
 | Usage This Cycle | Railway estimated billing-cycle usage |
 | Recent Deploys | Railway deployment feed |
+| Deploy Health | Vercel deploy trail per project |
+| Projects Board | Vercel latest deploy state per project |
+| Recent Deploys | Vercel deployment feed |
 | Deploy Health | Netlify recent deploy trail |
 | Sites Board | Netlify site publish status |
 | Sites Health | Netlify ready/total sites |
@@ -199,6 +202,17 @@ Self-hosted keeps everything.
 | API Traffic | Supabase request mix (7 days) |
 | Request Volume | Total Supabase API requests (7 days) |
 | Security Advisors | Open Supabase security findings |
+| Unresolved Issues | Sentry open issues + events in 24h |
+| Recent Errors | Sentry newest unresolved issues |
+| Projects Board | Sentry projects and whether they report |
+| MRR | Stripe monthly recurring revenue |
+| Revenue (30d) | Stripe gross volume, last 30 days |
+| Recent Payments | Stripe charges and their outcome |
+| MRR | Lemon Squeezy recurring revenue |
+| Revenue (30d) | Lemon Squeezy store revenue, last 30 days |
+| Recent Orders | Lemon Squeezy order feed |
+| Sending Domains | Resend domain verification status |
+| Recent Emails | Resend sent-email feed |
 | Cash Balance | Total cash across Qonto accounts |
 | Available Liquidity | Spendable balance after pending |
 | 30-Day Net Cashflow | In − out over the last 30 days |
@@ -208,11 +222,8 @@ Self-hosted keeps everything.
 | Recent Transactions | Latest bank movements |
 | Status Board | Cross-source status list |
 
-Coming soon (UI stubs): Stripe, Polar, Attio, Vercel, webtraffic.
-
-<p align="center">
-  <img src="public/git-end.png" alt="Bussola — connects everything you already use" width="100%" />
-</p>
+Coming soon: GitHub, GitLab, Linear and Notion (OAuth apps), then Polar,
+Attio and web traffic.
 
 ## Notes
 

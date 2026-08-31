@@ -1,10 +1,15 @@
 import { decryptSecret, encryptSecret } from "@/lib/crypto/vault";
 import type { TenantRepos } from "@/lib/db/tenant";
 import type { Provider } from "@/lib/db/schema";
+import { lemonsqueezyConnector } from "./lemonsqueezy";
 import { netlifyConnector } from "./netlify";
 import { qontoConnector } from "./qonto";
 import { railwayConnector } from "./railway";
+import { resendConnector } from "./resend";
+import { sentryConnector } from "./sentry";
+import { stripeConnector } from "./stripe";
 import { supabaseConnector } from "./supabase";
+import { vercelConnector } from "./vercel";
 import type { ConnectionCredentials, Connector, TestResult } from "./types";
 
 const connectors: Record<string, Connector> = {
@@ -12,20 +17,34 @@ const connectors: Record<string, Connector> = {
   netlify: netlifyConnector,
   supabase: supabaseConnector,
   qonto: qontoConnector,
+  stripe: stripeConnector,
+  lemonsqueezy: lemonsqueezyConnector,
+  sentry: sentryConnector,
+  resend: resendConnector,
+  vercel: vercelConnector,
 };
 
+/** Wave 1: everything that authenticates with a pasted key or token. */
 export const LIVE_PROVIDERS: Provider[] = [
   "railway",
+  "vercel",
   "netlify",
   "supabase",
+  "sentry",
+  "stripe",
+  "lemonsqueezy",
+  "resend",
   "qonto",
 ];
 
+/** Wave 2 needs an OAuth app; the rest is planned but unscheduled. */
 export const COMING_SOON_PROVIDERS: Provider[] = [
-  "stripe",
+  "github",
+  "gitlab",
+  "linear",
+  "notion",
   "polar",
   "attio",
-  "vercel",
   "webtraffic",
 ];
 
@@ -135,4 +154,9 @@ export * from "./railway";
 export * from "./netlify";
 export * from "./supabase";
 export * from "./qonto";
+export * from "./stripe";
+export * from "./lemonsqueezy";
+export * from "./sentry";
+export * from "./resend";
+export * from "./vercel";
 export * from "./types";

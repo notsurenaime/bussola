@@ -6,10 +6,15 @@ import type { Provider } from "@/lib/providers";
 import { SYNC_INTERVAL_SECONDS } from "@/lib/sync/config";
 import { syncNow } from "@/lib/sync/runner";
 import {
+  isLemonSqueezyWidget,
   isNetlifyWidget,
   isQontoWidget,
   isRailwayWidget,
+  isResendWidget,
+  isSentryWidget,
+  isStripeWidget,
   isSupabaseWidget,
+  isVercelWidget,
   type WidgetType,
 } from "@/lib/widgets/registry";
 
@@ -106,6 +111,30 @@ export async function GET(request: Request) {
         case "supabase-advisors":
           return await serveDashboard(repos, "supabase");
 
+        case "stripe-mrr":
+        case "stripe-revenue":
+        case "stripe-payments":
+          return await serveDashboard(repos, "stripe");
+
+        case "lemonsqueezy-mrr":
+        case "lemonsqueezy-revenue":
+        case "lemonsqueezy-orders":
+          return await serveDashboard(repos, "lemonsqueezy");
+
+        case "sentry-issues":
+        case "sentry-recent":
+        case "sentry-projects":
+          return await serveDashboard(repos, "sentry");
+
+        case "resend-domains":
+        case "resend-emails":
+          return await serveDashboard(repos, "resend");
+
+        case "vercel-tracker":
+        case "vercel-projects":
+        case "vercel-deploys":
+          return await serveDashboard(repos, "vercel");
+
         case "qonto-balance":
         case "qonto-cashflow":
         case "qonto-in-out":
@@ -169,16 +198,22 @@ export async function GET(request: Request) {
         }
       }
     } catch (error) {
-      const provider = isRailwayWidget(type)
-        ? "railway"
-        : isNetlifyWidget(type)
-          ? "netlify"
-          : isSupabaseWidget(type)
-            ? "supabase"
-            : isQontoWidget(type)
-              ? "qonto"
-              : undefined;
+      const provider = providerForWidget(type);
       return jsonError(toUserFacingError(error, provider), 502);
     }
   });
+}
+
+/** Which provider a widget belongs to, for turning an error into its wording. */
+function providerForWidget(type: WidgetType): Provider | undefined {
+  if (isRailwayWidget(type)) return "railway";
+  if (isNetlifyWidget(type)) return "netlify";
+  if (isSupabaseWidget(type)) return "supabase";
+  if (isQontoWidget(type)) return "qonto";
+  if (isStripeWidget(type)) return "stripe";
+  if (isLemonSqueezyWidget(type)) return "lemonsqueezy";
+  if (isSentryWidget(type)) return "sentry";
+  if (isResendWidget(type)) return "resend";
+  if (isVercelWidget(type)) return "vercel";
+  return undefined;
 }

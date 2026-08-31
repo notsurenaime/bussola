@@ -6,14 +6,31 @@
  * schema module.
  */
 export type Provider =
+  // Wave 1 — API-key based, no OAuth round trip
   | "railway"
-  | "netlify"
   | "supabase"
   | "qonto"
   | "stripe"
+  | "resend"
+  | "sentry"
+  | "lemonsqueezy"
+  | "vercel"
+  | "netlify"
+  // Wave 2 — need an OAuth app
+  | "github"
+  | "gitlab"
+  | "linear"
+  | "notion"
+  // Planned, not scheduled
   | "polar"
   | "attio"
-  | "vercel"
   | "webtraffic";
 
 export type ConnectionStatus = "connected" | "error" | "unknown";
+
+/** Which credential fields a provider's connect form should ask for. */
+export type CredentialField =
+  | "apiKey"
+  | "login"
+  | "secretKey"
+  | "orgSlug";

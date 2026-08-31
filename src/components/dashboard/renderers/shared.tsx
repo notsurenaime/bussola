@@ -2,7 +2,7 @@ import Link from "next/link";
 import { formatDistanceToNow } from "date-fns";
 import { getSourceMeta, SourceIcon } from "@/components/brand/source-icons";
 import type { Provider } from "@/lib/providers";
-import type { TrackerPoint } from "@/lib/connectors/types";
+import type { PaymentItem, TrackerPoint } from "@/lib/connectors/types";
 
 export function StatusDot({ status }: { status: string }) {
   const color =
@@ -77,6 +77,26 @@ export function WidgetMessage({
       ) : null}
     </div>
   );
+}
+
+/** Payment outcomes, in the same badge vocabulary as deploy states. */
+export function paymentBadgeVariant(
+  status: PaymentItem["status"],
+): "secondary" | "outline" | "destructive" {
+  switch (status) {
+    case "succeeded":
+      return "outline";
+    case "pending":
+      return "secondary";
+    case "refunded":
+      return "secondary";
+    case "failed":
+      return "destructive";
+    default: {
+      const _exhaustive: never = status;
+      return _exhaustive;
+    }
+  }
 }
 
 export function ConnectPrompt({ provider }: { provider: string }) {

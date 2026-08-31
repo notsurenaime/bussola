@@ -62,6 +62,7 @@ function previewContent(type: WidgetType) {
           </text>
         </g>
       );
+    case "vercel-tracker":
     case "netlify-tracker":
       return (
         <g>
@@ -89,6 +90,9 @@ function previewContent(type: WidgetType) {
           })}
         </g>
       );
+    case "sentry-projects":
+    case "resend-domains":
+    case "vercel-projects":
     case "netlify-sites":
       return (
         <g>
@@ -112,6 +116,12 @@ function previewContent(type: WidgetType) {
           ))}
         </g>
       );
+    // Revenue and issue counts share the single-number KPI shape.
+    case "stripe-mrr":
+    case "stripe-revenue":
+    case "lemonsqueezy-mrr":
+    case "lemonsqueezy-revenue":
+    case "sentry-issues":
     case "netlify-health":
       return (
         <g>
@@ -131,6 +141,7 @@ function previewContent(type: WidgetType) {
           <circle cx="128" cy="36" r="7" className="fill-success" />
         </g>
       );
+    case "vercel-deploys":
     case "netlify-deploys":
       return (
         <g>
@@ -617,6 +628,11 @@ function previewContent(type: WidgetType) {
           />
         </g>
       );
+    // Payment, order, error and email feeds are all row lists.
+    case "stripe-payments":
+    case "lemonsqueezy-orders":
+    case "sentry-recent":
+    case "resend-emails":
     case "qonto-transactions":
       return (
         <g>
