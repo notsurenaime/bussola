@@ -1,0 +1,27 @@
+# Postgres for a self-hosted Bussola install.
+#
+#   docker compose up -d
+#   DATABASE_URL=postgres://bussola:bussola@localhost:5432/bussola npm run db:migrate
+#
+# Not needed to try Bussola out: with no DATABASE_URL the app runs on PGlite and
+# needs no container at all. Use this once more than one person relies on it.
+services:
+  db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: bussola
+      POSTGRES_PASSWORD: bussola
+      POSTGRES_DB: bussola
+    ports:
+      - "5432:5432"
+    volumes:
+      - bussola-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U bussola -d bussola"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  bussola-pgdata:

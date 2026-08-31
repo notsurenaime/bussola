@@ -1,16 +1,15 @@
-import { getSessionUser } from "@/lib/auth/session";
-import { cachedFetch } from "@/lib/cache";
-import { jsonError, jsonOk, unauthorized } from "@/lib/api";
+import { jsonError, jsonOk, withTenant } from "@/lib/api";
 import {
   fetchNetlifyDashboard,
   fetchQontoDashboard,
   fetchQontoTransactionsPage,
   fetchRailwayDashboard,
   fetchSupabaseDashboard,
-  getConnectionByProvider,
   parseCredentials,
 } from "@/lib/connectors";
 import { toUserFacingError } from "@/lib/connectors/errors";
+import type { TenantRepos } from "@/lib/db/tenant";
+import type { Provider } from "@/lib/providers";
 import {
   isNetlifyWidget,
   isQontoWidget,
@@ -20,6 +19,20 @@ import {
 } from "@/lib/widgets/registry";
 
 export const runtime = "nodejs";
+
+/** TTL per provider dashboard, in seconds. */
+const TTL: Record<Provider | "qonto-tx", number> = {
+  railway: 45,
+  netlify: 45,
+  supabase: 60,
+  qonto: 60,
+  "qonto-tx": 30,
+  stripe: 60,
+  polar: 60,
+  attio: 60,
+  vercel: 60,
+  webtraffic: 60,
+};
 
 function needsConnection(provider: string) {
   return jsonOk({
@@ -34,185 +47,136 @@ function needsConnection(provider: string) {
   });
 }
 
-async function loadQontoDashboard(connectionId: string, encrypted: string) {
-  const credentials = parseCredentials(encrypted);
-  const { data } = await cachedFetch(`qonto-dashboard:${connectionId}`, 60, () =>
-    fetchQontoDashboard(credentials),
-  );
-  return data;
-}
+/**
+ * Load a provider's dashboard for the calling tenant, through that tenant's
+ * cache namespace. Returns null when the tenant has not connected the provider.
+ */
+async function loadDashboard<T>(
+  repos: TenantRepos,
+  provider: Provider,
+  fetcher: (credentials: ReturnType<typeof parseCredentials>) => Promise<T>,
+): Promise<T | null> {
+  const conn = await repos.connections.byProvider(provider);
+  if (!conn) return null;
 
-async function loadRailwayDashboard(connectionId: string, encrypted: string) {
-  const credentials = parseCredentials(encrypted);
-  const { data } = await cachedFetch(
-    `railway-dashboard:${connectionId}`,
-    45,
-    () => fetchRailwayDashboard(credentials.apiKey || ""),
-  );
-  return data;
-}
-
-async function loadSupabaseDashboard(connectionId: string, encrypted: string) {
-  const credentials = parseCredentials(encrypted);
-  const { data } = await cachedFetch(
-    `supabase-dashboard:${connectionId}`,
-    60,
-    () => fetchSupabaseDashboard(credentials.apiKey || ""),
-  );
-  return data;
-}
-
-async function loadNetlifyDashboard(connectionId: string, encrypted: string) {
-  const credentials = parseCredentials(encrypted);
-  const { data } = await cachedFetch(
-    `netlify-dashboard:${connectionId}`,
-    45,
-    () => fetchNetlifyDashboard(credentials.apiKey || ""),
+  const credentials = parseCredentials(conn.credentialsEncrypted);
+  const { data } = await repos.cache.fetch(
+    `${provider}-dashboard:${conn.id}`,
+    TTL[provider],
+    () => fetcher(credentials),
   );
   return data;
 }
 
 export async function GET(request: Request) {
-  const user = await getSessionUser();
-  if (!user) return unauthorized();
+  return withTenant(async (repos) => {
+    const { searchParams } = new URL(request.url);
+    const type = searchParams.get("type") as WidgetType | null;
+    if (!type) return jsonError("type required");
 
-  const { searchParams } = new URL(request.url);
-  const type = searchParams.get("type") as WidgetType | null;
-  if (!type) return jsonError("type required");
-
-  try {
-    switch (type) {
-      case "railway-tracker":
-      case "railway-services":
-      case "railway-fleet":
-      case "railway-resources":
-      case "railway-usage":
-      case "railway-deploys": {
-        const conn = getConnectionByProvider("railway");
-        if (!conn) return needsConnection("railway");
-        const data = await loadRailwayDashboard(
-          conn.id,
-          conn.credentialsEncrypted,
-        );
-        return jsonOk(data);
-      }
-      case "netlify-tracker":
-      case "netlify-sites":
-      case "netlify-health":
-      case "netlify-deploys":
-      case "netlify-builds":
-      case "netlify-forms": {
-        const conn = getConnectionByProvider("netlify");
-        if (!conn) return needsConnection("netlify");
-        const data = await loadNetlifyDashboard(
-          conn.id,
-          conn.credentialsEncrypted,
-        );
-        return jsonOk(data);
-      }
-      case "supabase-health":
-      case "supabase-projects":
-      case "supabase-services":
-      case "supabase-traffic":
-      case "supabase-requests":
-      case "supabase-advisors": {
-        const conn = getConnectionByProvider("supabase");
-        if (!conn) return needsConnection("supabase");
-        const data = await loadSupabaseDashboard(
-          conn.id,
-          conn.credentialsEncrypted,
-        );
-        return jsonOk(data);
-      }
-      case "qonto-transactions": {
-        const conn = getConnectionByProvider("qonto");
-        if (!conn) return needsConnection("qonto");
-        const credentials = parseCredentials(conn.credentialsEncrypted);
-        const limit = Number(searchParams.get("limit") || "20");
-        const cursor = searchParams.get("cursor");
-        const cacheKey = `qonto-tx:${conn.id}:${cursor || "start"}:${limit}`;
-        const { data } = await cachedFetch(cacheKey, 30, () =>
-          fetchQontoTransactionsPage(credentials, {
-            cursor,
-            limit: Number.isFinite(limit) ? limit : 20,
-          }),
-        );
-        return jsonOk(data);
-      }
-      case "qonto-balance":
-      case "qonto-cashflow":
-      case "qonto-in-out":
-      case "qonto-liquidity":
-      case "qonto-accounts":
-      case "qonto-history": {
-        const conn = getConnectionByProvider("qonto");
-        if (!conn) return needsConnection("qonto");
-        const data = await loadQontoDashboard(
-          conn.id,
-          conn.credentialsEncrypted,
-        );
-        return jsonOk(data);
-      }
-      case "status-board": {
-        const railwayConn = getConnectionByProvider("railway");
-        const netlifyConn = getConnectionByProvider("netlify");
-        const supabaseConn = getConnectionByProvider("supabase");
-
-        if (!railwayConn && !netlifyConn && !supabaseConn) {
-          return needsConnection("multi");
+    try {
+      switch (type) {
+        case "railway-tracker":
+        case "railway-services":
+        case "railway-fleet":
+        case "railway-resources":
+        case "railway-usage":
+        case "railway-deploys": {
+          const data = await loadDashboard(repos, "railway", (c) =>
+            fetchRailwayDashboard(c.apiKey || ""),
+          );
+          return data ? jsonOk(data) : needsConnection("railway");
         }
+        case "netlify-tracker":
+        case "netlify-sites":
+        case "netlify-health":
+        case "netlify-deploys":
+        case "netlify-builds":
+        case "netlify-forms": {
+          const data = await loadDashboard(repos, "netlify", (c) =>
+            fetchNetlifyDashboard(c.apiKey || ""),
+          );
+          return data ? jsonOk(data) : needsConnection("netlify");
+        }
+        case "supabase-health":
+        case "supabase-projects":
+        case "supabase-services":
+        case "supabase-traffic":
+        case "supabase-requests":
+        case "supabase-advisors": {
+          const data = await loadDashboard(repos, "supabase", (c) =>
+            fetchSupabaseDashboard(c.apiKey || ""),
+          );
+          return data ? jsonOk(data) : needsConnection("supabase");
+        }
+        case "qonto-balance":
+        case "qonto-cashflow":
+        case "qonto-in-out":
+        case "qonto-liquidity":
+        case "qonto-accounts":
+        case "qonto-history": {
+          const data = await loadDashboard(repos, "qonto", (c) =>
+            fetchQontoDashboard(c),
+          );
+          return data ? jsonOk(data) : needsConnection("qonto");
+        }
+        case "qonto-transactions": {
+          const conn = await repos.connections.byProvider("qonto");
+          if (!conn) return needsConnection("qonto");
 
-        const empty = { items: [] as never[] };
-        const [railway, netlify, supabase] = await Promise.all([
-          railwayConn
-            ? loadRailwayDashboard(
-                railwayConn.id,
-                railwayConn.credentialsEncrypted,
-              )
-                .then((data) => ({ items: data.items }))
-                .catch(() => empty)
-            : Promise.resolve(empty),
-          netlifyConn
-            ? loadNetlifyDashboard(
-                netlifyConn.id,
-                netlifyConn.credentialsEncrypted,
-              )
-                .then((data) => ({ items: data.items }))
-                .catch(() => empty)
-            : Promise.resolve(empty),
-          supabaseConn
-            ? loadSupabaseDashboard(
-                supabaseConn.id,
-                supabaseConn.credentialsEncrypted,
-              )
-                .then((data) => ({ items: data.items }))
-                .catch(() => empty)
-            : Promise.resolve(empty),
-        ]);
+          const credentials = parseCredentials(conn.credentialsEncrypted);
+          const parsedLimit = Number(searchParams.get("limit") || "20");
+          const limit = Number.isFinite(parsedLimit) ? parsedLimit : 20;
+          const cursor = searchParams.get("cursor");
 
-        return jsonOk({
-          items: [
-            ...railway.items.slice(0, 8),
-            ...netlify.items.slice(0, 8),
-            ...supabase.items.slice(0, 8),
-          ],
-        });
+          const { data } = await repos.cache.fetch(
+            `qonto-tx:${conn.id}:${cursor || "start"}:${limit}`,
+            TTL["qonto-tx"],
+            () => fetchQontoTransactionsPage(credentials, { cursor, limit }),
+          );
+          return jsonOk(data);
+        }
+        case "status-board": {
+          const [railway, netlify, supabase] = await Promise.all([
+            loadDashboard(repos, "railway", (c) =>
+              fetchRailwayDashboard(c.apiKey || ""),
+            ).catch(() => null),
+            loadDashboard(repos, "netlify", (c) =>
+              fetchNetlifyDashboard(c.apiKey || ""),
+            ).catch(() => null),
+            loadDashboard(repos, "supabase", (c) =>
+              fetchSupabaseDashboard(c.apiKey || ""),
+            ).catch(() => null),
+          ]);
+
+          if (!railway && !netlify && !supabase) {
+            return needsConnection("multi");
+          }
+
+          return jsonOk({
+            items: [
+              ...(railway?.items ?? []).slice(0, 8),
+              ...(netlify?.items ?? []).slice(0, 8),
+              ...(supabase?.items ?? []).slice(0, 8),
+            ],
+          });
+        }
+        default: {
+          const _exhaustive: never = type;
+          return jsonError(`Unknown widget type: ${_exhaustive}`);
+        }
       }
-      default: {
-        const _exhaustive: never = type;
-        return jsonError(`Unknown widget type: ${_exhaustive}`);
-      }
+    } catch (error) {
+      const provider = isRailwayWidget(type)
+        ? "railway"
+        : isNetlifyWidget(type)
+          ? "netlify"
+          : isSupabaseWidget(type)
+            ? "supabase"
+            : isQontoWidget(type)
+              ? "qonto"
+              : undefined;
+      return jsonError(toUserFacingError(error, provider), 502);
     }
-  } catch (error) {
-    const provider = isRailwayWidget(type)
-      ? "railway"
-      : isNetlifyWidget(type)
-        ? "netlify"
-        : isSupabaseWidget(type)
-          ? "supabase"
-          : isQontoWidget(type)
-            ? "qonto"
-            : undefined;
-    return jsonError(toUserFacingError(error, provider), 502);
-  }
+  });
 }

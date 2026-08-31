@@ -1,96 +1,111 @@
-import Database from "better-sqlite3";
-import { drizzle } from "drizzle-orm/better-sqlite3";
 import fs from "fs";
 import path from "path";
+import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
+import { assertEditionConfig } from "@/lib/edition";
 import * as schema from "./schema";
 
-const globalForDb = globalThis as unknown as {
-  __bussolaDb?: ReturnType<typeof drizzle<typeof schema>>;
-  __bussolaSqlite?: Database.Database;
+/**
+ * Both editions speak Postgres, so there is exactly one schema, one migration
+ * set and one query dialect.
+ *
+ * `DATABASE_URL` selects a real Postgres server (cloud, or a self-hoster who
+ * brought their own). With no URL we fall back to PGlite — Postgres compiled to
+ * WASM, stored as a directory on disk — so `npm run dev` still needs no daemon
+ * and no Docker. PGlite is single-process by design: it suits one person
+ * running Bussola locally, not a shared deployment. Set DATABASE_URL for that.
+ */
+export type BussolaDb = PgDatabase<PgQueryResultHKT, typeof schema>;
+
+type Handle = {
+  db: BussolaDb;
+  migrate: () => Promise<void>;
+  close: () => Promise<void>;
 };
 
-function resolveDbPath(): string {
+const globalForDb = globalThis as unknown as {
+  __bussolaDb?: Promise<Handle>;
+};
+
+function migrationsFolder(): string {
+  return path.join(process.cwd(), "drizzle");
+}
+
+export function databaseUrl(): string | undefined {
+  return process.env.DATABASE_URL || undefined;
+}
+
+function pgliteDataDir(): string {
   const dataDir =
     process.env.BUSSOLA_DATA_DIR || path.join(process.cwd(), "data");
-  fs.mkdirSync(dataDir, { recursive: true });
-  return path.join(dataDir, "bussola.db");
+  return path.join(dataDir, "pgdata");
 }
 
-function migrate(sqlite: Database.Database) {
-  sqlite.exec(`
-    CREATE TABLE IF NOT EXISTS users (
-      id TEXT PRIMARY KEY,
-      password_hash TEXT NOT NULL,
-      created_at INTEGER NOT NULL,
-      updated_at INTEGER NOT NULL
-    );
+async function createHandle(): Promise<Handle> {
+  assertEditionConfig();
 
-    CREATE TABLE IF NOT EXISTS sessions (
-      id TEXT PRIMARY KEY,
-      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-      expires_at INTEGER NOT NULL,
-      created_at INTEGER NOT NULL
-    );
+  const url = databaseUrl();
 
-    CREATE TABLE IF NOT EXISTS dashboards (
-      id TEXT PRIMARY KEY,
-      name TEXT NOT NULL,
-      created_at INTEGER NOT NULL,
-      updated_at INTEGER NOT NULL
-    );
+  if (url) {
+    const [{ Pool }, { drizzle }, { migrate }] = await Promise.all([
+      import("pg"),
+      import("drizzle-orm/node-postgres"),
+      import("drizzle-orm/node-postgres/migrator"),
+    ]);
 
-    CREATE TABLE IF NOT EXISTS dashboard_widgets (
-      id TEXT PRIMARY KEY,
-      dashboard_id TEXT NOT NULL REFERENCES dashboards(id) ON DELETE CASCADE,
-      widget_type TEXT NOT NULL,
-      title TEXT,
-      config_json TEXT NOT NULL DEFAULT '{}',
-      layout_x INTEGER NOT NULL DEFAULT 0,
-      layout_y INTEGER NOT NULL DEFAULT 0,
-      layout_w INTEGER NOT NULL DEFAULT 4,
-      layout_h INTEGER NOT NULL DEFAULT 3,
-      created_at INTEGER NOT NULL,
-      updated_at INTEGER NOT NULL
-    );
+    const pool = new Pool({
+      connectionString: url,
+      max: Number(process.env.DATABASE_POOL_MAX || 10),
+      // Managed Postgres (Supabase, Neon) terminates idle clients; keep the
+      // pool small and let it recycle rather than holding dead sockets.
+      idleTimeoutMillis: 30_000,
+      connectionTimeoutMillis: 10_000,
+    });
 
-    CREATE TABLE IF NOT EXISTS connections (
-      id TEXT PRIMARY KEY,
-      provider TEXT NOT NULL,
-      label TEXT NOT NULL,
-      credentials_encrypted TEXT NOT NULL,
-      status TEXT NOT NULL DEFAULT 'unknown',
-      last_checked_at INTEGER,
-      last_error TEXT,
-      created_at INTEGER NOT NULL,
-      updated_at INTEGER NOT NULL
-    );
-
-    CREATE TABLE IF NOT EXISTS connection_cache (
-      id TEXT PRIMARY KEY,
-      cache_key TEXT NOT NULL UNIQUE,
-      payload_json TEXT NOT NULL,
-      expires_at INTEGER NOT NULL,
-      created_at INTEGER NOT NULL
-    );
-
-    CREATE INDEX IF NOT EXISTS idx_widgets_dashboard ON dashboard_widgets(dashboard_id);
-    CREATE INDEX IF NOT EXISTS idx_sessions_user ON sessions(user_id);
-    CREATE INDEX IF NOT EXISTS idx_cache_expires ON connection_cache(expires_at);
-  `);
-}
-
-export function getDb() {
-  if (globalForDb.__bussolaDb) {
-    return globalForDb.__bussolaDb;
+    const db = drizzle(pool, { schema });
+    return {
+      db: db as unknown as BussolaDb,
+      migrate: () => migrate(db, { migrationsFolder: migrationsFolder() }),
+      close: () => pool.end(),
+    };
   }
 
-  const sqlite = new Database(resolveDbPath());
-  sqlite.pragma("journal_mode = WAL");
-  sqlite.pragma("foreign_keys = ON");
-  migrate(sqlite);
+  const [{ PGlite }, { drizzle }, { migrate }] = await Promise.all([
+    import("@electric-sql/pglite"),
+    import("drizzle-orm/pglite"),
+    import("drizzle-orm/pglite/migrator"),
+  ]);
 
-  const db = drizzle(sqlite, { schema });
-  globalForDb.__bussolaSqlite = sqlite;
-  globalForDb.__bussolaDb = db;
-  return db;
+  const dir = pgliteDataDir();
+  // PGlite does not create intermediate directories itself.
+  fs.mkdirSync(dir, { recursive: true });
+
+  const client = new PGlite(dir);
+  const db = drizzle(client, { schema });
+  return {
+    db: db as unknown as BussolaDb,
+    migrate: () => migrate(db, { migrationsFolder: migrationsFolder() }),
+    close: () => client.close(),
+  };
 }
+
+function handle(): Promise<Handle> {
+  globalForDb.__bussolaDb ??= createHandle();
+  return globalForDb.__bussolaDb;
+}
+
+export async function getDb(): Promise<BussolaDb> {
+  return (await handle()).db;
+}
+
+export async function runMigrations(): Promise<void> {
+  await (await handle()).migrate();
+}
+
+export async function closeDb(): Promise<void> {
+  const existing = globalForDb.__bussolaDb;
+  if (!existing) return;
+  globalForDb.__bussolaDb = undefined;
+  await (await existing).close();
+}
+
+export { schema };

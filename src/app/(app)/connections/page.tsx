@@ -22,7 +22,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import type { Provider } from "@/lib/db/schema";
+import type { Provider } from "@/lib/providers";
 
 type Connection = {
   id: string;

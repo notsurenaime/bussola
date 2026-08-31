@@ -16,16 +16,12 @@ export async function POST(request: Request) {
 
   const body = await request.json().catch(() => null);
   const parsed = schema.safeParse(body);
-  if (!parsed.success) {
-    return jsonError("Invalid password payload");
-  }
+  if (!parsed.success) return jsonError("Invalid password payload");
 
   try {
-    await changePassword(
-      parsed.data.currentPassword,
-      parsed.data.newPassword,
-    );
-    return jsonOk({ ok: true });
+    await changePassword(parsed.data.currentPassword, parsed.data.newPassword);
+    // Every session was revoked, this one included: the client must sign in again.
+    return jsonOk({ ok: true, reauthRequired: true });
   } catch (error) {
     return jsonError(
       error instanceof Error ? error.message : "Password change failed",

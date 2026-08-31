@@ -1,24 +1,12 @@
-import { desc, eq } from "drizzle-orm";
 import { z } from "zod";
-import { getSessionUser } from "@/lib/auth/session";
-import { jsonError, jsonOk, unauthorized } from "@/lib/api";
-import { getDb } from "@/lib/db";
-import { dashboardWidgets, dashboards } from "@/lib/db/schema";
-import { createId } from "@/lib/id";
+import { jsonError, jsonOk, withTenant } from "@/lib/api";
 
 export const runtime = "nodejs";
 
 export async function GET() {
-  const user = await getSessionUser();
-  if (!user) return unauthorized();
-
-  const rows = getDb()
-    .select()
-    .from(dashboards)
-    .orderBy(desc(dashboards.updatedAt))
-    .all();
-
-  return jsonOk({ dashboards: rows });
+  return withTenant(async (repos) => {
+    return jsonOk({ dashboards: await repos.dashboards.list() });
+  });
 }
 
 const createSchema = z.object({
@@ -26,43 +14,25 @@ const createSchema = z.object({
 });
 
 export async function POST(request: Request) {
-  const user = await getSessionUser();
-  if (!user) return unauthorized();
+  return withTenant(async (repos) => {
+    const body = await request.json().catch(() => null);
+    const parsed = createSchema.safeParse(body);
+    if (!parsed.success) return jsonError("Name required");
 
-  const body = await request.json().catch(() => null);
-  const parsed = createSchema.safeParse(body);
-  if (!parsed.success) return jsonError("Name required");
-
-  const now = new Date();
-  const id = createId("dash");
-  getDb()
-    .insert(dashboards)
-    .values({
-      id,
-      name: parsed.data.name,
-      createdAt: now,
-      updatedAt: now,
-    })
-    .run();
-
-  const dashboard = getDb()
-    .select()
-    .from(dashboards)
-    .where(eq(dashboards.id, id))
-    .get();
-
-  return jsonOk({ dashboard }, { status: 201 });
+    const dashboard = await repos.dashboards.create(parsed.data.name);
+    return jsonOk({ dashboard }, { status: 201 });
+  });
 }
 
 export async function DELETE(request: Request) {
-  const user = await getSessionUser();
-  if (!user) return unauthorized();
+  return withTenant(async (repos) => {
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get("id");
+    if (!id) return jsonError("id required");
 
-  const { searchParams } = new URL(request.url);
-  const id = searchParams.get("id");
-  if (!id) return jsonError("id required");
-
-  getDb().delete(dashboardWidgets).where(eq(dashboardWidgets.dashboardId, id)).run();
-  getDb().delete(dashboards).where(eq(dashboards.id, id)).run();
-  return jsonOk({ ok: true });
+    // Widgets cascade with the dashboard row.
+    const removed = await repos.dashboards.remove(id);
+    if (!removed) return jsonError("Dashboard not found", 404);
+    return jsonOk({ ok: true });
+  });
 }

@@ -1,4 +1,19 @@
-import { getDb } from "../lib/db";
+import { closeDb, databaseUrl, runMigrations } from "../lib/db";
+import { EDITION } from "../lib/edition";
 
-getDb();
-console.log("Bussola SQLite schema ready.");
+async function main() {
+  const target = databaseUrl()
+    ? new URL(databaseUrl()!).host
+    : "PGlite (local file)";
+  console.log(`Bussola · edition=${EDITION} · target=${target}`);
+
+  await runMigrations();
+  console.log("Migrations applied.");
+
+  await closeDb();
+}
+
+main().catch((error) => {
+  console.error("Migration failed:", error);
+  process.exitCode = 1;
+});

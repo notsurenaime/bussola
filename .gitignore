@@ -21,7 +21,7 @@ next-env.d.ts
 .env*
 !.env.example
 
-# Local database and app data
+# Local database and app data (PGlite lives in ./data/pgdata)
 /data
 *.db
 *.db-*

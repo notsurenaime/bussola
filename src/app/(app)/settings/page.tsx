@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { PageHeader, SectionHeading } from "@/components/layout/page";
 import { ThemeToggle } from "@/components/layout/theme-toggle";
@@ -10,6 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 
 export default function SettingsPage() {
+  const router = useRouter();
   const [encryptionConfigured, setEncryptionConfigured] = useState(false);
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
@@ -31,15 +33,27 @@ export default function SettingsPage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ currentPassword, newPassword }),
     });
-    const data = (await res.json()) as { error?: string };
+    const data = (await res.json()) as {
+      error?: string;
+      reauthRequired?: boolean;
+    };
     setSaving(false);
     if (!res.ok) {
       toast.error(data.error || "Failed to change password");
       return;
     }
-    toast.success("Password updated");
     setCurrentPassword("");
     setNewPassword("");
+
+    if (data.reauthRequired) {
+      // Changing the password revokes every session, this one included, so drop
+      // any cached server payload on the way out.
+      toast.success("Password updated — signing you back in");
+      router.replace("/login");
+      router.refresh();
+      return;
+    }
+    toast.success("Password updated");
   }
 
   return (

@@ -1,7 +1,8 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  serverExternalPackages: ["better-sqlite3"],
+  // Native/WASM database drivers must stay outside the bundle.
+  serverExternalPackages: ["pg", "@electric-sql/pglite"],
   experimental: {
     optimizePackageImports: ["@phosphor-icons/react"],
   },

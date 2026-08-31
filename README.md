@@ -5,7 +5,7 @@
 Local-first, plug-and-play dashboard for connecting infrastructure and finance sources into customizable canvases.
 
 **MVP connectors:** Railway · Netlify · Supabase · Qonto  
-**Stack:** Next.js · TypeScript · Tailwind v4 · shadcn/ui · Tremor Raw · SQLite
+**Stack:** Next.js · TypeScript · Tailwind v4 · shadcn/ui · Tremor Raw · Postgres
 
 <p align="center">
   <img src="public/git-main.png" alt="Bussola — opensource, secure, fast. Beautiful & truly yours." width="100%" />
@@ -14,26 +14,66 @@ Local-first, plug-and-play dashboard for connecting infrastructure and finance s
 ## Quick start
 
 ```bash
-pnpm install
+npm install
 cp .env.example .env.local
 # optional but recommended:
 # openssl rand -hex 32  →  set as BUSSOLA_ENCRYPTION_KEY
 
-pnpm db:migrate
-pnpm dev
+npm run db:migrate
+npm run dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000), create a local admin password, then:
 
-1. **Connections** — paste API tokens for Railway / Netlify / Supabase / Qonto  
-2. **Dashboards** — create a canvas  
-3. **Edit** — drag, resize, and add Tremor trackers + KPI blocks  
+1. **Connections** — paste API tokens for Railway / Netlify / Supabase / Qonto
+2. **Dashboards** — create a canvas
+3. **Edit** — drag, resize, and add Tremor trackers + KPI blocks
 
 Without a connection, widgets show an empty state and link to Connections.
 
+## Database
+
+Bussola speaks Postgres, and only Postgres — one schema, one migration set, the
+same queries whether you run it on a laptop or host it for others.
+
+**No `DATABASE_URL`** (the default): the app runs on
+[PGlite](https://pglite.dev), Postgres compiled to WASM, stored under
+`./data/pgdata`. No server, no Docker, nothing to install. PGlite is
+single-process by design — perfect for one person, not for a shared instance.
+
+**With `DATABASE_URL`**: any Postgres server. Use this the moment more than one
+person depends on the install.
+
+```bash
+docker compose up -d db
+export DATABASE_URL=postgres://bussola:bussola@localhost:5432/bussola
+npm run db:migrate
+```
+
+Schema changes go through Drizzle: edit `src/lib/db/schema.ts`, run
+`npm run db:generate`, commit the SQL in `drizzle/`.
+
+## Editions
+
+The same codebase runs in two modes, selected by `BUSSOLA_EDITION`.
+
+| | `self-hosted` (default) | `cloud` |
+|---|---|---|
+| Tenancy | one organization, created at setup | one per customer |
+| Sign-in | single admin password | signup + login *(Phase 1)* |
+| Database | PGlite or your own Postgres | managed Postgres, required |
+| Encryption key | falls back to a local dev key | required — startup fails without it |
+| Billing | none, everything unlocked | Stripe *(Phase 3)* |
+
+This is not two builds. Every query against tenant-owned data goes through the
+organization-scoped repositories in `src/lib/db/tenant.ts`, in both editions —
+so the self-hosted path exercises the very isolation code that keeps hosted
+customers apart, and ESLint refuses to compile a route handler that reaches
+around it.
+
 ## Local private use
 
-- Data lives in `./data/bussola.db` (or `BUSSOLA_DATA_DIR`)
+- Data lives in `./data/pgdata` (or your `DATABASE_URL` server)
 - API secrets are encrypted with AES-256-GCM
 - Single-user password auth via HTTP-only session cookie
 - Light / dark theme with the Bussola palette and **Elms Sans**
@@ -79,4 +119,5 @@ Coming soon (UI stubs): Stripe, Polar, Attio, Vercel, webtraffic.
 
 - Qonto accepts `login:secret` as one API key field, or separate login + secret key
 - Widget responses are cached ~45–60s to keep local resource use low
-- Designed to migrate storage to Supabase later for cloud / multi-user
+- Storage is multi-tenant already: every row is owned by an organization, so
+  the hosted edition adds accounts and billing rather than a new data model

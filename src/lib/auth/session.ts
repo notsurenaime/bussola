@@ -1,32 +1,29 @@
 import { cookies } from "next/headers";
-import { eq, lt } from "drizzle-orm";
+import { and, eq, lt } from "drizzle-orm";
 import { createId } from "@/lib/id";
 import { getDb } from "@/lib/db";
-import { sessions, users } from "@/lib/db/schema";
+import { memberships, sessions, users } from "@/lib/db/schema";
+import type { TenantContext } from "@/lib/db/tenant";
 
 const SESSION_COOKIE = "bussola_session";
 const SESSION_DAYS = 30;
 
+/** True once at least one account exists. Self-hosted setup gate. */
 export async function hasUser(): Promise<boolean> {
-  const db = getDb();
-  const row = db.select().from(users).limit(1).all();
-  return row.length > 0;
+  const db = await getDb();
+  const rows = await db.select({ id: users.id }).from(users).limit(1);
+  return rows.length > 0;
 }
 
-export async function createSession(userId: string): Promise<string> {
-  const db = getDb();
-  const now = new Date();
-  const expiresAt = new Date(now.getTime() + SESSION_DAYS * 24 * 60 * 60 * 1000);
+export async function createSession(
+  userId: string,
+  organizationId: string,
+): Promise<string> {
+  const db = await getDb();
+  const expiresAt = new Date(Date.now() + SESSION_DAYS * 24 * 60 * 60 * 1000);
   const id = createId("ses");
 
-  db.insert(sessions)
-    .values({
-      id,
-      userId,
-      expiresAt,
-      createdAt: now,
-    })
-    .run();
+  await db.insert(sessions).values({ id, userId, organizationId, expiresAt });
 
   const jar = await cookies();
   jar.set(SESSION_COOKIE, id, {
@@ -44,42 +41,56 @@ export async function destroySession(): Promise<void> {
   const jar = await cookies();
   const token = jar.get(SESSION_COOKIE)?.value;
   if (token) {
-    getDb().delete(sessions).where(eq(sessions.id, token)).run();
+    const db = await getDb();
+    await db.delete(sessions).where(eq(sessions.id, token));
   }
   jar.delete(SESSION_COOKIE);
 }
 
-export async function getSessionUser(): Promise<{ id: string } | null> {
+/** Invalidate every session for a user — used after a password change. */
+export async function destroyAllSessionsFor(userId: string): Promise<void> {
+  const db = await getDb();
+  await db.delete(sessions).where(eq(sessions.userId, userId));
+}
+
+/**
+ * Resolve the cookie to a verified tenant context.
+ *
+ * The organization is re-checked against a live membership on every request, so
+ * revoking a member takes effect immediately instead of waiting for their
+ * session to expire.
+ */
+export async function getSessionUser(): Promise<TenantContext | null> {
   const jar = await cookies();
   const token = jar.get(SESSION_COOKIE)?.value;
   if (!token) return null;
 
-  const db = getDb();
+  const db = await getDb();
   const now = new Date();
-  db.delete(sessions).where(lt(sessions.expiresAt, now)).run();
+  await db.delete(sessions).where(lt(sessions.expiresAt, now));
 
-  const row = db
+  const [row] = await db
     .select({
-      sessionId: sessions.id,
       userId: sessions.userId,
+      organizationId: sessions.organizationId,
       expiresAt: sessions.expiresAt,
+      membershipId: memberships.id,
     })
     .from(sessions)
+    .innerJoin(
+      memberships,
+      and(
+        eq(memberships.userId, sessions.userId),
+        eq(memberships.organizationId, sessions.organizationId),
+      ),
+    )
     .where(eq(sessions.id, token))
-    .get();
+    .limit(1);
 
   if (!row || row.expiresAt < now) {
     jar.delete(SESSION_COOKIE);
     return null;
   }
 
-  return { id: row.userId };
-}
-
-export async function requireUser(): Promise<{ id: string }> {
-  const user = await getSessionUser();
-  if (!user) {
-    throw new Error("UNAUTHORIZED");
-  }
-  return user;
+  return { userId: row.userId, organizationId: row.organizationId };
 }
