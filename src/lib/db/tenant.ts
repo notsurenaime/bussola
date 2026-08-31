@@ -125,6 +125,16 @@ export function forTenant(ctx: TenantContext) {
           );
       },
 
+      /** Widget types in use, for showing what a connection feeds. */
+      async listTypes() {
+        const db = await getDb();
+        const rows = await db
+          .select({ widgetType: dashboardWidgets.widgetType })
+          .from(dashboardWidgets)
+          .where(eq(dashboardWidgets.organizationId, org));
+        return rows.map((row) => row.widgetType);
+      },
+
       /** Widgets across every dashboard, for the setup checklist. */
       async countAll() {
         const db = await getDb();

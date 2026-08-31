@@ -2,384 +2,349 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { toast } from "sonner";
+import { formatDistanceToNow } from "date-fns";
 import {
-  ArrowsClockwiseIcon,
-  PlugsConnectedIcon,
+  ArrowClockwiseIcon,
+  ArrowSquareOutIcon,
+  PencilSimpleIcon,
+  PlugsIcon,
   TrashIcon,
 } from "@phosphor-icons/react";
+import { toast } from "sonner";
+import { PageHeader, SectionHeading } from "@/components/layout/page";
 import { SourceIcon } from "@/components/brand/source-icons";
-import { EmptyState, PageHeader, SectionHeading } from "@/components/layout/page";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import type { CredentialField, Provider } from "@/lib/providers";
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { PROVIDER_CATALOG } from "@/lib/connectors/catalog";
+import { connectionHealth } from "@/lib/connectors/health";
+import type { Provider } from "@/lib/providers";
+import { cn } from "@/lib/utils";
+import { ConnectionDialog } from "./connection-dialog";
 
-type Connection = {
+export type ConnectionView = {
   id: string;
   provider: Provider;
   label: string;
   status: string;
-  lastError?: string | null;
-  lastCheckedAt?: string | Date | null;
+  lastError: string | null;
+  syncEnabled: boolean;
+  lastSyncedAt: string | null;
+  consecutiveFailures: number;
 };
 
-const PROVIDER_META: Record<
-  string,
-  {
-    name: string;
-    hint: string;
-    fields: CredentialField[];
-    /** Label for the optional scope field, when the provider needs one. */
-    orgSlugLabel?: string;
-  }
-> = {
-  railway: {
-    name: "Railway",
-    hint: "Account token (railway.com/account/tokens) or project token from project settings — both work",
-    fields: ["apiKey"],
-  },
-  netlify: {
-    name: "Netlify",
-    hint: "Personal access token from Netlify user settings",
-    fields: ["apiKey"],
-  },
-  supabase: {
-    name: "Supabase",
-    hint: "Personal access token (starts with sbp_) from supabase.com/dashboard/account/tokens — not a project anon/service key",
-    fields: ["apiKey"],
-  },
-  vercel: {
-    name: "Vercel",
-    hint: "Access token from vercel.com/account/tokens. For a team account, add the team id as well",
-    fields: ["apiKey", "orgSlug"],
-    orgSlugLabel: "Team ID (optional)",
-  },
-  sentry: {
-    name: "Sentry",
-    hint: "Auth token from sentry.io → Settings → Auth Tokens, with project:read and org:read scopes",
-    fields: ["apiKey", "orgSlug"],
-    orgSlugLabel: "Organization slug (optional)",
-  },
-  stripe: {
-    name: "Stripe",
-    hint: "A restricted key with read access to Charges, Subscriptions and Balance — never your live secret key",
-    fields: ["apiKey"],
-  },
-  lemonsqueezy: {
-    name: "Lemon Squeezy",
-    hint: "API key from Settings → API in your Lemon Squeezy dashboard",
-    fields: ["apiKey"],
-  },
-  resend: {
-    name: "Resend",
-    hint: "API key from resend.com/api-keys. Full access is needed to list sent emails; a sending key still shows domains",
-    fields: ["apiKey"],
-  },
-  qonto: {
-    name: "Qonto",
-    hint: "From Qonto → Integrations → API key: paste login:secret, or enter login and secret separately",
-    fields: ["apiKey", "login", "secretKey"],
-  },
+type Props = {
+  connections: ConnectionView[];
+  liveProviders: Provider[];
+  comingSoon: Provider[];
+  /** How many widgets currently read from each provider. */
+  widgetCounts: Record<string, number>;
 };
+
+/** "1 widget" / "3 widgets" as one text node, so no JSX whitespace surprises. */
+function plural(count: number, noun: string): string {
+  return `${count} ${noun}${count === 1 ? "" : "s"}`;
+}
 
 export function ConnectionsManager({
-  initialConnections,
+  connections,
+  liveProviders,
   comingSoon,
-}: {
-  initialConnections: Connection[];
-  comingSoon: Provider[];
-}) {
+  widgetCounts,
+}: Props) {
   const router = useRouter();
-  const connections = initialConnections;
-  const [provider, setProvider] = useState<Provider>("railway");
-  const [label, setLabel] = useState("");
-  const [apiKey, setApiKey] = useState("");
-  const [login, setLogin] = useState("");
-  const [secretKey, setSecretKey] = useState("");
-  const [orgSlug, setOrgSlug] = useState("");
-  const [open, setOpen] = useState(false);
-  const [saving, setSaving] = useState(false);
+  const [editing, setEditing] = useState<{
+    provider: Provider;
+    connection?: ConnectionView;
+  } | null>(null);
+  const [busy, setBusy] = useState<string | null>(null);
 
-  /**
-   * The list is rendered on the server, so a mutation just asks Next to
-   * re-render it rather than keeping a second copy in client state.
-   */
-  function reload() {
-    router.refresh();
+  const byProvider = new Map(connections.map((c) => [c.provider, c]));
+
+  async function call(
+    id: string,
+    path: string,
+    messages: { ok: string; fail: string },
+  ) {
+    setBusy(id);
+    try {
+      const res = await fetch(path, { method: "POST" });
+      const data = (await res.json()) as {
+        ok?: boolean;
+        error?: string | null;
+        result?: { ok: boolean; message: string };
+      };
+      const ok = data.result ? data.result.ok : data.ok;
+      const message = data.result?.message || data.error;
+
+      if (ok) toast.success(message || messages.ok);
+      else toast.error(message || messages.fail);
+
+      router.refresh();
+    } finally {
+      setBusy(null);
+    }
   }
 
-  async function saveConnection() {
-    setSaving(true);
-    const res = await fetch("/api/connections", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        provider,
-        label: label || PROVIDER_META[provider]?.name || provider,
-        credentials: {
-          apiKey: apiKey || undefined,
-          login: login || undefined,
-          secretKey: secretKey || undefined,
-          orgSlug: orgSlug || undefined,
-        },
-        test: true,
-      }),
-    });
-    const data = (await res.json()) as {
-      error?: string;
-      testResult?: { ok: boolean; message: string };
-    };
-    setSaving(false);
-    if (!res.ok) {
-      toast.error(data.error || "Failed to save connection");
+  async function remove(connection: ConnectionView) {
+    const uses = widgetCounts[connection.provider] ?? 0;
+    const warning =
+      uses > 0 ? ` ${plural(uses, "widget")} will fall back to demo data.` : "";
+    if (
+      !window.confirm(
+        `Remove the ${PROVIDER_CATALOG[connection.provider].name} connection?${warning}`,
+      )
+    ) {
       return;
     }
-    if (data.testResult?.ok) {
-      toast.success(data.testResult.message);
-    } else {
-      toast.error(data.testResult?.message || "Saved, but test failed");
+
+    setBusy(connection.id);
+    try {
+      const res = await fetch(`/api/connections?id=${connection.id}`, {
+        method: "DELETE",
+      });
+      if (!res.ok) {
+        toast.error("Could not remove the connection");
+        return;
+      }
+      toast.success("Connection removed");
+      router.refresh();
+    } finally {
+      setBusy(null);
     }
-    setOpen(false);
-    setApiKey("");
-    setLogin("");
-    setSecretKey("");
-    setLabel("");
-    reload();
   }
-
-  async function testConnection(id: string) {
-    const res = await fetch(`/api/connections/${id}/test`, { method: "POST" });
-    const data = (await res.json()) as {
-      result?: { ok: boolean; message: string };
-    };
-    if (data.result?.ok) toast.success(data.result.message);
-    else toast.error(data.result?.message || "Test failed");
-    reload();
-  }
-
-  async function removeConnection(id: string) {
-    const res = await fetch(`/api/connections?id=${id}`, { method: "DELETE" });
-    if (!res.ok) {
-      toast.error("Failed to delete");
-      return;
-    }
-    toast.success("Connection removed");
-    reload();
-  }
-
-  const meta = PROVIDER_META[provider];
 
   return (
     <div className="space-y-8">
       <PageHeader
         title="Connections"
-        description="Store API keys encrypted locally. Widgets never see secrets in the browser."
-        actions={
-          <Dialog open={open} onOpenChange={setOpen}>
-            <DialogTrigger
-              render={
-                <Button type="button">
-                  <PlugsConnectedIcon className="size-4" />
-                  Add connection
-                </Button>
-              }
-            />
-            <DialogContent className="sm:max-w-lg">
-              <DialogHeader>
-                <DialogTitle>Connect a source</DialogTitle>
-                <DialogDescription>
-                  Keys are encrypted at rest with AES-256-GCM.
-                </DialogDescription>
-              </DialogHeader>
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <Label>Provider</Label>
-                  <div className="flex flex-wrap gap-2">
-                    {(Object.keys(PROVIDER_META) as Provider[]).map((p) => (
-                      <Button
-                        key={p}
-                        type="button"
-                        size="sm"
-                        variant={provider === p ? "default" : "outline"}
-                        onClick={() => setProvider(p)}
-                      >
-                        <SourceIcon
-                          provider={p}
-                          branded={provider !== p}
-                          className="size-3.5"
-                        />
-                        {PROVIDER_META[p].name}
-                      </Button>
-                    ))}
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="label">Label</Label>
-                  <Input
-                    id="label"
-                    placeholder={meta?.name}
-                    value={label}
-                    onChange={(e) => setLabel(e.target.value)}
-                  />
-                </div>
-                {meta?.fields.includes("apiKey") ? (
-                  <div className="space-y-2">
-                    <Label htmlFor="apiKey">
-                      {provider === "qonto"
-                        ? "API key (login:secret)"
-                        : "API token"}
-                    </Label>
-                    <Input
-                      id="apiKey"
-                      type="password"
-                      value={apiKey}
-                      onChange={(e) => setApiKey(e.target.value)}
-                      autoComplete="off"
-                    />
-                  </div>
-                ) : null}
-                {meta?.fields.includes("orgSlug") ? (
-                  <div className="space-y-2">
-                    <Label htmlFor="orgSlug">
-                      {meta.orgSlugLabel || "Organization"}
-                    </Label>
-                    <Input
-                      id="orgSlug"
-                      value={orgSlug}
-                      onChange={(e) => setOrgSlug(e.target.value)}
-                      autoComplete="off"
-                    />
-                  </div>
-                ) : null}
-                {provider === "qonto" ? (
-                  <>
-                    <div className="space-y-2">
-                      <Label htmlFor="login">Or login</Label>
-                      <Input
-                        id="login"
-                        value={login}
-                        onChange={(e) => setLogin(e.target.value)}
-                        autoComplete="off"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="secretKey">Secret key</Label>
-                      <Input
-                        id="secretKey"
-                        type="password"
-                        value={secretKey}
-                        onChange={(e) => setSecretKey(e.target.value)}
-                        autoComplete="off"
-                      />
-                    </div>
-                  </>
-                ) : null}
-                <p className="text-xs text-muted-foreground">{meta?.hint}</p>
-              </div>
-              <DialogFooter>
-                <Button
-                  type="button"
-                  disabled={saving}
-                  onClick={() => void saveConnection()}
-                >
-                  {saving ? "Saving…" : "Save & test"}
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
-        }
+        description="Tokens are encrypted before they are stored, and never reach the browser."
       />
 
       <section className="space-y-3">
-        <SectionHeading title="Active" />
-        {connections.length === 0 ? (
-          <EmptyState
-            title="No connections yet"
-            description="Connect a source to start powering your widgets."
-          />
-        ) : (
-          <ul className="divide-y divide-border border-y border-border">
-            {connections.map((connection) => (
-              <li
-                key={connection.id}
-                className="flex flex-wrap items-center justify-between gap-3 py-4"
+        <SectionHeading
+          title="Sources"
+          description={`${connections.length} of ${liveProviders.length} connected`}
+        />
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+          {liveProviders.map((provider) => {
+            const entry = PROVIDER_CATALOG[provider];
+            const connection = byProvider.get(provider);
+            const state = connection ? connectionHealth(connection) : null;
+
+            return (
+              <div
+                key={provider}
+                className={cn(
+                  "flex flex-col gap-3 rounded-lg border border-border bg-card p-4",
+                  state?.tone === "error" && "border-destructive/40",
+                )}
               >
-                <div>
-                  <div className="flex items-center gap-2">
-                    <SourceIcon
-                      provider={connection.provider}
-                      className="size-4"
-                    />
-                    <p className="font-medium">{connection.label}</p>
-                    <Badge
-                      className="capitalize"
-                      variant={
-                        connection.status === "connected"
-                          ? "secondary"
-                          : connection.status === "error"
-                            ? "destructive"
-                            : "outline"
-                      }
-                    >
-                      {connection.status}
-                    </Badge>
+                <div className="flex items-start gap-3">
+                  <SourceIcon provider={provider} className="mt-0.5 size-5" />
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      <p className="truncate text-sm font-medium">
+                        {entry.name}
+                      </p>
+                      {state ? (
+                        <Badge
+                          variant={
+                            state.tone === "ok"
+                              ? "secondary"
+                              : state.tone === "warn"
+                                ? "outline"
+                                : "destructive"
+                          }
+                        >
+                          {state.label}
+                        </Badge>
+                      ) : null}
+                    </div>
+                    <p className="mt-0.5 text-xs text-muted-foreground text-balance">
+                      {entry.tagline}
+                    </p>
                   </div>
-                  <p className="text-sm text-muted-foreground">
-                    {PROVIDER_META[connection.provider]?.name ||
-                      connection.provider}
-                    {connection.status === "error"
-                      ? " · Connection needs attention — retest or reconnect"
-                      : ""}
-                  </p>
                 </div>
-                <div className="flex items-center gap-1">
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    aria-label="Test connection"
-                    onClick={() => void testConnection(connection.id)}
-                  >
-                    <ArrowsClockwiseIcon className="size-4" />
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    aria-label="Delete connection"
-                    onClick={() => void removeConnection(connection.id)}
-                  >
-                    <TrashIcon className="size-4" />
-                  </Button>
-                </div>
-              </li>
-            ))}
-          </ul>
-        )}
+
+                {connection ? (
+                  <>
+                    <dl className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
+                      <div>
+                        <dt className="sr-only">Last synced</dt>
+                        <dd>
+                          {connection.lastSyncedAt
+                            ? `Synced ${formatDistanceToNow(
+                                new Date(connection.lastSyncedAt),
+                                { addSuffix: true },
+                              )}`
+                            : "Not synced yet"}
+                        </dd>
+                      </div>
+                      {widgetCounts[provider] ? (
+                        <div>
+                          <dt className="sr-only">Widgets</dt>
+                          <dd>{plural(widgetCounts[provider], "widget")}</dd>
+                        </div>
+                      ) : null}
+                    </dl>
+
+                    {connection.lastError ? (
+                      <p
+                        className={cn(
+                          "text-xs text-balance",
+                          connection.syncEnabled
+                            ? "text-muted-foreground"
+                            : "text-destructive",
+                        )}
+                      >
+                        {connection.lastError}
+                        {!connection.syncEnabled
+                          ? " Syncing stopped after repeated failures — save new credentials to resume."
+                          : null}
+                      </p>
+                    ) : null}
+
+                    <div className="mt-auto flex flex-wrap items-center gap-1 pt-1">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="xs"
+                        disabled={busy === connection.id}
+                        onClick={() =>
+                          call(
+                            connection.id,
+                            `/api/connections/${connection.id}/sync`,
+                            { ok: "Refreshed", fail: "Refresh failed" },
+                          )
+                        }
+                      >
+                        <ArrowClockwiseIcon className="size-3" />
+                        Refresh
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="xs"
+                        disabled={busy === connection.id}
+                        onClick={() =>
+                          call(
+                            connection.id,
+                            `/api/connections/${connection.id}/test`,
+                            { ok: "Credentials work", fail: "Test failed" },
+                          )
+                        }
+                      >
+                        Test
+                      </Button>
+                      <Tooltip>
+                        <TooltipTrigger
+                          render={
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon-xs"
+                              aria-label={`Edit ${entry.name} connection`}
+                              onClick={() => setEditing({ provider, connection })}
+                            >
+                              <PencilSimpleIcon className="size-3" />
+                            </Button>
+                          }
+                        />
+                        <TooltipContent>Replace credentials</TooltipContent>
+                      </Tooltip>
+                      <Tooltip>
+                        <TooltipTrigger
+                          render={
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon-xs"
+                              aria-label={`Remove ${entry.name} connection`}
+                              disabled={busy === connection.id}
+                              onClick={() => remove(connection)}
+                            >
+                              <TrashIcon className="size-3" />
+                            </Button>
+                          }
+                        />
+                        <TooltipContent>Remove</TooltipContent>
+                      </Tooltip>
+                    </div>
+                  </>
+                ) : (
+                  <div className="mt-auto flex items-center gap-2 pt-1">
+                    <Button
+                      type="button"
+                      size="xs"
+                      onClick={() => setEditing({ provider })}
+                    >
+                      <PlugsIcon className="size-3" />
+                      Connect
+                    </Button>
+                    {entry.docsUrl ? (
+                      <a
+                        href={entry.docsUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 text-xs text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+                      >
+                        Get a token
+                        <ArrowSquareOutIcon className="size-3" />
+                      </a>
+                    ) : null}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
       </section>
 
       <section className="space-y-3">
-        <SectionHeading title="Coming soon" />
+        <SectionHeading
+          title="Coming soon"
+          description="Wave 2 needs an OAuth app for each provider."
+        />
         <div className="flex flex-wrap gap-2">
-          {comingSoon.map((p) => (
-            <Badge key={p} variant="outline" className="gap-1.5 capitalize">
-              <SourceIcon provider={p} className="size-3" />
-              {PROVIDER_META[p]?.name || p}
-            </Badge>
-          ))}
+          {comingSoon.map((provider) => {
+            const entry = PROVIDER_CATALOG[provider];
+            return (
+              <Tooltip key={provider}>
+                <TooltipTrigger
+                  render={
+                    <Badge variant="outline" className="gap-1.5">
+                      <SourceIcon provider={provider} className="size-3" />
+                      {entry.name}
+                    </Badge>
+                  }
+                />
+                <TooltipContent>
+                  {entry.tagline}
+                  {entry.soonNote ? ` · ${entry.soonNote}` : ""}
+                </TooltipContent>
+              </Tooltip>
+            );
+          })}
         </div>
       </section>
+
+      {editing ? (
+        <ConnectionDialog
+          provider={editing.provider}
+          connectionId={editing.connection?.id}
+          currentLabel={editing.connection?.label}
+          onClose={() => setEditing(null)}
+          onSaved={() => {
+            setEditing(null);
+            router.refresh();
+          }}
+        />
+      ) : null}
     </div>
   );
 }

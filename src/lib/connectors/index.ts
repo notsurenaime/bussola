@@ -135,7 +135,14 @@ export async function upsertConnection(
   return created.id;
 }
 
-/** Connection rows minus the ciphertext, safe to serialize to the client. */
+/**
+ * Connection rows minus the ciphertext, safe to serialize to the client.
+ *
+ * Includes the background sync state: whether it is still scheduled, when it
+ * last succeeded, and how many attempts have failed in a row. Without that,
+ * a connection whose token was revoked looks identical to a healthy one until
+ * someone notices the numbers have stopped moving.
+ */
 export async function listConnections(repos: TenantRepos) {
   const rows = await repos.connections.list();
   return rows.map((row) => ({
@@ -145,6 +152,10 @@ export async function listConnections(repos: TenantRepos) {
     status: row.status,
     lastCheckedAt: row.lastCheckedAt,
     lastError: row.lastError,
+    syncEnabled: row.syncEnabled,
+    lastSyncedAt: row.lastSyncedAt,
+    nextSyncAt: row.nextSyncAt,
+    consecutiveFailures: row.consecutiveFailures,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   }));
