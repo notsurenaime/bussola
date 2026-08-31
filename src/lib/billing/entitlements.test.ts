@@ -7,31 +7,32 @@ import {
 import { PLANS, UNLIMITED, planForPriceId, priceIdFor } from "./plans";
 
 const row = (over: Partial<SubscriptionRow> = {}): SubscriptionRow => ({
-  plan: "pro",
+  plan: "solo",
   status: "active",
   cancelAtPeriodEnd: false,
   currentPeriodEnd: null,
+  extraSeats: 0,
   ...over,
 });
 
 afterEach(() => {
-  delete process.env.STRIPE_PRICE_PRO;
-  delete process.env.STRIPE_PRICE_SCALE;
+  delete process.env.STRIPE_PRICE_SOLO_MONTHLY;
+  delete process.env.STRIPE_PRICE_TEAM_MONTHLY;
 });
 
 describe("entitlementsFromRow", () => {
   it("falls back to free with no subscription at all", () => {
     const result = entitlementsFromRow(null);
-    expect(result.plan).toBe("free");
+    expect(result.plan).toBe("trial");
     expect(result.active).toBe(false);
-    expect(result.limits).toEqual(PLANS.free.limits);
+    expect(result.limits).toEqual(PLANS.trial.limits);
   });
 
   it("grants the paid plan while active", () => {
-    const result = entitlementsFromRow(row({ plan: "pro" }));
-    expect(result.plan).toBe("pro");
+    const result = entitlementsFromRow(row({ plan: "solo" }));
+    expect(result.plan).toBe("solo");
     expect(result.active).toBe(true);
-    expect(result.limits.connections).toBe(PLANS.pro.limits.connections);
+    expect(result.limits.connections).toBe(PLANS.solo.limits.connections);
   });
 
   it("grants the plan during a trial", () => {
@@ -42,16 +43,16 @@ describe("entitlementsFromRow", () => {
     // Dunning should chase the card, not lock someone out of their dashboards.
     const result = entitlementsFromRow(row({ status: "past_due" }));
     expect(result.active).toBe(true);
-    expect(result.plan).toBe("pro");
+    expect(result.plan).toBe("solo");
   });
 
   it.each(["canceled", "incomplete", "incomplete_expired", "unpaid", "none"])(
     "drops to free when the status is %s",
     (status) => {
-      const result = entitlementsFromRow(row({ plan: "scale", status }));
-      expect(result.plan).toBe("free");
+      const result = entitlementsFromRow(row({ plan: "team", status }));
+      expect(result.plan).toBe("trial");
       expect(result.active).toBe(false);
-      expect(result.limits).toEqual(PLANS.free.limits);
+      expect(result.limits).toEqual(PLANS.trial.limits);
     },
   );
 
@@ -59,7 +60,7 @@ describe("entitlementsFromRow", () => {
     const result = entitlementsFromRow(
       row({ plan: "legacy-enterprise" as never }),
     );
-    expect(result.plan).toBe("free");
+    expect(result.plan).toBe("trial");
   });
 
   it("keeps the cancellation notice visible while still active", () => {
@@ -74,30 +75,40 @@ describe("entitlementsFromRow", () => {
 });
 
 describe("checkLimit", () => {
-  const free = entitlementsFromRow(null);
+  const trial = entitlementsFromRow(null);
 
   it("allows creation below the limit", () => {
-    expect(checkLimit(free, "dashboards", 0).allowed).toBe(true);
+    expect(checkLimit(trial, "dashboards", 0).allowed).toBe(true);
     expect(
-      checkLimit(free, "dashboards", PLANS.free.limits.dashboards - 1).allowed,
+      checkLimit(trial, "dashboards", PLANS.trial.limits.dashboards - 1).allowed,
     ).toBe(true);
   });
 
   it("refuses once the limit is reached", () => {
-    const result = checkLimit(free, "dashboards", PLANS.free.limits.dashboards);
+    const result = checkLimit(trial, "dashboards", PLANS.trial.limits.dashboards);
     expect(result.allowed).toBe(false);
     if (!result.allowed) {
-      expect(result.message).toContain("Free");
-      expect(result.limit).toBe(PLANS.free.limits.dashboards);
+      expect(result.message).toContain("Trial");
+      expect(result.limit).toBe(PLANS.trial.limits.dashboards);
     }
   });
 
   it("refuses when already over the limit after a downgrade", () => {
-    expect(checkLimit(free, "connections", 99).allowed).toBe(false);
+    expect(checkLimit(trial, "dashboards", 99).allowed).toBe(false);
+  });
+
+  it("never limits connections on any plan", () => {
+    // Connectors are the reason to buy Bussola, so they are never rationed —
+    // the plans differ on dashboards, widgets, seats and history instead.
+    for (const id of ["trial", "solo", "team"] as const) {
+      expect(PLANS[id].limits.connections).toBe(UNLIMITED);
+    }
+    const solo = entitlementsFromRow(row({ plan: "solo" }));
+    expect(checkLimit(solo, "connections", 10_000).allowed).toBe(true);
   });
 
   it("never refuses on an unlimited plan", () => {
-    const unlimited = entitlementsFromRow(row({ plan: "scale" }));
+    const unlimited = entitlementsFromRow(row({ plan: "team" }));
     expect(unlimited.limits.connections).toBe(UNLIMITED);
     expect(checkLimit(unlimited, "connections", 10_000).allowed).toBe(true);
   });
@@ -105,20 +116,20 @@ describe("checkLimit", () => {
 
 describe("planForPriceId", () => {
   it("maps a configured price to its plan", () => {
-    process.env.STRIPE_PRICE_PRO = "price_pro_123";
-    expect(planForPriceId("price_pro_123")).toBe("pro");
+    process.env.STRIPE_PRICE_SOLO_MONTHLY = "price_pro_123";
+    expect(planForPriceId("price_pro_123")).toBe("solo");
   });
 
   it("refuses to guess: an unknown price is free, not the highest plan", () => {
-    process.env.STRIPE_PRICE_SCALE = "price_scale_1";
-    expect(planForPriceId("price_someone_elses")).toBe("free");
-    expect(planForPriceId(null)).toBe("free");
-    expect(planForPriceId(undefined)).toBe("free");
+    process.env.STRIPE_PRICE_TEAM_MONTHLY = "price_scale_1";
+    expect(planForPriceId("price_someone_elses")).toBe("trial");
+    expect(planForPriceId(null)).toBe("trial");
+    expect(planForPriceId(undefined)).toBe("trial");
   });
 
   it("does not match a plan whose price is unset", () => {
     // An unset env var must not make `undefined === undefined` a match.
-    expect(planForPriceId(undefined as unknown as string)).toBe("free");
-    expect(priceIdFor("pro")).toBeUndefined();
+    expect(planForPriceId(undefined as unknown as string)).toBe("trial");
+    expect(priceIdFor("solo")).toBeUndefined();
   });
 });

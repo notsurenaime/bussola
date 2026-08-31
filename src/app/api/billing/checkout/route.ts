@@ -1,13 +1,16 @@
 import { z } from "zod";
 import { jsonError, jsonOk, withTenant } from "@/lib/api";
 import { getSession } from "@/lib/auth/tenant";
-import { isPlanId, priceIdFor } from "@/lib/billing/plans";
+import { isPlanId, priceIdFor, type BillingInterval } from "@/lib/billing/plans";
 import { appUrl, billingConfigured, getStripe } from "@/lib/billing/stripe";
 import { ensureCustomer } from "@/lib/billing/subscription";
 
 export const runtime = "nodejs";
 
-const schema = z.object({ plan: z.string() });
+const schema = z.object({
+  plan: z.string(),
+  interval: z.enum(["monthly", "yearly"]).default("monthly"),
+});
 
 export async function POST(request: Request) {
   return withTenant(async (repos) => {
@@ -21,8 +24,11 @@ export async function POST(request: Request) {
       return jsonError("Unknown plan");
     }
 
-    const price = priceIdFor(parsed.data.plan);
-    if (!price) return jsonError("That plan is not for sale right now", 400);
+    const interval: BillingInterval = parsed.data.interval;
+    const price = priceIdFor(parsed.data.plan, interval);
+    if (!price) {
+      return jsonError("That plan is not for sale right now", 400);
+    }
 
     const session = await getSession();
     if (!session) return jsonError("Unauthorized", 401);

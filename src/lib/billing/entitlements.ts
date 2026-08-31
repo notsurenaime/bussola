@@ -5,7 +5,10 @@ import { isCloud } from "@/lib/edition";
 import {
   DEFAULT_PLAN,
   PLANS,
+  SELF_HOSTED_FEATURES,
   SELF_HOSTED_LIMITS,
+  type AlertChannel,
+  type PlanFeatures,
   type PlanId,
   type PlanLimits,
 } from "./plans";
@@ -22,35 +25,34 @@ export type Entitlements = {
   plan: PlanId;
   planName: string;
   limits: PlanLimits;
+  features: PlanFeatures;
   status: string;
   /** True while a paid plan is in a state that still grants access. */
   active: boolean;
   cancelAtPeriodEnd: boolean;
   currentPeriodEnd: Date | null;
+  /** Seats paid for beyond the plan's included allowance. */
+  extraSeats: number;
 };
 
 const SELF_HOSTED: Entitlements = {
-  plan: "scale",
+  plan: "team",
   planName: "Self-hosted",
   limits: SELF_HOSTED_LIMITS,
+  features: SELF_HOSTED_FEATURES,
   status: "self_hosted",
   active: true,
   cancelAtPeriodEnd: false,
   currentPeriodEnd: null,
+  extraSeats: 0,
 };
 
-/**
- * What this organization is allowed to do.
- *
- * Reads the local subscription row that the Stripe webhook keeps up to date —
- * never Stripe itself, so billing can be down without taking dashboards with
- * it. Self-hosted short-circuits before touching the database at all.
- */
 export type SubscriptionRow = {
   plan: PlanId;
   status: string;
   cancelAtPeriodEnd: boolean;
   currentPeriodEnd: Date | null;
+  extraSeats: number;
 };
 
 /**
@@ -58,33 +60,41 @@ export type SubscriptionRow = {
  *
  * Split out from the database read so every branch — no row, a lapsed one, a
  * plan id we no longer recognise — is directly testable. Anything that is not
- * an entitling status falls back to the free plan rather than the plan named
- * on the row, so a cancelled Scale subscription does not keep Scale limits.
+ * an entitling status falls back to the trial rather than the plan named on
+ * the row, so a cancelled Team subscription does not keep Team limits.
  */
-export function entitlementsFromRow(
-  row: SubscriptionRow | null,
-): Entitlements {
+export function entitlementsFromRow(row: SubscriptionRow | null): Entitlements {
+  const fallback = PLANS[DEFAULT_PLAN];
+
   if (!row || !ENTITLING_STATUSES.has(row.status)) {
     return {
-      plan: DEFAULT_PLAN,
-      planName: PLANS[DEFAULT_PLAN].name,
-      limits: PLANS[DEFAULT_PLAN].limits,
+      plan: fallback.id,
+      planName: fallback.name,
+      limits: fallback.limits,
+      features: fallback.features,
       status: row?.status ?? "none",
       active: false,
       cancelAtPeriodEnd: row?.cancelAtPeriodEnd ?? false,
       currentPeriodEnd: row?.currentPeriodEnd ?? null,
+      extraSeats: 0,
     };
   }
 
-  const plan = PLANS[row.plan] ?? PLANS[DEFAULT_PLAN];
+  const plan = PLANS[row.plan] ?? fallback;
   return {
     plan: plan.id,
     planName: plan.name,
-    limits: plan.limits,
+    limits: {
+      ...plan.limits,
+      // Extra seats are billed per seat on top of the plan's allowance.
+      seats: plan.limits.seats + Math.max(0, row.extraSeats),
+    },
+    features: plan.features,
     status: row.status,
     active: true,
     cancelAtPeriodEnd: row.cancelAtPeriodEnd,
     currentPeriodEnd: row.currentPeriodEnd,
+    extraSeats: Math.max(0, row.extraSeats),
   };
 }
 
@@ -117,9 +127,11 @@ export type LimitCheck =
   | { allowed: false; limit: number; plan: PlanId; message: string };
 
 const LIMIT_LABELS: Record<LimitName, string> = {
-  connections: "connections",
   dashboards: "dashboards",
   widgetsPerDashboard: "widgets on a dashboard",
+  connections: "connections",
+  seats: "members",
+  historyDays: "days of history",
 };
 
 /**
@@ -143,4 +155,19 @@ export function checkLimit(
     plan: entitlements.plan,
     message: `Your ${entitlements.planName} plan includes ${max} ${LIMIT_LABELS[limit]}. Upgrade to add more.`,
   };
+}
+
+/** Whether a plan includes a feature at all, regardless of usage. */
+export function hasFeature(
+  entitlements: Entitlements,
+  feature: keyof Omit<PlanFeatures, "alertChannels">,
+): boolean {
+  return entitlements.features[feature];
+}
+
+export function allowsAlertChannel(
+  entitlements: Entitlements,
+  channel: AlertChannel,
+): boolean {
+  return entitlements.features.alertChannels.includes(channel);
 }

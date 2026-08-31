@@ -29,7 +29,7 @@ function stripeSubscription(over: Record<string, unknown> = {}) {
     items: {
       data: [
         {
-          price: { id: "price_pro_123" },
+          price: { id: "price_solo_month" },
           current_period_end: Math.floor(Date.UTC(2027, 0, 1) / 1000),
         },
       ],
@@ -43,7 +43,7 @@ beforeAll(async () => {
   process.env.BUSSOLA_DATA_DIR = dataDir;
   delete process.env.DATABASE_URL;
   delete process.env.BUSSOLA_EDITION;
-  process.env.STRIPE_PRICE_PRO = "price_pro_123";
+  process.env.STRIPE_PRICE_SOLO_MONTHLY = "price_solo_month";
 
   const dbModule = await import("@/lib/db");
   schema = await import("@/lib/db/schema");
@@ -62,7 +62,7 @@ beforeAll(async () => {
 afterAll(async () => {
   await closeDb?.();
   fs.rmSync(dataDir, { recursive: true, force: true });
-  delete process.env.STRIPE_PRICE_PRO;
+  delete process.env.STRIPE_PRICE_SOLO_MONTHLY;
 });
 
 beforeEach(async () => {
@@ -109,7 +109,7 @@ describe("applySubscription", () => {
     await billing.applySubscription(stripeSubscription(), organizationId);
 
     const row = await readSubscription();
-    expect(row.plan).toBe("pro");
+    expect(row.plan).toBe("solo");
     expect(row.status).toBe("active");
     expect(row.stripeSubscriptionId).toBe("sub_stripe_1");
     expect(row.stripeCustomerId).toBe("cus_1");
@@ -138,13 +138,13 @@ describe("applySubscription", () => {
       }),
       organizationId,
     );
-    expect((await readSubscription()).plan).toBe("free");
+    expect((await readSubscription()).plan).toBe("trial");
   });
 
   it("reads the period end from the subscription when items omit it", async () => {
     await billing.applySubscription(
       stripeSubscription({
-        items: { data: [{ price: { id: "price_pro_123" } }] },
+        items: { data: [{ price: { id: "price_solo_month" } }] },
         current_period_end: Math.floor(Date.UTC(2028, 5, 1) / 1000),
       }),
       organizationId,

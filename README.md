@@ -118,28 +118,56 @@ dies mid-fetch just leaves its connections to become due again.
 The one exception is the Qonto transactions list: it is cursor-paginated and
 user-driven, so it reads through to the API behind a short per-tenant cache.
 
-## Billing
+## Plans
 
 Hosted only. Self-hosted never constructs a Stripe client, never creates a
 subscription row, and has no limits — `entitlementsFor()` returns unlimited
 before it touches the database, so the billing code is inert rather than
 merely unused.
 
-Plans and their limits live in `src/lib/billing/plans.ts`; Stripe is the source
-of truth for *which* plan is active, this repo decides what that plan means.
-Entitlements are read from a local subscription table that the webhook keeps up
-to date, never from Stripe in the request path — so Stripe being down slows
-nobody's dashboard.
+| | Trial | Solo | Team |
+|---|---|---|---|
+| Price | — | €12/mo · €108/yr | €39/mo · €384/yr |
+| Dashboards | 1 | 5 | 20 |
+| Widgets per dashboard | 4 | 8 | 12 |
+| Connectors | Unlimited | Unlimited | Unlimited |
+| Seats | 1 | 1 | 5, then €8/seat |
+| History | 7 days | 30 days | 12 months |
+| Share links | — | — | Unlimited, white-label |
+| Alerts | — | Email | Email · Slack · Discord |
+| MCP server | — | Yes | Yes, org-wide config |
 
-- `POST /api/billing/checkout` — Stripe Checkout for a plan
-- `POST /api/billing/portal` — Stripe's own portal for cards, invoices, cancellation
-- `POST /api/billing/webhook` — signature-verified, and idempotent on Stripe's
-  event id so a redelivery cannot apply a plan change twice
+Connectors are never rationed: they are the reason to buy Bussola, so the
+plans differ on dashboards, widgets, seats and history instead. The trial is
+deliberately usable rather than a paywall — enough to connect a source and see
+a real dashboard, not enough to run a business on.
 
-Limits are enforced when creating a connection, dashboard or widget, and
+Limits are enforced when creating a dashboard, widget or invitation, and
 nowhere else: a downgrade never deletes anything a customer already has, it
-only stops them adding more. A price id we do not recognise resolves to the
-free plan, so a mis-configured price cannot quietly grant the top tier.
+only stops them adding more. Counts are taken at the moment of the check, so
+there is no counter to drift. Over-limit answers 402.
+
+Plans live in `src/lib/billing/plans.ts`. Stripe is the source of truth for
+*which* plan is active; that file says what the plan means. Entitlements are
+read from a local subscription table the webhook keeps current, never from
+Stripe in the request path — so Stripe being down slows nobody's dashboard.
+
+- `POST /api/billing/checkout` — Stripe Checkout for a plan and interval
+- `POST /api/billing/portal` — Stripe's own portal for cards, invoices, cancellation
+- `POST /api/billing/webhook` — signature-verified, idempotent on Stripe's event
+  id so a redelivery cannot apply a plan change twice
+
+A price id we do not recognise resolves to the trial, so a mis-configured
+price cannot quietly grant the top tier.
+
+## History
+
+The worker appends one sample per connection per hour, alongside the latest
+snapshot it serves reads from. Hourly rather than per-sync: a 60-second
+interval would write ~43k rows per connection per month at a resolution nobody
+plots. Retention is pruned hourly against each organization's plan, which is
+what makes "30 days" and "12 months" true rather than marketing copy.
+Self-hosted keeps everything.
 
 ## Local private use
 

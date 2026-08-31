@@ -13,6 +13,7 @@ import {
   nextDelaySeconds,
 } from "./config";
 import { fetchDashboardSnapshot, isSyncable } from "./providers";
+import { recordHistory } from "./retention";
 
 export type SyncOutcome = {
   connectionId: string;
@@ -173,6 +174,12 @@ export async function syncConnection(connection: {
     await storeSnapshot({
       organizationId: connection.organizationId,
       connectionId: id,
+      payload,
+    });
+    await recordHistory({
+      organizationId: connection.organizationId,
+      connectionId: id,
+      kind: DASHBOARD_KIND,
       payload,
     });
     await recordSuccess(id, provider);

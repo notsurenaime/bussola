@@ -22,10 +22,12 @@ const repos = { ctx: { organizationId: "org_1", userId: "usr_1" } } as never;
 
 function plan(over: Partial<Entitlements> = {}): Entitlements {
   return {
-    plan: "free",
-    planName: "Free",
-    limits: PLANS.free.limits,
+    plan: "trial",
+    planName: "Trial",
+    limits: PLANS.trial.limits,
+    features: PLANS.trial.features,
     status: "none",
+    extraSeats: 0,
     active: false,
     cancelAtPeriodEnd: false,
     currentPeriodEnd: null,
@@ -44,13 +46,13 @@ describe("overLimit", () => {
     const response = await overLimit(
       repos,
       "dashboards",
-      PLANS.free.limits.dashboards,
+      PLANS.trial.limits.dashboards,
     );
 
     expect(response).not.toBeNull();
     expect(response!.status).toBe(402);
     await expect(response!.json()).resolves.toMatchObject({
-      error: expect.stringContaining("Free"),
+      error: expect.stringContaining("Trial"),
     });
   });
 
@@ -59,7 +61,7 @@ describe("overLimit", () => {
     const response = await overLimit(
       repos,
       "connections",
-      PLANS.free.limits.connections,
+      PLANS.trial.limits.connections,
     );
     const body = (await response!.json()) as { error: string };
     expect(body.error).toContain("connections");
@@ -67,7 +69,12 @@ describe("overLimit", () => {
 
   it("never blocks an unlimited plan", async () => {
     entitlements.entitlementsFor.mockResolvedValue(
-      plan({ plan: "scale", planName: "Scale", limits: PLANS.scale.limits }),
+      plan({
+        plan: "team",
+        planName: "Team",
+        limits: PLANS.team.limits,
+        features: PLANS.team.features,
+      }),
     );
     expect(await overLimit(repos, "connections", 5_000)).toBeNull();
   });

@@ -1,5 +1,9 @@
 import { TICK_INTERVAL_SECONDS } from "./config";
+import { pruneHistory } from "./retention";
 import { runDueSyncs } from "./runner";
+
+/** History retention is a slow-moving concern; once an hour is plenty. */
+const PRUNE_INTERVAL_MS = 60 * 60 * 1000;
 
 /**
  * A tick loop around `runDueSyncs`.
@@ -23,6 +27,7 @@ export function startScheduler(
 
   let inFlight = false;
   let stopped = false;
+  let lastPrune = 0;
 
   const tick = async () => {
     if (inFlight || stopped) return;
@@ -30,6 +35,16 @@ export function startScheduler(
     try {
       const report = await runDueSyncs();
       if (report.claimed > 0) onReport(report);
+
+      if (Date.now() - lastPrune > PRUNE_INTERVAL_MS) {
+        lastPrune = Date.now();
+        const pruned = await pruneHistory();
+        if (pruned.deleted > 0) {
+          console.log(
+            `[sync] pruned ${pruned.deleted} history rows across ${pruned.organizations} organizations`,
+          );
+        }
+      }
     } catch (error) {
       console.error("[sync] tick failed:", error);
     } finally {

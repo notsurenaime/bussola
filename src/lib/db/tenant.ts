@@ -5,6 +5,8 @@ import {
   connectionCache,
   connectionSnapshots,
   connections,
+  invitation,
+  member,
   dashboardWidgets,
   dashboards,
   type ConnectionStatus,
@@ -333,6 +335,27 @@ export function forTenant(ctx: TenantContext) {
           .where(ownConnection(id))
           .returning({ id: connections.id });
         return rows.length > 0;
+      },
+    },
+
+    members: {
+      /** Seats in use: members plus invitations still awaiting acceptance. */
+      async countSeats() {
+        const db = await getDb();
+        const [members] = await db
+          .select({ value: count() })
+          .from(member)
+          .where(eq(member.organizationId, org));
+        const [pending] = await db
+          .select({ value: count() })
+          .from(invitation)
+          .where(
+            and(
+              eq(invitation.organizationId, org),
+              eq(invitation.status, "pending"),
+            ),
+          );
+        return (members?.value ?? 0) + (pending?.value ?? 0);
       },
     },
 

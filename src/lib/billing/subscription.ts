@@ -22,6 +22,19 @@ function priceId(subscription: Stripe.Subscription): string | null {
   return subscription.items?.data?.[0]?.price?.id ?? null;
 }
 
+/**
+ * Seats billed beyond the plan's allowance.
+ *
+ * The Team plan bills extra members as quantity on a separate seat line item,
+ * so anything that is not the plan's own price counts toward seats.
+ */
+function extraSeats(subscription: Stripe.Subscription): number {
+  const planPrice = priceId(subscription);
+  return (subscription.items?.data ?? [])
+    .filter((item) => item.price?.id && item.price.id !== planPrice)
+    .reduce((total, item) => total + (item.quantity ?? 0), 0);
+}
+
 function customerId(subscription: Stripe.Subscription): string {
   return typeof subscription.customer === "string"
     ? subscription.customer
@@ -47,6 +60,7 @@ export async function applySubscription(
     stripeSubscriptionId: subscription.id,
     stripePriceId: priceId(subscription),
     plan: planForPriceId(priceId(subscription)),
+    extraSeats: extraSeats(subscription),
     status: subscription.status,
     currentPeriodEnd: periodEnd(subscription),
     cancelAtPeriodEnd: subscription.cancel_at_period_end ?? false,
@@ -137,7 +151,7 @@ export async function ensureCustomer(
       id: createId("sub"),
       organizationId: input.organizationId,
       stripeCustomerId: customer.id,
-      plan: "free",
+      plan: "trial",
       status: "none",
     })
     .onConflictDoUpdate({

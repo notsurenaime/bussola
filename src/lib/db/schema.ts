@@ -276,6 +276,41 @@ export const connectionCache = pgTable(
   ],
 );
 
+/**
+ * Sampled history behind the trend widgets, and the thing the plans sell as
+ * "30 days" / "12 months" of history.
+ *
+ * The worker appends at most one sample per connection per hour: a 60-second
+ * sync interval would otherwise write ~43k rows per connection per month for
+ * data nobody plots at that resolution. Retention is pruned per organization
+ * against its plan.
+ */
+export const connectionHistory = pgTable(
+  "connection_history",
+  {
+    id: text("id").primaryKey(),
+    organizationId: orgRef(),
+    connectionId: text("connection_id")
+      .notNull()
+      .references(() => connections.id, { onDelete: "cascade" }),
+    kind: text("kind").notNull(),
+    payloadJson: text("payload_json").notNull(),
+    /** Truncated to the hour; the unique index is what enforces one per hour. */
+    bucket: timestamp("bucket", { withTimezone: true }).notNull(),
+    fetchedAt: timestamp("fetched_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("history_conn_kind_bucket_key").on(
+      table.connectionId,
+      table.kind,
+      table.bucket,
+    ),
+    index("history_org_bucket_idx").on(table.organizationId, table.bucket),
+  ],
+);
+
 /* ─────────────────────────────── Billing (cloud) ───────────────────────────
  *
  * Only the hosted edition writes here. Self-hosted installs never create a row
@@ -296,7 +331,9 @@ export const subscriptions = pgTable(
     stripeSubscriptionId: text("stripe_subscription_id"),
     stripePriceId: text("stripe_price_id"),
     /** Our plan id, resolved from the Stripe price. */
-    plan: text("plan").$type<PlanId>().notNull().default("free"),
+    plan: text("plan").$type<PlanId>().notNull().default("trial"),
+    /** Seats bought on top of the plan's included allowance. */
+    extraSeats: integer("extra_seats").notNull().default(0),
     /** Stripe's subscription status, verbatim. */
     status: text("status").notNull().default("incomplete"),
     currentPeriodEnd: timestamp("current_period_end", { withTimezone: true }),

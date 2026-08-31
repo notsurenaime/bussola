@@ -3,7 +3,7 @@ import { APIError } from "better-auth/api";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { nextCookies } from "better-auth/next-js";
 import { organization } from "better-auth/plugins/organization";
-import { eq } from "drizzle-orm";
+import { and, count, eq } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db";
 import { isCloud, isSelfHosted } from "@/lib/edition";
 import { createId } from "@/lib/id";
@@ -127,6 +127,43 @@ async function build() {
 
     plugins: [
       organization({
+        /**
+         * Seats are what the Team plan sells, so an invitation that would take
+         * an organization past its allowance is refused before it is sent —
+         * far better than letting someone accept and then bounce off a limit.
+         */
+        async beforeCreateInvitation({
+          organization: org,
+        }: {
+          organization: { id: string };
+        }) {
+          const { entitlementsFor } = await import(
+            "@/lib/billing/entitlements"
+          );
+          const entitlements = await entitlementsFor(org.id);
+          if (!Number.isFinite(entitlements.limits.seats)) return;
+
+          const [members] = await db
+            .select({ value: count() })
+            .from(schema.member)
+            .where(eq(schema.member.organizationId, org.id));
+          const [pending] = await db
+            .select({ value: count() })
+            .from(schema.invitation)
+            .where(
+              and(
+                eq(schema.invitation.organizationId, org.id),
+                eq(schema.invitation.status, "pending"),
+              ),
+            );
+
+          const used = (members?.value ?? 0) + (pending?.value ?? 0);
+          if (used >= entitlements.limits.seats) {
+            throw new APIError("PAYMENT_REQUIRED", {
+              message: `Your ${entitlements.planName} plan includes ${entitlements.limits.seats} seats. Add a seat to invite more people.`,
+            });
+          }
+        },
         // Self-hosted has exactly one organization; cloud lets an owner run
         // several (agency with multiple clients, say).
         allowUserToCreateOrganization: isCloud,
