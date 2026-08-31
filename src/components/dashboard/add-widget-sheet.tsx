@@ -26,7 +26,7 @@ const WidgetPreview = dynamic(
   { ssr: false },
 );
 import { WIDGET_REGISTRY, type WidgetType } from "@/lib/widgets/registry";
-import type { Provider } from "@/lib/db/schema";
+import type { Provider } from "@/lib/providers";
 import { cn } from "@/lib/utils";
 
 type ConnectionSummary = {

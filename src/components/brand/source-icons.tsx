@@ -1,5 +1,5 @@
 import { cn } from "@/lib/utils";
-import type { Provider } from "@/lib/db/schema";
+import type { Provider } from "@/lib/providers";
 
 type SourceIconProps = {
   provider: Provider | "multi";

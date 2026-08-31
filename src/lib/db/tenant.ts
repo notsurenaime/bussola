@@ -3,6 +3,7 @@ import { createId } from "@/lib/id";
 import { getDb } from ".";
 import {
   connectionCache,
+  connectionSnapshots,
   connections,
   dashboardWidgets,
   dashboards,
@@ -250,6 +251,11 @@ export function forTenant(ctx: TenantContext) {
         return row;
       },
 
+      /**
+       * Replacing credentials revives a connection whose sync had been
+       * disabled after repeated failures: the whole point of pasting a new
+       * token is that the old one was the problem.
+       */
       async update(
         id: string,
         input: { label: string; credentialsEncrypted: string },
@@ -262,6 +268,9 @@ export function forTenant(ctx: TenantContext) {
             credentialsEncrypted: input.credentialsEncrypted,
             status: "unknown",
             lastError: null,
+            syncEnabled: true,
+            consecutiveFailures: 0,
+            nextSyncAt: new Date(),
             updatedAt: new Date(),
           })
           .where(ownConnection(id))
@@ -292,6 +301,55 @@ export function forTenant(ctx: TenantContext) {
           .where(ownConnection(id))
           .returning({ id: connections.id });
         return rows.length > 0;
+      },
+    },
+
+    snapshots: {
+      /**
+       * The most recent payload the sync worker stored for this tenant's
+       * connection to a provider, with everything the UI needs to say how
+       * fresh it is and whether syncing has given up.
+       */
+      async forProvider(provider: Provider) {
+        const db = await getDb();
+        const [row] = await db
+          .select({
+            payloadJson: connectionSnapshots.payloadJson,
+            fetchedAt: connectionSnapshots.fetchedAt,
+            connectionId: connections.id,
+            syncEnabled: connections.syncEnabled,
+            lastError: connections.lastError,
+            consecutiveFailures: connections.consecutiveFailures,
+          })
+          .from(connections)
+          .leftJoin(
+            connectionSnapshots,
+            and(
+              eq(connectionSnapshots.connectionId, connections.id),
+              eq(connectionSnapshots.kind, "dashboard"),
+            ),
+          )
+          .where(
+            and(
+              eq(connections.provider, provider),
+              eq(connections.organizationId, org),
+            ),
+          )
+          .orderBy(asc(connections.createdAt))
+          .limit(1);
+
+        if (!row) return null;
+
+        return {
+          connectionId: row.connectionId,
+          payload: row.payloadJson
+            ? (JSON.parse(row.payloadJson) as Record<string, unknown>)
+            : null,
+          fetchedAt: row.fetchedAt,
+          syncEnabled: row.syncEnabled,
+          lastError: row.lastError,
+          consecutiveFailures: row.consecutiveFailures,
+        };
       },
     },
 

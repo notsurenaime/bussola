@@ -83,6 +83,41 @@ Self-hosted accepts exactly one account: the first person to reach `/signup`
 claims the instance, and every later attempt is refused. Cloud leaves signup
 open, and each account gets its own organization the moment it is created.
 
+## How data gets fetched
+
+Widgets never trigger a provider call. A background worker refreshes each
+connection on its own schedule and writes a snapshot; every widget request is
+then a single local query. Upstream traffic scales with the number of
+**connections**, not with how many people are looking at a dashboard — which is
+what keeps a shared deployment from being rate-limited (or banned) by Railway,
+Netlify, Supabase and especially Qonto.
+
+Each connection carries its own schedule. A failing one backs off exponentially
+to at most hourly, and after ten consecutive failures it stops being synced
+altogether and the widget asks its owner to reconnect — a revoked token stops
+generating traffic instead of being retried forever. Pasting new credentials
+clears the failure count and resumes immediately.
+
+Where the worker runs depends on the deployment:
+
+| Deployment | How |
+|---|---|
+| Self-hosted (one Next server) | Automatic, in-process via `instrumentation.ts` |
+| Separate process / container | `npm run worker`, plus `BUSSOLA_DISABLE_INLINE_SYNC=1` |
+| Serverless with cron | `POST /api/internal/sync` with `BUSSOLA_SYNC_SECRET` |
+
+The last two rows require `DATABASE_URL`. PGlite serves exactly one process, so
+a worker started next to the app server would open the same directory a second
+time and act on a stale view of it — the worker refuses to start rather than do
+that quietly. On PGlite, use the in-process scheduler.
+
+Workers claim connections with `FOR UPDATE SKIP LOCKED` and a lease, so several
+can run at once without fetching the same connection twice, and a worker that
+dies mid-fetch just leaves its connections to become due again.
+
+The one exception is the Qonto transactions list: it is cursor-paginated and
+user-driven, so it reads through to the API behind a short per-tenant cache.
+
 ## Local private use
 
 - Data lives in `./data/pgdata` (or your `DATABASE_URL` server)
@@ -131,6 +166,6 @@ Coming soon (UI stubs): Stripe, Polar, Attio, Vercel, webtraffic.
 ## Notes
 
 - Qonto accepts `login:secret` as one API key field, or separate login + secret key
-- Widget responses are cached ~45–60s to keep local resource use low
+- Widget responses come from worker snapshots; see “How data gets fetched”
 - Storage is multi-tenant already: every row is owned by an organization, so
   the hosted edition adds accounts and billing rather than a new data model

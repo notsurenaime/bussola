@@ -12,7 +12,8 @@
     "test:watch": "vitest",
     "db:migrate": "tsx src/scripts/migrate.ts",
     "db:generate": "drizzle-kit generate",
-    "db:studio": "drizzle-kit studio"
+    "db:studio": "drizzle-kit studio",
+    "worker": "tsx src/scripts/worker.ts"
   },
   "dependencies": {
     "@base-ui/react": "^1.7.0",

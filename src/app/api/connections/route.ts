@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { jsonError, jsonOk, withTenant } from "@/lib/api";
+import { syncNow } from "@/lib/sync/runner";
 import {
   COMING_SOON_PROVIDERS,
   LIVE_PROVIDERS,
@@ -51,6 +52,12 @@ export async function POST(request: Request) {
 
     const testResult =
       parsed.data.test === false ? null : await testAndPersist(repos, id);
+
+    // Fill the snapshot straight away so the tenant's widgets have data before
+    // the worker's next tick, rather than showing a spinner after connecting.
+    if (testResult?.ok) {
+      await syncNow(id);
+    }
 
     return jsonOk({ id, testResult });
   });

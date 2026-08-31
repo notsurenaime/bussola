@@ -1,6 +1,7 @@
 import Link from "next/link";
+import { formatDistanceToNow } from "date-fns";
 import { getSourceMeta, SourceIcon } from "@/components/brand/source-icons";
-import type { Provider } from "@/lib/db/schema";
+import type { Provider } from "@/lib/providers";
 import type { TrackerPoint } from "@/lib/connectors/types";
 
 export function StatusDot({ status }: { status: string }) {
@@ -91,6 +92,23 @@ export function ConnectPrompt({ provider }: { provider: string }) {
 
 export function NoData({ label }: { label: string }) {
   return <WidgetMessage title={label} />;
+}
+
+/**
+ * Shown above a widget whose snapshot has fallen well behind its sync
+ * schedule. The numbers are still real, just old — saying so beats silently
+ * presenting stale data as current.
+ */
+export function StaleNotice({ fetchedAt }: { fetchedAt?: string | null }) {
+  const when = fetchedAt ? new Date(fetchedAt) : null;
+  const label =
+    when && !Number.isNaN(when.getTime())
+      ? `Last updated ${formatDistanceToNow(when, { addSuffix: true })}`
+      : "This data may be out of date";
+
+  return (
+    <p className="mb-2 shrink-0 text-xs text-muted-foreground">{label}</p>
+  );
 }
 
 export function formatCores(value: number): string {

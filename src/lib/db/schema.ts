@@ -203,6 +203,17 @@ export const connections = pgTable(
       .default("unknown"),
     lastCheckedAt: timestamp("last_checked_at", { withTimezone: true }),
     lastError: text("last_error"),
+
+    /* Background sync state. The worker claims a connection by pushing
+     * next_sync_at forward, so two workers never fetch the same one. */
+    syncEnabled: boolean("sync_enabled").notNull().default(true),
+    nextSyncAt: timestamp("next_sync_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    lastSyncedAt: timestamp("last_synced_at", { withTimezone: true }),
+    /** Drives exponential backoff; reset to 0 on every success. */
+    consecutiveFailures: integer("consecutive_failures").notNull().default(0),
+
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
@@ -210,7 +221,40 @@ export const connections = pgTable(
       .notNull()
       .defaultNow(),
   },
-  (table) => [index("connections_org_idx").on(table.organizationId)],
+  (table) => [
+    index("connections_org_idx").on(table.organizationId),
+    index("connections_due_idx").on(table.nextSyncAt),
+  ],
+);
+
+/**
+ * The latest payload the sync worker fetched for a connection.
+ *
+ * Widget requests read from here and never call a provider, so the number of
+ * upstream calls scales with connections rather than with page views.
+ */
+export const connectionSnapshots = pgTable(
+  "connection_snapshots",
+  {
+    id: text("id").primaryKey(),
+    organizationId: orgRef(),
+    connectionId: text("connection_id")
+      .notNull()
+      .references(() => connections.id, { onDelete: "cascade" }),
+    /** Which payload of this connection, e.g. "dashboard". */
+    kind: text("kind").notNull(),
+    payloadJson: text("payload_json").notNull(),
+    fetchedAt: timestamp("fetched_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("snapshot_connection_kind_key").on(
+      table.connectionId,
+      table.kind,
+    ),
+    index("snapshot_org_idx").on(table.organizationId),
+  ],
 );
 
 export const connectionCache = pgTable(

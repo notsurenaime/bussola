@@ -12,8 +12,15 @@ const PUBLIC_PATHS = new Set(["/login", "/signup"]);
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // Better Auth owns /api/auth/* and must stay reachable while signed out.
-  if (pathname.startsWith("/api/auth") || pathname === "/api/status") {
+  // Routes that authenticate themselves and must stay reachable without a
+  // session cookie: Better Auth's own endpoints, the pre-login status probe,
+  // and the cron entry point, which is guarded by a shared secret because
+  // there is no user behind it.
+  if (
+    pathname.startsWith("/api/auth") ||
+    pathname.startsWith("/api/internal/") ||
+    pathname === "/api/status"
+  ) {
     return NextResponse.next();
   }
 

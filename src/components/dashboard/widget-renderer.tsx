@@ -24,6 +24,7 @@ import {
   formatCores,
   formatGb,
   NoData,
+  StaleNotice,
   StatusDot,
   StatusList,
   statusLabel,
@@ -94,6 +95,38 @@ function LiveWidget({ type }: { type: Exclude<WidgetType, "qonto-transactions"> 
     return <ConnectPrompt provider={provider} />;
   }
 
+  const sync = data._sync as SyncMeta | undefined;
+
+  // The worker gave up on this source — showing the last snapshot as if it
+  // were current would hide a credential that needs replacing.
+  if (sync?.disabled) {
+    return (
+      <WidgetMessage
+        title={sync.lastError || "Syncing stopped for this source."}
+        action={{ href: "/connections", label: "Reconnect" }}
+      />
+    );
+  }
+
+  return (
+    <>
+      {sync?.stale ? <StaleNotice fetchedAt={sync.fetchedAt} /> : null}
+      <div className="flex min-h-0 flex-1 flex-col">{renderWidget(type, data)}</div>
+    </>
+  );
+}
+
+type SyncMeta = {
+  fetchedAt?: string | null;
+  stale?: boolean;
+  disabled?: boolean;
+  lastError?: string | null;
+};
+
+function renderWidget(
+  type: Exclude<WidgetType, "qonto-transactions">,
+  data: Record<string, unknown>,
+) {
   switch (type) {
     case "railway-tracker": {
       const health = data.deployHealth as RailwayDeployHealth | null | undefined;
