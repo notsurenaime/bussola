@@ -1,5 +1,9 @@
+"use client";
+
 import Link from "next/link";
 import { formatDistanceToNow } from "date-fns";
+import { SparkleIcon } from "@phosphor-icons/react";
+import { Badge } from "@/components/ui/badge";
 import { getSourceMeta, SourceIcon } from "@/components/brand/source-icons";
 import type { Provider } from "@/lib/providers";
 import type { PaymentItem, TrackerPoint } from "@/lib/connectors/types";
@@ -112,6 +116,33 @@ export function ConnectPrompt({ provider }: { provider: string }) {
 
 export function NoData({ label }: { label: string }) {
   return <WidgetMessage title={label} />;
+}
+
+/**
+ * Shown above a widget rendering sample data.
+ *
+ * Demo data exists so a new account looks alive rather than broken, which only
+ * works if nobody can mistake it for their own numbers — so this is a label,
+ * not a hint, and it carries the action that makes it go away.
+ */
+export function DemoNotice({ provider }: { provider?: string }) {
+  const label =
+    provider && provider !== "multi" ? getSourceMeta(provider).title : "a source";
+
+  return (
+    <div className="mb-2 flex shrink-0 flex-wrap items-center gap-x-2 gap-y-1">
+      <Badge variant="secondary" className="gap-1">
+        <SparkleIcon className="size-3" />
+        Demo data
+      </Badge>
+      <Link
+        href="/connections"
+        className="text-xs text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+      >
+        Connect {label} to see yours
+      </Link>
+    </div>
+  );
 }
 
 /**

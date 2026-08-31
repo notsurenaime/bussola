@@ -2,6 +2,11 @@ import { jsonError, jsonOk, withTenant } from "@/lib/api";
 import { fetchQontoTransactionsPage, parseCredentials } from "@/lib/connectors";
 import { toUserFacingError } from "@/lib/connectors/errors";
 import type { TenantRepos } from "@/lib/db/tenant";
+import {
+  demoDashboard,
+  demoStatusBoard,
+  demoTransactions,
+} from "@/lib/demo/fixtures";
 import type { Provider } from "@/lib/providers";
 import { SYNC_INTERVAL_SECONDS } from "@/lib/sync/config";
 import { syncNow } from "@/lib/sync/runner";
@@ -26,7 +31,23 @@ const STALE_AFTER_INTERVALS = 3;
 /** Transactions are paginated and read straight through, so keep a short TTL. */
 const TRANSACTIONS_TTL_SECONDS = 30;
 
-function needsConnection(provider: string) {
+/**
+ * What a widget shows before its source is connected.
+ *
+ * A grid of empty boxes makes a new account look broken rather than new, so an
+ * unconnected provider renders sample data instead — the same components, the
+ * same shapes, plausible numbers. `_demo` is what makes it unmistakable: the
+ * frame labels it and links to Connections, so nobody reads these as their own
+ * figures. Providers without fixtures fall back to the empty state.
+ */
+function notConnected(provider: Provider | "multi") {
+  const demo =
+    provider === "multi" ? demoStatusBoard() : demoDashboard(provider);
+
+  if (demo) {
+    return jsonOk({ ...demo, _demo: true, provider });
+  }
+
   return jsonOk({
     needsConnection: true,
     provider,
@@ -50,7 +71,7 @@ function needsConnection(provider: string) {
  */
 async function serveDashboard(repos: TenantRepos, provider: Provider) {
   let snapshot = await repos.snapshots.forProvider(provider);
-  if (!snapshot) return needsConnection(provider);
+  if (!snapshot) return notConnected(provider);
 
   if (!snapshot.payload) {
     await syncNow(snapshot.connectionId);
@@ -148,7 +169,7 @@ export async function GET(request: Request) {
           // distinct, user-driven request — so this one path still reads
           // through to Qonto, behind the per-tenant cache.
           const conn = await repos.connections.byProvider("qonto");
-          if (!conn) return needsConnection("qonto");
+          if (!conn) return jsonOk({ ...demoTransactions(), _demo: true });
 
           const credentials = parseCredentials(conn.credentialsEncrypted);
           const parsedLimit = Number(searchParams.get("limit") || "20");
@@ -171,7 +192,7 @@ export async function GET(request: Request) {
           ]);
 
           if (!railway && !netlify && !supabase) {
-            return needsConnection("multi");
+            return notConnected("multi");
           }
 
           const itemsOf = (

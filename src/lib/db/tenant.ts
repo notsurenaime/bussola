@@ -125,6 +125,16 @@ export function forTenant(ctx: TenantContext) {
           );
       },
 
+      /** Widgets across every dashboard, for the setup checklist. */
+      async countAll() {
+        const db = await getDb();
+        const [row] = await db
+          .select({ value: count() })
+          .from(dashboardWidgets)
+          .where(eq(dashboardWidgets.organizationId, org));
+        return row?.value ?? 0;
+      },
+
       async countFor(dashboardId: string) {
         const db = await getDb();
         const [row] = await db

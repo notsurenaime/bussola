@@ -20,6 +20,7 @@ import { BalanceLine } from "@/components/tremor/balance-line";
 import { QontoTransactionsWidget } from "@/components/dashboard/qonto-transactions-widget";
 import {
   ConnectPrompt,
+  DemoNotice,
   deployBadgeVariant,
   formatCores,
   formatGb,
@@ -104,6 +105,7 @@ function LiveWidget({ type }: { type: Exclude<WidgetType, "qonto-transactions"> 
   }
 
   const sync = data._sync as SyncMeta | undefined;
+  const isDemo = data._demo === true;
 
   // The worker gave up on this source — showing the last snapshot as if it
   // were current would hide a credential that needs replacing.
@@ -118,6 +120,9 @@ function LiveWidget({ type }: { type: Exclude<WidgetType, "qonto-transactions"> 
 
   return (
     <>
+      {isDemo ? (
+        <DemoNotice provider={String(data.provider ?? getWidgetDefinition(type)?.provider ?? "")} />
+      ) : null}
       {sync?.stale ? <StaleNotice fetchedAt={sync.fetchedAt} /> : null}
       <div className="flex min-h-0 flex-1 flex-col">{renderWidget(type, data)}</div>
     </>

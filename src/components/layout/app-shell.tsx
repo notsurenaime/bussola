@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
@@ -29,24 +29,55 @@ const NAV = [
 
 const STORAGE_KEY = "bussola.sidebar.collapsed";
 
+/**
+ * Sidebar collapse, read straight from localStorage.
+ *
+ * `useSyncExternalStore` rather than an effect that copies the value into
+ * state: the server has no localStorage, so getServerSnapshot returns the
+ * expanded default and the client swaps in the stored value during hydration
+ * without a second render pass. Reads are wrapped because a browser set to
+ * block site data throws rather than returning null.
+ */
+const collapseListeners = new Set<() => void>();
+
+function subscribeCollapsed(listener: () => void) {
+  collapseListeners.add(listener);
+  window.addEventListener("storage", listener);
+  return () => {
+    collapseListeners.delete(listener);
+    window.removeEventListener("storage", listener);
+  };
+}
+
+function readCollapsed(): boolean {
+  try {
+    return window.localStorage.getItem(STORAGE_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
+function writeCollapsed(next: boolean) {
+  try {
+    window.localStorage.setItem(STORAGE_KEY, next ? "1" : "0");
+  } catch {
+    /* a preference that cannot be stored is not worth failing over */
+  }
+  for (const listener of collapseListeners) listener();
+}
+
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-  const [collapsed, setCollapsed] = useState(false);
+  const collapsed = useSyncExternalStore(
+    subscribeCollapsed,
+    readCollapsed,
+    () => false,
+  );
 
-  useEffect(() => {
-    if (window.localStorage.getItem(STORAGE_KEY) === "1") {
-      setCollapsed(true);
-    }
+  const toggleCollapsed = useCallback(() => {
+    writeCollapsed(!readCollapsed());
   }, []);
-
-  function toggleCollapsed() {
-    setCollapsed((prev) => {
-      const next = !prev;
-      window.localStorage.setItem(STORAGE_KEY, next ? "1" : "0");
-      return next;
-    });
-  }
 
   async function logout() {
     await signOut();

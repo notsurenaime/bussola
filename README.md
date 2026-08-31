@@ -19,9 +19,12 @@ cp .env.example .env.local
 # optional but recommended:
 # openssl rand -hex 32  →  set as BUSSOLA_ENCRYPTION_KEY
 
-npm run db:migrate
 npm run dev
 ```
+
+The database migrates itself on first start, so there is nothing to run first.
+(`npm run db:migrate` exists for hosted deployments, where migrating is an
+explicit deploy step rather than something several instances race to do.)
 
 Open [http://localhost:3000](http://localhost:3000), claim the instance with an
 account only you hold, then:
@@ -30,7 +33,8 @@ account only you hold, then:
 2. **Dashboards** — create a canvas
 3. **Edit** — drag, resize, and add Tremor trackers + KPI blocks
 
-Without a connection, widgets show an empty state and link to Connections.
+Until a source is connected, widgets render clearly-labelled sample data rather
+than empty boxes, so you can see what each one does before pasting any token.
 
 ## Database
 
