@@ -1,0 +1,240 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Features — Bussola</title>
+    <meta name="description" content="The Bussola feature set: dashboard canvas, encrypted connections, demo mode, per-tenant caching, sharing, alerts, MCP server — plus the full widget catalog." />
+    <link rel="icon" href="assets/favicon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header class="site-header">
+      <div class="site-header__inner">
+        <a class="brand" href="index.html"><img src="assets/bussola-mark.svg" alt="" /> <span>Bussola</span></a>
+        <nav class="site-nav" id="nav">
+          <a href="features.html" aria-current="page">Features</a>
+          <a href="connectors.html">Connectors</a>
+          <a href="pricing.html">Pricing</a>
+          <a href="open-source.html">Open source</a>
+          <a href="https://github.com/notsurenaime/bussola">GitHub</a>
+        </nav>
+        <a class="btn btn--sm header-cta" href="https://usebussola.app">Open app</a>
+        <button class="nav-toggle" aria-label="Menu" aria-expanded="false" onclick="const n=document.getElementById('nav');const o=n.classList.toggle('is-open');this.setAttribute('aria-expanded',o)">☰</button>
+      </div>
+    </header>
+
+    <main>
+      <section class="section section--tight">
+        <div class="wrap section__head">
+          <p class="eyebrow">Features</p>
+          <h2>Built to be read at a glance</h2>
+          <p>Every widget is designed first, wired second. Here is what ships in the MVP.</p>
+        </div>
+      </section>
+
+      <section class="wrap">
+        <div class="feature-row">
+          <div>
+            <h3>Dashboard canvas</h3>
+            <p>A drag-and-resize grid built on react-grid-layout. Add a widget, drop it anywhere, and the layout saves itself.</p>
+            <ul>
+              <li>Multiple saved layouts per account</li>
+              <li>8 widgets per dashboard on Solo, ~12 on Team</li>
+              <li>Light and dark, with the Bussola palette</li>
+            </ul>
+          </div>
+          <div class="feature-row__media">
+            <svg viewBox="0 0 240 150" width="100%" fill="none">
+              <rect x="6" y="6" width="108" height="66" rx="8" fill="var(--almond-100)" stroke="var(--line)"/>
+              <rect x="126" y="6" width="108" height="42" rx="8" fill="var(--surface)" stroke="var(--line)"/>
+              <rect x="126" y="60" width="108" height="84" rx="8" fill="var(--surface)" stroke="var(--line)"/>
+              <rect x="6" y="84" width="108" height="60" rx="8" fill="var(--surface)" stroke="var(--line)"/>
+              <path d="M20 52 L40 40 L60 46 L80 26 L100 32" stroke="var(--accent-ink)" stroke-width="3" stroke-linecap="round"/>
+            </svg>
+          </div>
+        </div>
+
+        <div class="feature-row">
+          <div>
+            <h3>Connections management</h3>
+            <p>Add a source, paste its API key, and Bussola runs a real request before saving. Secrets are encrypted at rest with AES-256-GCM.</p>
+            <ul>
+              <li>Per-user credentials, never shared across tenants</li>
+              <li>Connection test on add — no silent failures later</li>
+              <li>Qonto accepts <code>login:secret</code> in one field</li>
+            </ul>
+          </div>
+          <div class="feature-row__media">
+            <svg viewBox="0 0 240 150" width="100%" fill="none">
+              <rect x="24" y="30" width="192" height="30" rx="8" fill="var(--surface)" stroke="var(--line)"/>
+              <rect x="24" y="72" width="192" height="30" rx="8" fill="var(--surface)" stroke="var(--line)"/>
+              <circle cx="44" cy="45" r="6" fill="oklch(72% 0.16 150)"/>
+              <circle cx="44" cy="87" r="6" fill="oklch(72% 0.16 150)"/>
+              <rect x="150" y="39" width="52" height="12" rx="6" fill="var(--almond-100)"/>
+              <rect x="150" y="81" width="52" height="12" rx="6" fill="var(--almond-100)"/>
+            </svg>
+          </div>
+        </div>
+
+        <div class="feature-row">
+          <div>
+            <h3>Demo data mode</h3>
+            <p>New accounts open on a fully populated dashboard, not an empty grid. Great for evaluating before you connect anything real.</p>
+            <ul>
+              <li>Realistic figures across every widget type</li>
+              <li>One switch back to your live connections</li>
+            </ul>
+          </div>
+          <div class="feature-row__media">
+            <svg viewBox="0 0 240 150" width="100%" fill="none">
+              <g stroke="var(--line)" fill="var(--surface)">
+                <rect x="12" y="16" width="102" height="52" rx="8"/>
+                <rect x="126" y="16" width="102" height="52" rx="8"/>
+                <rect x="12" y="82" width="102" height="52" rx="8"/>
+                <rect x="126" y="82" width="102" height="52" rx="8"/>
+              </g>
+              <text x="30" y="47" font-size="16" fill="var(--ink)" font-family="monospace">€5,804</text>
+              <text x="150" y="47" font-size="16" fill="var(--ink)" font-family="monospace">+2,029</text>
+              <rect x="24" y="104" width="70" height="10" rx="5" fill="var(--almond-200)"/>
+              <rect x="138" y="104" width="52" height="10" rx="5" fill="var(--almond-200)"/>
+            </svg>
+          </div>
+        </div>
+
+        <div class="feature-row">
+          <div>
+            <h3>Sharing &amp; alerts</h3>
+            <p>Send a read-only link to anyone. Get an email when something needs you — a failed deploy, a cash balance under your threshold.</p>
+            <ul>
+              <li>Read-only dashboard links</li>
+              <li>Email alerts on every plan</li>
+              <li>Slack &amp; Discord webhooks on Team</li>
+            </ul>
+          </div>
+          <div class="feature-row__media">
+            <svg viewBox="0 0 240 150" width="100%" fill="none">
+              <rect x="30" y="24" width="180" height="40" rx="10" fill="var(--surface)" stroke="var(--line)"/>
+              <circle cx="52" cy="44" r="7" fill="oklch(78% 0.14 75)"/>
+              <rect x="70" y="38" width="120" height="8" rx="4" fill="var(--almond-100)"/>
+              <rect x="30" y="84" width="180" height="40" rx="10" fill="var(--surface)" stroke="var(--line)"/>
+              <circle cx="52" cy="104" r="7" fill="oklch(66% 0.17 25)"/>
+              <rect x="70" y="98" width="90" height="8" rx="4" fill="var(--almond-100)"/>
+            </svg>
+          </div>
+        </div>
+
+        <div class="feature-row" id="mcp">
+          <div>
+            <h3>MCP server</h3>
+            <p>Point an agent at Bussola. It can read data from every connector and manage your dashboards, widgets and connection toggles.</p>
+            <ul>
+              <li>Read access across all connectors</li>
+              <li>Write access to Bussola's own resources only</li>
+              <li>API keys are never editable over MCP — web UI only</li>
+              <li>Team-wide MCP config on the Team plan</li>
+            </ul>
+          </div>
+          <div class="feature-row__media">
+            <svg viewBox="0 0 240 150" width="100%" fill="none">
+              <circle cx="120" cy="75" r="20" fill="var(--almond-100)" stroke="var(--accent-ink)"/>
+              <g stroke="var(--line)" fill="var(--surface)">
+                <rect x="20" y="24" width="52" height="26" rx="6"/>
+                <rect x="20" y="100" width="52" height="26" rx="6"/>
+                <rect x="168" y="24" width="52" height="26" rx="6"/>
+                <rect x="168" y="100" width="52" height="26" rx="6"/>
+              </g>
+              <path d="M72 37 H100 M72 113 H100 M140 37 H168 M140 113 H168" stroke="var(--accent-ink)" stroke-width="2"/>
+            </svg>
+          </div>
+        </div>
+      </section>
+
+      <section class="section section--alt">
+        <div class="wrap section__head section__head--center">
+          <p class="eyebrow">Widget catalog</p>
+          <h2>What each connector renders</h2>
+          <p>Trackers, KPI blocks and status lists — 26 widgets across four connectors at MVP.</p>
+        </div>
+        <div class="wrap table-scroll">
+          <table>
+            <thead>
+              <tr><th>Widget</th><th>Source</th><th>Shows</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>Service Status</td><td class="src">Railway</td><td>Latest deploy status per service</td></tr>
+              <tr><td>Deploy Health</td><td class="src">Railway</td><td>Live status + failed deploys since</td></tr>
+              <tr><td>Fleet Health</td><td class="src">Railway</td><td>Healthy / total services</td></tr>
+              <tr><td>CPU &amp; Memory</td><td class="src">Railway</td><td>Average resources, last hour</td></tr>
+              <tr><td>Usage This Cycle</td><td class="src">Railway</td><td>Estimated billing-cycle usage</td></tr>
+              <tr><td>Recent Deploys</td><td class="src">Railway</td><td>Deployment feed</td></tr>
+              <tr><td>Deploy Health</td><td class="src">Netlify</td><td>Recent deploy trail</td></tr>
+              <tr><td>Sites Board</td><td class="src">Netlify</td><td>Site publish status</td></tr>
+              <tr><td>Sites Health</td><td class="src">Netlify</td><td>Ready / total sites</td></tr>
+              <tr><td>Recent Deploys</td><td class="src">Netlify</td><td>Deployment feed</td></tr>
+              <tr><td>Build Minutes</td><td class="src">Netlify</td><td>Build minutes this period</td></tr>
+              <tr><td>Form Submissions</td><td class="src">Netlify</td><td>Netlify Forms submission counts</td></tr>
+              <tr><td>Project Health</td><td class="src">Supabase</td><td>Healthy / total projects</td></tr>
+              <tr><td>Projects Board</td><td class="src">Supabase</td><td>Project status list</td></tr>
+              <tr><td>Service Health</td><td class="src">Supabase</td><td>DB / Auth / Storage / Realtime / Functions</td></tr>
+              <tr><td>API Traffic</td><td class="src">Supabase</td><td>Request mix, 7 days</td></tr>
+              <tr><td>Request Volume</td><td class="src">Supabase</td><td>Total API requests, 7 days</td></tr>
+              <tr><td>Security Advisors</td><td class="src">Supabase</td><td>Open security findings</td></tr>
+              <tr><td>Cash Balance</td><td class="src">Qonto</td><td>Total cash across accounts</td></tr>
+              <tr><td>Available Liquidity</td><td class="src">Qonto</td><td>Spendable balance after pending</td></tr>
+              <tr><td>30-Day Net Cashflow</td><td class="src">Qonto</td><td>In − out over the last 30 days</td></tr>
+              <tr><td>In vs Out</td><td class="src">Qonto</td><td>30-day inflow / outflow bars</td></tr>
+              <tr><td>Accounts Overview</td><td class="src">Qonto</td><td>Cash split by account</td></tr>
+              <tr><td>Account History</td><td class="src">Qonto</td><td>30-day cash trail</td></tr>
+              <tr><td>Recent Transactions</td><td class="src">Qonto</td><td>Latest bank movements</td></tr>
+              <tr><td>Status Board</td><td class="src">Cross-source</td><td>One status list across connectors</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="wrap">
+          <div class="cta">
+            <h2>See it with demo data</h2>
+            <p>Open the app and browse a populated dashboard before connecting a single token.</p>
+            <div class="btn-row btn-row--center">
+              <a class="btn" href="https://usebussola.app">Open app</a>
+              <a class="btn btn--ghost" href="pricing.html">Compare plans</a>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div class="site-footer__inner">
+        <div class="site-footer__brand">
+          <a class="brand" href="index.html"><img src="assets/bussola-mark.svg" alt="" /> <span>Bussola</span></a>
+          <p>Local-first, plug-and-play dashboard for infrastructure and finances.</p>
+        </div>
+        <div><h4>Product</h4><ul>
+          <li><a href="features.html">Features</a></li>
+          <li><a href="connectors.html">Connectors</a></li>
+          <li><a href="pricing.html">Pricing</a></li>
+          <li><a href="https://usebussola.app">Open app</a></li>
+        </ul></div>
+        <div><h4>Project</h4><ul>
+          <li><a href="open-source.html">Open source</a></li>
+          <li><a href="https://github.com/notsurenaime/bussola">GitHub</a></li>
+          <li><a href="open-source.html#mcp">MCP server</a></li>
+        </ul></div>
+        <div><h4>Legal</h4><ul>
+          <li><a href="/privacy">Privacy</a></li>
+          <li><a href="/terms">Terms</a></li>
+          <li><a href="/imprint">Imprint</a></li>
+        </ul></div>
+        <div class="site-footer__legal">
+          <span>© <span id="year">2026</span> Malango Tech UG</span>
+          <span>Made for solo founders and small dev teams</span>
+        </div>
+      </div>
+    </footer>
+    <script>document.getElementById("year").textContent = new Date().getFullYear();</script>
+  </body>
+</html>

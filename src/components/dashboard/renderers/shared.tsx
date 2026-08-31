@@ -1,0 +1,156 @@
+import Link from "next/link";
+import { getSourceMeta, SourceIcon } from "@/components/brand/source-icons";
+import type { Provider } from "@/lib/db/schema";
+import type { TrackerPoint } from "@/lib/connectors/types";
+
+export function StatusDot({ status }: { status: string }) {
+  const color =
+    status === "ok"
+      ? "bg-success"
+      : status === "warn"
+        ? "bg-warning"
+        : status === "error"
+          ? "bg-destructive"
+          : "bg-muted-foreground/40";
+  return (
+    <span
+      className={`inline-block size-2 shrink-0 rounded-full ${color}`}
+      aria-hidden
+    />
+  );
+}
+
+export function statusLabel(status: string): string {
+  switch (status) {
+    case "ok":
+      return "Operational";
+    case "warn":
+      return "Degraded";
+    case "error":
+      return "Down";
+    case "idle":
+      return "Idle";
+    default:
+      return "Unknown";
+  }
+}
+
+export function deployBadgeVariant(
+  status: TrackerPoint["status"],
+): "secondary" | "outline" | "destructive" {
+  switch (status) {
+    case "ok":
+      return "outline";
+    case "warn":
+      return "secondary";
+    case "error":
+      return "destructive";
+    case "idle":
+      return "secondary";
+    default: {
+      const _exhaustive: never = status;
+      return _exhaustive;
+    }
+  }
+}
+
+/** One shared treatment for every "this widget can't show data right now"
+ *  state — connect prompts, load errors, and empty results. */
+export function WidgetMessage({
+  title,
+  action,
+}: {
+  title: string;
+  action?: { href: string; label: string };
+}) {
+  return (
+    <div className="flex h-full flex-col items-center justify-center gap-1.5 px-3 text-center">
+      <p className="text-sm text-muted-foreground text-balance">{title}</p>
+      {action ? (
+        <Link
+          href={action.href}
+          className="text-sm font-medium text-foreground underline-offset-4 hover:underline"
+        >
+          {action.label}
+        </Link>
+      ) : null}
+    </div>
+  );
+}
+
+export function ConnectPrompt({ provider }: { provider: string }) {
+  const label =
+    provider === "multi" ? "a source" : getSourceMeta(provider).title;
+  return (
+    <WidgetMessage
+      title={`Connect ${label} to see this widget.`}
+      action={{ href: "/connections", label: "Open Connections" }}
+    />
+  );
+}
+
+export function NoData({ label }: { label: string }) {
+  return <WidgetMessage title={label} />;
+}
+
+export function formatCores(value: number): string {
+  return `${value.toFixed(value >= 1 ? 2 : 3)} cores`;
+}
+
+export function formatGb(value: number): string {
+  return `${value.toFixed(value >= 10 ? 1 : 2)} GB`;
+}
+
+export type StatusRow = {
+  id: string;
+  name: string;
+  status: string;
+  detail?: string;
+  provider?: string;
+};
+
+/** Scrollable status list shared by Railway services, Netlify sites, Supabase
+ *  projects, and the multi-source status board. */
+export function StatusList({
+  items,
+  showSourceIcon = false,
+}: {
+  items: StatusRow[];
+  showSourceIcon?: boolean;
+}) {
+  return (
+    <div className="flex h-full min-h-0 flex-col">
+      <ul className="min-h-0 flex-1 divide-y divide-border/60 overflow-y-auto overscroll-contain">
+        {items.map((item) => (
+          <li
+            key={
+              showSourceIcon ? `${item.provider}-${item.id}` : item.id
+            }
+            className="flex items-center gap-2.5 py-2 text-sm"
+          >
+            <StatusDot status={item.status} />
+            {showSourceIcon ? (
+              <SourceIcon
+                provider={item.provider as Provider}
+                className="size-3.5 shrink-0"
+              />
+            ) : null}
+            {showSourceIcon ? (
+              <p className="min-w-0 flex-1 truncate font-medium">{item.name}</p>
+            ) : (
+              <div className="min-w-0 flex-1">
+                <p className="truncate font-medium">{item.name}</p>
+                <p className="truncate text-xs text-muted-foreground">
+                  {item.detail}
+                </p>
+              </div>
+            )}
+            <span className="shrink-0 text-xs text-muted-foreground">
+              {statusLabel(item.status)}
+            </span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}

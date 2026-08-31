@@ -1,4 +1,0 @@
-# Single-package workspace. Native modules used by SQLite / tooling.
-allowBuilds:
-  better-sqlite3: true
-  esbuild: true

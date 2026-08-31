@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { format } from "date-fns";
 import { PlusIcon, TrashIcon } from "@phosphor-icons/react";
 import { toast } from "sonner";
+import { EmptyState, PageHeader } from "@/components/layout/page";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -75,56 +76,51 @@ export default function DashboardsPage() {
 
   return (
     <div className="space-y-8">
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-semibold tracking-tight">Dashboards</h1>
-          <p className="mt-1 text-muted-foreground">
-            Compose canvases from your connected sources.
-          </p>
-        </div>
-        <Dialog open={open} onOpenChange={setOpen}>
-          <DialogTrigger
-            render={
-              <Button type="button">
-                <PlusIcon className="size-4" />
-                New dashboard
-              </Button>
-            }
-          />
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Create dashboard</DialogTitle>
-              <DialogDescription>
-                Give it a clear name — you can rename it later.
-              </DialogDescription>
-            </DialogHeader>
-            <Input
-              placeholder="Ops overview"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") void createDashboard();
-              }}
+      <PageHeader
+        title="Dashboards"
+        description="Compose canvases from your connected sources."
+        actions={
+          <Dialog open={open} onOpenChange={setOpen}>
+            <DialogTrigger
+              render={
+                <Button type="button">
+                  <PlusIcon className="size-4" />
+                  New dashboard
+                </Button>
+              }
             />
-            <DialogFooter>
-              <Button type="button" onClick={() => void createDashboard()}>
-                Create
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      </div>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Create dashboard</DialogTitle>
+                <DialogDescription>
+                  Give it a clear name — you can rename it later.
+                </DialogDescription>
+              </DialogHeader>
+              <Input
+                placeholder="Ops overview"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") void createDashboard();
+                }}
+              />
+              <DialogFooter>
+                <Button type="button" onClick={() => void createDashboard()}>
+                  Create
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        }
+      />
 
       {loading ? (
         <p className="text-sm text-muted-foreground">Loading…</p>
       ) : dashboards.length === 0 ? (
-        <div className="rounded-lg border border-dashed border-border px-6 py-16 text-center">
-          <p className="text-lg font-medium">No dashboards yet</p>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Create your first canvas, then drop Railway, Netlify, Supabase, or
-            Qonto blocks onto it.
-          </p>
-        </div>
+        <EmptyState
+          title="No dashboards yet"
+          description="Create your first canvas, then drop Railway, Netlify, Supabase, or Qonto blocks onto it."
+        />
       ) : (
         <ul className="divide-y divide-border border-y border-border">
           {dashboards.map((dashboard) => (
@@ -134,9 +130,11 @@ export default function DashboardsPage() {
             >
               <Link
                 href={`/dashboards/${dashboard.id}`}
-                className="min-w-0 flex-1 transition-colors hover:text-secondary"
+                className="group min-w-0 flex-1"
               >
-                <p className="truncate text-lg font-medium">{dashboard.name}</p>
+                <p className="truncate text-base font-medium group-hover:underline">
+                  {dashboard.name}
+                </p>
                 <p className="text-sm text-muted-foreground">
                   Updated{" "}
                   {format(new Date(dashboard.updatedAt), "MMM d, yyyy · HH:mm")}

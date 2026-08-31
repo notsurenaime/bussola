@@ -10,6 +10,7 @@ import type {
   TrackerPoint,
 } from "./types";
 import { friendlyStatusLabel, toUserFacingError } from "./errors";
+import { fetchJson } from "./http";
 
 const BASE = "https://api.supabase.com/v1";
 const USAGE_INTERVAL = "7day";
@@ -38,18 +39,16 @@ function validateSupabaseToken(token: string): string | null {
 }
 
 async function supabaseFetch<T>(token: string, path: string): Promise<T> {
-  const res = await fetch(`${BASE}${path}`, {
-    headers: {
-      Authorization: `Bearer ${token}`,
-      "Content-Type": "application/json",
+  return fetchJson<T>(
+    `${BASE}${path}`,
+    {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
     },
-    cache: "no-store",
-  });
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`Supabase API ${res.status}: ${text.slice(0, 160)}`);
-  }
-  return res.json() as Promise<T>;
+    { label: "Supabase" },
+  );
 }
 
 type SupabaseProject = {

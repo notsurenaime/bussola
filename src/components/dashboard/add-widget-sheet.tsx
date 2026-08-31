@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import dynamic from "next/dynamic";
 import Link from "next/link";
 import { MagnifyingGlassIcon } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
@@ -17,7 +18,13 @@ import {
 } from "@/components/ui/sheet";
 import { Badge } from "@/components/ui/badge";
 import { SourceIcon, getSourceMeta } from "@/components/brand/source-icons";
-import { WidgetPreview } from "@/components/dashboard/widget-previews";
+const WidgetPreview = dynamic(
+  () =>
+    import("@/components/dashboard/widget-previews").then(
+      (m) => m.WidgetPreview,
+    ),
+  { ssr: false },
+);
 import { WIDGET_REGISTRY, type WidgetType } from "@/lib/widgets/registry";
 import type { Provider } from "@/lib/db/schema";
 import { cn } from "@/lib/utils";

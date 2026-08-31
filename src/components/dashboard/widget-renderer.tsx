@@ -1,7 +1,5 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import Link from "next/link";
 import { format } from "date-fns";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
@@ -20,9 +18,18 @@ import { BarCompare } from "@/components/tremor/bar-compare";
 import { AccountPie } from "@/components/tremor/account-pie";
 import { BalanceLine } from "@/components/tremor/balance-line";
 import { QontoTransactionsWidget } from "@/components/dashboard/qonto-transactions-widget";
-import { getSourceMeta, SourceIcon } from "@/components/brand/source-icons";
+import {
+  ConnectPrompt,
+  deployBadgeVariant,
+  formatCores,
+  formatGb,
+  NoData,
+  StatusDot,
+  StatusList,
+  statusLabel,
+  WidgetMessage,
+} from "@/components/dashboard/renderers/shared";
 import { formatMoney, formatSignedMoney } from "@/lib/format/money";
-import type { Provider } from "@/lib/db/schema";
 import type {
   BalanceHistory,
   BalanceInfo,
@@ -44,136 +51,21 @@ import type {
 } from "@/lib/connectors/types";
 import type { WidgetType } from "@/lib/widgets/registry";
 import { getWidgetDefinition } from "@/lib/widgets/registry";
+import { useWidgetData } from "@/lib/widgets/widget-data-store";
 
 type WidgetRendererProps = {
   type: WidgetType;
 };
 
-function StatusDot({ status }: { status: string }) {
-  const color =
-    status === "ok"
-      ? "bg-success"
-      : status === "warn"
-        ? "bg-warning"
-        : status === "error"
-          ? "bg-destructive"
-          : "bg-muted-foreground/40";
-  return (
-    <span
-      className={`inline-block size-2 shrink-0 rounded-full ${color}`}
-      aria-hidden
-    />
-  );
-}
-
-function statusLabel(status: string): string {
-  switch (status) {
-    case "ok":
-      return "Operational";
-    case "warn":
-      return "Degraded";
-    case "error":
-      return "Down";
-    case "idle":
-      return "Idle";
-    default:
-      return "Unknown";
-  }
-}
-
-function deployBadgeVariant(
-  status: TrackerPoint["status"],
-): "secondary" | "outline" | "destructive" {
-  switch (status) {
-    case "ok":
-      return "outline";
-    case "warn":
-      return "secondary";
-    case "error":
-      return "destructive";
-    case "idle":
-      return "secondary";
-    default: {
-      const _exhaustive: never = status;
-      return _exhaustive;
-    }
-  }
-}
-
-function ConnectPrompt({ provider }: { provider: string }) {
-  const label =
-    provider === "multi" ? "a source" : getSourceMeta(provider).title;
-  return (
-    <div className="flex h-full flex-col justify-center gap-2">
-      <p className="text-sm font-medium">Connect {label}</p>
-      <Link
-        href="/connections"
-        className="text-sm text-muted-foreground underline-offset-4 hover:underline"
-      >
-        Open Connections
-      </Link>
-    </div>
-  );
-}
-
-function NoData({ label }: { label: string }) {
-  return (
-    <div className="flex h-full items-center">
-      <p className="text-sm text-muted-foreground">{label}</p>
-    </div>
-  );
-}
-
-function formatCores(value: number): string {
-  return `${value.toFixed(value >= 1 ? 2 : 3)} cores`;
-}
-
-function formatGb(value: number): string {
-  return `${value.toFixed(value >= 10 ? 1 : 2)} GB`;
-}
-
 export function WidgetRenderer({ type }: WidgetRendererProps) {
-  const [data, setData] = useState<Record<string, unknown> | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    if (type === "qonto-transactions") return;
-
-    let cancelled = false;
-    let timer: ReturnType<typeof setInterval> | undefined;
-
-    async function load() {
-      try {
-        const res = await fetch(`/api/widgets/data?type=${type}`);
-        const json = (await res.json()) as Record<string, unknown> & {
-          error?: string;
-        };
-        if (!res.ok) throw new Error(json.error || "Failed to load");
-        if (!cancelled) {
-          setData(json);
-          setError(null);
-          setLoading(false);
-        }
-      } catch {
-        if (!cancelled) {
-          setError("Couldn’t load this widget. Try reconnecting the source.");
-          setLoading(false);
-        }
-      }
-    }
-
-    void load();
-    timer = setInterval(() => void load(), 60000);
-    return () => {
-      cancelled = true;
-      if (timer) clearInterval(timer);
-    };
-  }, [type]);
-
   if (type === "qonto-transactions") {
     return <QontoTransactionsWidget />;
   }
+  return <LiveWidget type={type} />;
+}
+
+function LiveWidget({ type }: { type: Exclude<WidgetType, "qonto-transactions"> }) {
+  const { data, error, loading } = useWidgetData(type);
 
   if (loading) {
     return (
@@ -187,15 +79,10 @@ export function WidgetRenderer({ type }: WidgetRendererProps) {
 
   if (error) {
     return (
-      <div className="flex h-full flex-col justify-center gap-2">
-        <p className="text-sm text-muted-foreground">{error}</p>
-        <Link
-          href="/connections"
-          className="text-sm text-muted-foreground underline-offset-4 hover:underline"
-        >
-          Check Connections
-        </Link>
-      </div>
+      <WidgetMessage
+        title={error}
+        action={{ href: "/connections", label: "Check Connections" }}
+      />
     );
   }
 
@@ -220,29 +107,7 @@ export function WidgetRenderer({ type }: WidgetRendererProps) {
       if (items.length === 0) {
         return <NoData label="No Railway services found." />;
       }
-      return (
-        <div className="flex h-full min-h-0 flex-col">
-          <ul className="min-h-0 flex-1 divide-y divide-border/60 overflow-y-auto overscroll-contain">
-            {items.map((item) => (
-              <li
-                key={item.id}
-                className="flex items-center gap-2.5 py-2 text-sm"
-              >
-                <StatusDot status={item.status} />
-                <div className="min-w-0 flex-1">
-                  <p className="truncate font-medium">{item.name}</p>
-                  <p className="truncate text-xs text-muted-foreground">
-                    {item.detail}
-                  </p>
-                </div>
-                <span className="shrink-0 text-xs text-muted-foreground">
-                  {statusLabel(item.status)}
-                </span>
-              </li>
-            ))}
-          </ul>
-        </div>
-      );
+      return <StatusList items={items} />;
     }
     case "railway-fleet": {
       const fleet = data.fleet as RailwayFleetHealth | undefined;
@@ -399,29 +264,7 @@ export function WidgetRenderer({ type }: WidgetRendererProps) {
       if (items.length === 0) {
         return <NoData label="No Netlify sites found." />;
       }
-      return (
-        <div className="flex h-full min-h-0 flex-col">
-          <ul className="min-h-0 flex-1 divide-y divide-border/60 overflow-y-auto overscroll-contain">
-            {items.map((item) => (
-              <li
-                key={item.id}
-                className="flex items-center gap-2.5 py-2 text-sm"
-              >
-                <StatusDot status={item.status} />
-                <div className="min-w-0 flex-1">
-                  <p className="truncate font-medium">{item.name}</p>
-                  <p className="truncate text-xs text-muted-foreground">
-                    {item.detail}
-                  </p>
-                </div>
-                <span className="shrink-0 text-xs text-muted-foreground">
-                  {statusLabel(item.status)}
-                </span>
-              </li>
-            ))}
-          </ul>
-        </div>
-      );
+      return <StatusList items={items} />;
     }
     case "netlify-health": {
       const healthy = Number(data.healthy || 0);
@@ -559,29 +402,7 @@ export function WidgetRenderer({ type }: WidgetRendererProps) {
       if (items.length === 0) {
         return <NoData label="No Supabase projects found." />;
       }
-      return (
-        <div className="flex h-full min-h-0 flex-col">
-          <ul className="min-h-0 flex-1 divide-y divide-border/60 overflow-y-auto overscroll-contain">
-            {items.map((item) => (
-              <li
-                key={item.id}
-                className="flex items-center gap-2.5 py-2 text-sm"
-              >
-                <StatusDot status={item.status} />
-                <div className="min-w-0 flex-1">
-                  <p className="truncate font-medium">{item.name}</p>
-                  <p className="truncate text-xs text-muted-foreground">
-                    {item.detail}
-                  </p>
-                </div>
-                <span className="shrink-0 text-xs text-muted-foreground">
-                  {statusLabel(item.status)}
-                </span>
-              </li>
-            ))}
-          </ul>
-        </div>
-      );
+      return <StatusList items={items} />;
     }
     case "supabase-services": {
       const services = (data.services as SupabaseServiceItem[]) || [];
@@ -861,30 +682,7 @@ export function WidgetRenderer({ type }: WidgetRendererProps) {
       if (items.length === 0) {
         return <NoData label="No status items from connected sources." />;
       }
-      return (
-        <div className="flex h-full min-h-0 flex-col">
-          <ul className="min-h-0 flex-1 divide-y divide-border/60 overflow-y-auto overscroll-contain">
-            {items.map((item) => (
-              <li
-                key={`${item.provider}-${item.id}`}
-                className="flex items-center gap-2.5 py-2 text-sm"
-              >
-                <StatusDot status={item.status} />
-                <SourceIcon
-                  provider={item.provider as Provider}
-                  className="size-3.5 shrink-0"
-                />
-                <p className="min-w-0 flex-1 truncate font-medium">
-                  {item.name}
-                </p>
-                <span className="shrink-0 text-xs text-muted-foreground">
-                  {statusLabel(item.status)}
-                </span>
-              </li>
-            ))}
-          </ul>
-        </div>
-      );
+      return <StatusList items={items} showSourceIcon />;
     }
     default: {
       const _exhaustive: never = type;

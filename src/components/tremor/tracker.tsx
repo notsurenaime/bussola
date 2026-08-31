@@ -1,7 +1,12 @@
 "use client";
 
-import * as React from "react";
-import * as HoverCardPrimitives from "@radix-ui/react-hover-card";
+import { forwardRef } from "react";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 
 export interface TrackerBlockProps {
@@ -18,8 +23,6 @@ function Block({
   defaultBackgroundColor,
   hoverEffect,
 }: TrackerBlockProps) {
-  const [open, setOpen] = React.useState(false);
-
   const block = (
     <div className="size-full overflow-hidden px-[0.5px] transition first:rounded-l-[4px] first:pl-0 last:rounded-r-[4px] last:pr-0 sm:px-px">
       <div
@@ -35,30 +38,10 @@ function Block({
   if (!tooltip) return block;
 
   return (
-    <HoverCardPrimitives.Root
-      open={open}
-      onOpenChange={setOpen}
-      openDelay={0}
-      closeDelay={0}
-    >
-      <HoverCardPrimitives.Trigger onClick={() => setOpen(true)} asChild>
-        {block}
-      </HoverCardPrimitives.Trigger>
-      <HoverCardPrimitives.Portal>
-        <HoverCardPrimitives.Content
-          sideOffset={10}
-          side="top"
-          align="center"
-          avoidCollisions
-          className={cn(
-            "z-50 w-auto rounded-md px-2 py-1 text-sm shadow-md",
-            "bg-foreground text-background",
-          )}
-        >
-          {tooltip}
-        </HoverCardPrimitives.Content>
-      </HoverCardPrimitives.Portal>
-    </HoverCardPrimitives.Root>
+    <Tooltip>
+      <TooltipTrigger render={block} />
+      <TooltipContent>{tooltip}</TooltipContent>
+    </Tooltip>
   );
 }
 
@@ -68,7 +51,7 @@ export interface TrackerProps extends React.HTMLAttributes<HTMLDivElement> {
   hoverEffect?: boolean;
 }
 
-export const Tracker = React.forwardRef<HTMLDivElement, TrackerProps>(
+export const Tracker = forwardRef<HTMLDivElement, TrackerProps>(
   (
     {
       data = [],
@@ -80,23 +63,25 @@ export const Tracker = React.forwardRef<HTMLDivElement, TrackerProps>(
     forwardedRef,
   ) => {
     return (
-      <div
-        ref={forwardedRef}
-        className={cn("group flex h-8 w-full items-center", className)}
-        {...props}
-      >
-        {data.map((item, index) => {
-          const { key: itemKey, ...blockProps } = item;
-          return (
-            <Block
-              key={itemKey ?? index}
-              defaultBackgroundColor={defaultBackgroundColor}
-              hoverEffect={hoverEffect}
-              {...blockProps}
-            />
-          );
-        })}
-      </div>
+      <TooltipProvider delay={0}>
+        <div
+          ref={forwardedRef}
+          className={cn("group flex h-8 w-full items-center", className)}
+          {...props}
+        >
+          {data.map((item, index) => {
+            const { key: itemKey, ...blockProps } = item;
+            return (
+              <Block
+                key={itemKey ?? index}
+                defaultBackgroundColor={defaultBackgroundColor}
+                hoverEffect={hoverEffect}
+                {...blockProps}
+              />
+            );
+          })}
+        </div>
+      </TooltipProvider>
     );
   },
 );

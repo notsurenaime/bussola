@@ -9,7 +9,8 @@ import type {
   TestResult,
   TrackerPoint,
 } from "./types";
-import { friendlyStatusLabel, toUserFacingError } from "./errors";
+import { toUserFacingError } from "./errors";
+import { fetchJson } from "./http";
 
 const BASE = "https://api.netlify.com/api/v1";
 const MAX_SITES = 20;
@@ -17,18 +18,16 @@ const DEPLOYS_PER_SITE = 24;
 const RECENT_DEPLOYS = 25;
 
 async function netlifyFetch<T>(token: string, path: string): Promise<T> {
-  const res = await fetch(`${BASE}${path}`, {
-    headers: {
-      Authorization: `Bearer ${token}`,
-      "Content-Type": "application/json",
+  return fetchJson<T>(
+    `${BASE}${path}`,
+    {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
     },
-    cache: "no-store",
-  });
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`Netlify API ${res.status}: ${text.slice(0, 160)}`);
-  }
-  return res.json() as Promise<T>;
+    { label: "Netlify" },
+  );
 }
 
 function mapState(state?: string): TrackerPoint["status"] {
@@ -354,13 +353,4 @@ export async function fetchNetlifyDashboard(
     forms: forms.slice(0, 12),
     formSubmissionsTotal: forms.reduce((sum, f) => sum + f.submissionCount, 0),
   };
-}
-
-/** Back-compat for status-board and older callers. */
-export async function fetchNetlifyStatus(apiKey: string): Promise<{
-  items: StatusItem[];
-  trackers: Record<string, TrackerPoint[]>;
-}> {
-  const dash = await fetchNetlifyDashboard(apiKey);
-  return { items: dash.items, trackers: dash.trackers };
 }

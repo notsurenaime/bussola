@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import { PageHeader, SectionHeading } from "@/components/layout/page";
 import { ThemeToggle } from "@/components/layout/theme-toggle";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -42,26 +43,25 @@ export default function SettingsPage() {
   }
 
   return (
-    <div className="mx-auto max-w-2xl space-y-10">
-      <div>
-        <h1 className="text-3xl font-semibold tracking-tight">Settings</h1>
-        <p className="mt-1 text-muted-foreground">
-          Local security and appearance for your private Bussola instance.
-        </p>
-      </div>
+    <div className="mx-auto max-w-2xl space-y-8">
+      <PageHeader
+        title="Settings"
+        description="Local security and appearance for your private Bussola instance."
+      />
 
-      <section className="space-y-3 border-b border-border pb-8">
-        <h2 className="text-lg font-medium">Appearance</h2>
-        <div className="flex items-center justify-between gap-4">
-          <p className="text-sm text-muted-foreground">
-            Light and dark mode follow the Bussola palette.
-          </p>
-          <ThemeToggle />
-        </div>
+      <section className="space-y-3 border-t border-border pt-6">
+        <SectionHeading
+          title="Appearance"
+          description="Light and dark mode follow the Bussola palette."
+          actions={<ThemeToggle />}
+        />
       </section>
 
-      <section className="space-y-3 border-b border-border pb-8">
-        <h2 className="text-lg font-medium">Encryption</h2>
+      <section className="space-y-3 border-t border-border pt-6">
+        <SectionHeading
+          title="Encryption"
+          description="Secrets are stored on this machine, encrypted at rest with AES-256-GCM."
+        />
         <div className="flex items-center gap-2">
           <Badge variant={encryptionConfigured ? "secondary" : "outline"}>
             {encryptionConfigured ? "Custom key set" : "Dev fallback key"}
@@ -74,8 +74,8 @@ export default function SettingsPage() {
         </p>
       </section>
 
-      <section className="space-y-4">
-        <h2 className="text-lg font-medium">Change password</h2>
+      <section className="space-y-4 border-t border-border pt-6">
+        <SectionHeading title="Change password" />
         <form onSubmit={changePassword} className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="current">Current password</Label>

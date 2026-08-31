@@ -1,0 +1,272 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Bussola — finally a beautiful dashboard</title>
+    <meta
+      name="description"
+      content="Local-first, plug-and-play dashboard that bundles deploy status, revenue, cash and errors from every tool you use into one customizable view."
+    />
+    <link rel="icon" href="assets/favicon.svg" type="image/svg+xml" />
+    <meta property="og:title" content="Bussola — finally a beautiful dashboard" />
+    <meta
+      property="og:description"
+      content="Infra + revenue + cash for solo and small-team SaaS operators, in one canvas. Open source, self-hostable."
+    />
+    <meta property="og:type" content="website" />
+    <meta property="og:image" content="assets/git-main.png" />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header class="site-header">
+      <div class="site-header__inner">
+        <a class="brand" href="index.html">
+          <img src="assets/bussola-mark.svg" alt="" />
+          <span>Bussola</span>
+        </a>
+        <nav class="site-nav" id="nav">
+          <a href="features.html">Features</a>
+          <a href="connectors.html">Connectors</a>
+          <a href="pricing.html">Pricing</a>
+          <a href="open-source.html">Open source</a>
+          <a href="https://github.com/notsurenaime/bussola">GitHub</a>
+        </nav>
+        <a class="btn btn--sm header-cta" href="https://usebussola.app">Open app</a>
+        <button class="nav-toggle" aria-label="Menu" aria-expanded="false" onclick="const n=document.getElementById('nav');const o=n.classList.toggle('is-open');this.setAttribute('aria-expanded',o)">☰</button>
+      </div>
+    </header>
+
+    <main>
+      <!-- hero -->
+      <section class="hero">
+        <span class="geo geo--a"></span>
+        <span class="geo geo--b"></span>
+        <div class="wrap hero__grid">
+          <div>
+            <p class="eyebrow">Open source · Local-first</p>
+            <h1>finally a <span class="lc">beautiful</span> dashboard</h1>
+            <p class="lede">
+              Bussola bundles the numbers you check every day — deploys, errors,
+              revenue, cash — from every source into one canvas you actually
+              want to look at. No more eight tabs, each with its own login.
+            </p>
+            <div class="btn-row">
+              <a class="btn" href="https://usebussola.app">Start free</a>
+              <a class="btn btn--ghost" href="https://github.com/notsurenaime/bussola">
+                Star on GitHub
+              </a>
+            </div>
+            <p class="hero__note">Runs on your machine · API secrets encrypted with AES-256-GCM</p>
+          </div>
+
+          <!-- pure CSS/SVG visualization of the dashboard -->
+          <div class="panel" role="img" aria-label="Example Bussola dashboard with cash, cashflow, accounts and deploy widgets">
+            <div class="panel__bar">
+              <span class="panel__dot"></span><span class="panel__dot"></span><span class="panel__dot"></span>
+              <span class="panel__title">Finance · auto-saved</span>
+            </div>
+            <div class="panel__grid">
+              <div class="wgt">
+                <span class="wgt__label">Cash balance</span>
+                <span class="wgt__value">€5,804.00</span>
+                <svg class="spark" viewBox="0 0 120 34" preserveAspectRatio="none">
+                  <path class="area" d="M0,26 L12,24 L24,25 L36,18 L48,20 L60,14 L72,15 L84,9 L96,11 L108,6 L120,7 L120,34 L0,34 Z" />
+                  <path class="line" d="M0,26 L12,24 L24,25 L36,18 L48,20 L60,14 L72,15 L84,9 L96,11 L108,6 L120,7" />
+                </svg>
+              </div>
+              <div class="wgt">
+                <span class="wgt__label">30-day net cashflow</span>
+                <span class="wgt__value">+€2,029 <small>▲ positive</small></span>
+                <div class="bars">
+                  <i style="height:40%"></i><i style="height:55%"></i><i class="hi" style="height:80%"></i>
+                  <i style="height:35%"></i><i style="height:62%"></i><i class="hi" style="height:92%"></i>
+                </div>
+              </div>
+              <div class="wgt wgt--wide">
+                <span class="wgt__label">Accounts overview</span>
+                <div class="stack">
+                  <i style="width:52%;background:var(--almond-400)"></i>
+                  <i style="width:29%;background:var(--coffee-500)"></i>
+                  <i style="width:19%;background:oklch(60% 0.02 260)"></i>
+                </div>
+              </div>
+              <div class="wgt wgt--wide">
+                <span class="wgt__label">Recent deploys</span>
+                <div class="rows">
+                  <div><i class="ok"></i> api · production <span>2m ago</span></div>
+                  <div><i class="ok"></i> web · production <span>18m ago</span></div>
+                  <div><i class="warn"></i> worker · building <span>now</span></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- problem / positioning -->
+      <section class="section section--alt">
+        <div class="wrap section__head section__head--center">
+          <p class="eyebrow">Why Bussola</p>
+          <h2>One cockpit for infra <em>and</em> finances</h2>
+          <p>
+            You check deploys and errors to know things are up. You check MRR,
+            cash and open invoices to know where you stand. Today that lives in
+            five to eight separate dashboards. Bussola is the only one built to
+            combine <strong>infra + revenue + cash</strong> for solo and
+            small-team SaaS operators.
+          </p>
+        </div>
+        <div class="wrap">
+          <div class="grid grid--3">
+            <div class="card">
+              <div class="card__icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12h4l3 8 4-16 3 8h4"/></svg>
+              </div>
+              <h3>Not a homelab board</h3>
+              <p>Homarr, Dashy and Heimdall track Docker containers — not business numbers.</p>
+            </div>
+            <div class="card">
+              <div class="card__icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18M9 20V10"/></svg>
+              </div>
+              <h3>Not a heavyweight BI tool</h3>
+              <p>Databox, Klipfolio and Grafana start at $49–159/mo and need setup work.</p>
+            </div>
+            <div class="card">
+              <div class="card__icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 3v9l6 3"/></svg>
+              </div>
+              <h3>Not single-purpose</h3>
+              <p>Analytics tools show traffic only. Monitoring tools show infra only.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- feature highlights -->
+      <section class="section" id="highlights">
+        <div class="wrap section__head section__head--center">
+          <p class="eyebrow">What you get</p>
+          <h2>Everything in one canvas</h2>
+        </div>
+        <div class="wrap">
+          <div class="grid">
+            <div class="card">
+              <h3>Dashboard canvas</h3>
+              <p>Drag, resize and add widgets. Keep multiple saved layouts per account for different views of the business.</p>
+            </div>
+            <div class="card">
+              <h3>Connections management</h3>
+              <p>API keys and OAuth per user, AES-256-GCM encrypted, with a live connection test the moment you add one.</p>
+            </div>
+            <div class="card">
+              <h3>Demo data mode</h3>
+              <p>Explore a fully populated dashboard before connecting anything — no empty widget states.</p>
+            </div>
+            <div class="card">
+              <h3>Per-tenant caching</h3>
+              <p>Widgets refresh on a 45–60s interval, keeping upstream API usage and local resource cost low.</p>
+            </div>
+            <div class="card">
+              <h3>Sharing &amp; alerts</h3>
+              <p>Read-only dashboard links. Email alerts on failed deploys or low cash. Slack &amp; Discord on Team.</p>
+            </div>
+            <div class="card">
+              <h3>MCP server</h3>
+              <p>Read every connector's data and manage your own dashboards from an agent. Credentials stay web-UI only.</p>
+            </div>
+          </div>
+          <p class="center mt-lg"><a class="arrow-link" href="features.html">See all features and the widget catalog →</a></p>
+        </div>
+      </section>
+
+      <!-- screenshot -->
+      <section class="section section--alt">
+        <div class="wrap">
+          <figure class="shot">
+            <img src="assets/git-main.png" alt="Bussola finance dashboard shown on a light and a dark laptop" loading="lazy" />
+          </figure>
+          <figcaption>The same canvas, light or dark — the Bussola palette and Elms&nbsp;Sans throughout.</figcaption>
+        </div>
+      </section>
+
+      <!-- connectors preview -->
+      <section class="section" id="connectors">
+        <div class="wrap section__head section__head--center">
+          <p class="eyebrow">Connectors</p>
+          <h2>Connects everything you already use</h2>
+          <p>Wave 1 is API-key based — paste a token, pass the connection test, done. No OAuth waiting room.</p>
+        </div>
+        <div class="wrap">
+          <div class="logos">
+            <span class="logo"><img src="assets/brands/railway/on-light.svg" alt="" /><span><b>Railway</b><small>Deploys</small></span></span>
+            <span class="logo"><img src="assets/brands/supabase/on-light.svg" alt="" /><span><b>Supabase</b><small>Database</small></span></span>
+            <span class="logo"><img src="assets/brands/qonto/on-light.jpeg" alt="" /><span><b>Qonto</b><small>Banking</small></span></span>
+            <span class="logo"><img src="assets/brands/stripe/on-light.jpeg" alt="" /><span><b>Stripe</b><small>Payments</small></span></span>
+            <span class="logo"><span class="mono">R</span><span><b>Resend</b><small>Email</small></span></span>
+            <span class="logo"><span class="mono">S</span><span><b>Sentry</b><small>Errors</small></span></span>
+            <span class="logo"><span class="mono">L</span><span><b>Lemon Squeezy</b><small>Payments</small></span></span>
+            <span class="logo"><img src="assets/brands/vercel/on-light.svg" alt="" /><span><b>Vercel</b><small>Deploys</small></span></span>
+          </div>
+          <p class="center mt-lg"><a class="arrow-link" href="connectors.html">All connectors, current and planned →</a></p>
+        </div>
+      </section>
+
+      <!-- final CTA -->
+      <section class="section">
+        <div class="wrap">
+          <div class="cta">
+            <h2>Beautiful, and truly yours</h2>
+            <p>Self-host it for free, or let the hosted version do the ops. Either way, your data and your keys stay yours.</p>
+            <div class="btn-row btn-row--center">
+              <a class="btn" href="https://usebussola.app">Open app</a>
+              <a class="btn btn--ghost" href="https://github.com/notsurenaime/bussola">View source</a>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div class="site-footer__inner">
+        <div class="site-footer__brand">
+          <a class="brand" href="index.html"><img src="assets/bussola-mark.svg" alt="" /> <span>Bussola</span></a>
+          <p>Local-first, plug-and-play dashboard for infrastructure and finances.</p>
+        </div>
+        <div>
+          <h4>Product</h4>
+          <ul>
+            <li><a href="features.html">Features</a></li>
+            <li><a href="connectors.html">Connectors</a></li>
+            <li><a href="pricing.html">Pricing</a></li>
+            <li><a href="https://usebussola.app">Open app</a></li>
+          </ul>
+        </div>
+        <div>
+          <h4>Project</h4>
+          <ul>
+            <li><a href="open-source.html">Open source</a></li>
+            <li><a href="https://github.com/notsurenaime/bussola">GitHub</a></li>
+            <li><a href="open-source.html#mcp">MCP server</a></li>
+          </ul>
+        </div>
+        <div>
+          <h4>Legal</h4>
+          <ul>
+            <li><a href="/privacy">Privacy</a></li>
+            <li><a href="/terms">Terms</a></li>
+            <li><a href="/imprint">Imprint</a></li>
+          </ul>
+        </div>
+        <div class="site-footer__legal">
+          <span>© <span id="year">2026</span> Malango Tech UG</span>
+          <span>Made for solo founders and small dev teams</span>
+        </div>
+      </div>
+    </footer>
+    <script>
+      document.getElementById("year").textContent = new Date().getFullYear();
+    </script>
+  </body>
+</html>

@@ -12,6 +12,7 @@ import type {
   TransactionItem,
 } from "./types";
 import { toUserFacingError } from "./errors";
+import { fetchJson } from "./http";
 
 const BASE = "https://thirdparty.qonto.com/v2";
 const TX_PER_PAGE = 100;
@@ -43,18 +44,16 @@ async function qontoFetch<T>(
   credentials: ConnectionCredentials,
   path: string,
 ): Promise<T> {
-  const res = await fetch(`${BASE}${path}`, {
-    headers: {
-      Authorization: authHeader(credentials),
-      "Content-Type": "application/json",
+  return fetchJson<T>(
+    `${BASE}${path}`,
+    {
+      headers: {
+        Authorization: authHeader(credentials),
+        "Content-Type": "application/json",
+      },
     },
-    cache: "no-store",
-  });
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`Qonto API ${res.status}: ${text.slice(0, 160)}`);
-  }
-  return res.json() as Promise<T>;
+    { label: "Qonto" },
+  );
 }
 
 type QontoBankAccount = {

@@ -8,6 +8,7 @@ import {
   TrashIcon,
 } from "@phosphor-icons/react";
 import { SourceIcon } from "@/components/brand/source-icons";
+import { EmptyState, PageHeader, SectionHeading } from "@/components/layout/page";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -142,121 +143,119 @@ export default function ConnectionsPage() {
 
   return (
     <div className="space-y-8">
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-semibold tracking-tight">Connections</h1>
-          <p className="mt-1 text-muted-foreground">
-            Store API keys encrypted locally. Widgets never see secrets in the
-            browser.
-          </p>
-        </div>
-        <Dialog open={open} onOpenChange={setOpen}>
-          <DialogTrigger
-            render={
-              <Button type="button">
-                <PlugsConnectedIcon className="size-4" />
-                Add connection
-              </Button>
-            }
-          />
-          <DialogContent className="sm:max-w-lg">
-            <DialogHeader>
-              <DialogTitle>Connect a source</DialogTitle>
-              <DialogDescription>
-                Keys are encrypted at rest with AES-256-GCM.
-              </DialogDescription>
-            </DialogHeader>
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <Label>Provider</Label>
-                <div className="flex flex-wrap gap-2">
-                  {(Object.keys(PROVIDER_META) as Provider[]).map((p) => (
-                    <Button
-                      key={p}
-                      type="button"
-                      size="sm"
-                      variant={provider === p ? "default" : "outline"}
-                      onClick={() => setProvider(p)}
-                    >
-                      <SourceIcon
-                        provider={p}
-                        branded={provider !== p}
-                        className="size-3.5"
-                      />
-                      {PROVIDER_META[p].name}
-                    </Button>
-                  ))}
-                </div>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="label">Label</Label>
-                <Input
-                  id="label"
-                  placeholder={meta?.name}
-                  value={label}
-                  onChange={(e) => setLabel(e.target.value)}
-                />
-              </div>
-              {meta?.fields.includes("apiKey") ? (
+      <PageHeader
+        title="Connections"
+        description="Store API keys encrypted locally. Widgets never see secrets in the browser."
+        actions={
+          <Dialog open={open} onOpenChange={setOpen}>
+            <DialogTrigger
+              render={
+                <Button type="button">
+                  <PlugsConnectedIcon className="size-4" />
+                  Add connection
+                </Button>
+              }
+            />
+            <DialogContent className="sm:max-w-lg">
+              <DialogHeader>
+                <DialogTitle>Connect a source</DialogTitle>
+                <DialogDescription>
+                  Keys are encrypted at rest with AES-256-GCM.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="apiKey">
-                    {provider === "qonto" ? "API key (login:secret)" : "API token"}
-                  </Label>
+                  <Label>Provider</Label>
+                  <div className="flex flex-wrap gap-2">
+                    {(Object.keys(PROVIDER_META) as Provider[]).map((p) => (
+                      <Button
+                        key={p}
+                        type="button"
+                        size="sm"
+                        variant={provider === p ? "default" : "outline"}
+                        onClick={() => setProvider(p)}
+                      >
+                        <SourceIcon
+                          provider={p}
+                          branded={provider !== p}
+                          className="size-3.5"
+                        />
+                        {PROVIDER_META[p].name}
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="label">Label</Label>
                   <Input
-                    id="apiKey"
-                    type="password"
-                    value={apiKey}
-                    onChange={(e) => setApiKey(e.target.value)}
-                    autoComplete="off"
+                    id="label"
+                    placeholder={meta?.name}
+                    value={label}
+                    onChange={(e) => setLabel(e.target.value)}
                   />
                 </div>
-              ) : null}
-              {provider === "qonto" ? (
-                <>
+                {meta?.fields.includes("apiKey") ? (
                   <div className="space-y-2">
-                    <Label htmlFor="login">Or login</Label>
+                    <Label htmlFor="apiKey">
+                      {provider === "qonto"
+                        ? "API key (login:secret)"
+                        : "API token"}
+                    </Label>
                     <Input
-                      id="login"
-                      value={login}
-                      onChange={(e) => setLogin(e.target.value)}
-                      autoComplete="off"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="secretKey">Secret key</Label>
-                    <Input
-                      id="secretKey"
+                      id="apiKey"
                       type="password"
-                      value={secretKey}
-                      onChange={(e) => setSecretKey(e.target.value)}
+                      value={apiKey}
+                      onChange={(e) => setApiKey(e.target.value)}
                       autoComplete="off"
                     />
                   </div>
-                </>
-              ) : null}
-              <p className="text-xs text-muted-foreground">{meta?.hint}</p>
-            </div>
-            <DialogFooter>
-              <Button
-                type="button"
-                disabled={saving}
-                onClick={() => void saveConnection()}
-              >
-                {saving ? "Saving…" : "Save & test"}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      </div>
+                ) : null}
+                {provider === "qonto" ? (
+                  <>
+                    <div className="space-y-2">
+                      <Label htmlFor="login">Or login</Label>
+                      <Input
+                        id="login"
+                        value={login}
+                        onChange={(e) => setLogin(e.target.value)}
+                        autoComplete="off"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="secretKey">Secret key</Label>
+                      <Input
+                        id="secretKey"
+                        type="password"
+                        value={secretKey}
+                        onChange={(e) => setSecretKey(e.target.value)}
+                        autoComplete="off"
+                      />
+                    </div>
+                  </>
+                ) : null}
+                <p className="text-xs text-muted-foreground">{meta?.hint}</p>
+              </div>
+              <DialogFooter>
+                <Button
+                  type="button"
+                  disabled={saving}
+                  onClick={() => void saveConnection()}
+                >
+                  {saving ? "Saving…" : "Save & test"}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        }
+      />
 
       <section className="space-y-3">
-        <h2 className="text-sm font-medium uppercase tracking-wide text-muted-foreground">
-          Active
-        </h2>
+        <SectionHeading title="Active" />
         {connections.length === 0 ? (
-          <div className="rounded-lg border border-dashed border-border px-6 py-10 text-center text-sm text-muted-foreground">
-            No connections yet — connect a source to power your widgets.
-          </div>
+          <EmptyState
+            title="No connections yet"
+            description="Connect a source to start powering your widgets."
+          />
         ) : (
           <ul className="divide-y divide-border border-y border-border">
             {connections.map((connection) => (
@@ -272,6 +271,7 @@ export default function ConnectionsPage() {
                     />
                     <p className="font-medium">{connection.label}</p>
                     <Badge
+                      className="capitalize"
                       variant={
                         connection.status === "connected"
                           ? "secondary"
@@ -318,9 +318,7 @@ export default function ConnectionsPage() {
       </section>
 
       <section className="space-y-3">
-        <h2 className="text-sm font-medium uppercase tracking-wide text-muted-foreground">
-          Coming soon
-        </h2>
+        <SectionHeading title="Coming soon" />
         <div className="flex flex-wrap gap-2">
           {COMING_SOON.map((p) => (
             <Badge key={p} variant="outline" className="gap-1.5 capitalize">

@@ -1,0 +1,191 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Open source — Bussola</title>
+    <meta name="description" content="Bussola is open source and self-hostable. Local-first by default, AES-256-GCM encrypted secrets, an MCP server, and a modern Next.js stack." />
+    <link rel="icon" href="assets/favicon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header class="site-header">
+      <div class="site-header__inner">
+        <a class="brand" href="index.html"><img src="assets/bussola-mark.svg" alt="" /> <span>Bussola</span></a>
+        <nav class="site-nav" id="nav">
+          <a href="features.html">Features</a>
+          <a href="connectors.html">Connectors</a>
+          <a href="pricing.html">Pricing</a>
+          <a href="open-source.html" aria-current="page">Open source</a>
+          <a href="https://github.com/notsurenaime/bussola">GitHub</a>
+        </nav>
+        <a class="btn btn--sm header-cta" href="https://usebussola.app">Open app</a>
+        <button class="nav-toggle" aria-label="Menu" aria-expanded="false" onclick="const n=document.getElementById('nav');const o=n.classList.toggle('is-open');this.setAttribute('aria-expanded',o)">☰</button>
+      </div>
+    </header>
+
+    <main>
+      <section class="section section--tight">
+        <div class="wrap section__head">
+          <p class="eyebrow">Open source</p>
+          <h2>Self-hosting is the trust anchor</h2>
+          <p>
+            The whole app is on GitHub. The hosted version is a convenience, not
+            a lock-in — run Bussola on your own box and you lose nothing.
+          </p>
+          <div class="btn-row mt-lg">
+            <a class="btn" href="https://github.com/notsurenaime/bussola">View the repo</a>
+            <a class="btn btn--ghost" href="#quickstart">Quick start</a>
+          </div>
+        </div>
+      </section>
+
+      <section class="section section--alt section--tight">
+        <div class="wrap">
+          <div class="grid grid--3">
+            <div class="card">
+              <h3>Local-first</h3>
+              <p>Data lives in <code>./data/bussola.db</code> (or <code>BUSSOLA_DATA_DIR</code>). Nothing leaves your machine unless you host it.</p>
+            </div>
+            <div class="card">
+              <h3>Encrypted secrets</h3>
+              <p>API keys are sealed with AES-256-GCM at rest. Single-user password auth over an HTTP-only session cookie.</p>
+            </div>
+            <div class="card">
+              <h3>Migratable</h3>
+              <p>Designed to move storage to Postgres with row-level security for cloud and multi-user later, without a rewrite.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="section" id="quickstart">
+        <div class="wrap section__head">
+          <p class="eyebrow">Quick start</p>
+          <h2>Running in a few commands</h2>
+          <p>Node and pnpm, then three steps. Open <code>localhost:3000</code> and set a local admin password.</p>
+        </div>
+        <div class="wrap">
+<pre><span class="c"># install & configure</span>
+pnpm install
+cp .env.example .env.local
+<span class="c"># recommended: set an encryption key</span>
+openssl rand -hex 32   <span class="c"># → BUSSOLA_ENCRYPTION_KEY</span>
+
+<span class="c"># migrate & run</span>
+pnpm db:migrate
+pnpm dev</pre>
+          <div class="steps mt-lg">
+            <div class="step">
+              <h3>Connections</h3>
+              <p>Paste API tokens for Railway, Supabase, Qonto and the rest. Each is tested on save.</p>
+            </div>
+            <div class="step">
+              <h3>Dashboards</h3>
+              <p>Create a canvas. Start from demo data if you want to see the shape first.</p>
+            </div>
+            <div class="step">
+              <h3>Edit</h3>
+              <p>Drag, resize and add Tremor trackers and KPI blocks. The layout saves itself.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="section section--alt" id="mcp">
+        <div class="wrap section__head">
+          <p class="eyebrow">MCP server</p>
+          <h2>Give an agent a safe seat</h2>
+          <p>Bussola ships an MCP server so an assistant can work with your data and your dashboards — within clear limits.</p>
+        </div>
+        <div class="wrap">
+          <div class="grid grid--2">
+            <div class="card">
+              <h3>Can do</h3>
+              <ul style="margin:0.6rem 0 0;padding-left:1.1rem;color:var(--muted);font-size:0.95rem;line-height:1.9">
+                <li>Read data from every connector</li>
+                <li>Create and delete dashboards</li>
+                <li>Add, remove and move widgets</li>
+                <li>Enable or disable a connection</li>
+              </ul>
+            </div>
+            <div class="card">
+              <h3>Cannot do</h3>
+              <ul style="margin:0.6rem 0 0;padding-left:1.1rem;color:var(--muted);font-size:0.95rem;line-height:1.9">
+                <li>Edit connection credentials — web UI only</li>
+                <li>Write to third-party systems (restart a service, move money)</li>
+                <li>Bypass plan limits or auth</li>
+              </ul>
+            </div>
+          </div>
+          <p class="mt-lg" style="color:var(--muted);font-size:0.95rem">
+            Write actions on third-party systems are deliberately out of scope for
+            the MVP — that needs its own confirmation and audit design.
+          </p>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="wrap section__head">
+          <p class="eyebrow">Stack</p>
+          <h2>Modern, boring in the right places</h2>
+        </div>
+        <div class="wrap">
+          <div class="logos">
+            <span class="logo"><span class="mono">N</span><span><b>Next.js 16</b><small>App runtime</small></span></span>
+            <span class="logo"><span class="mono">R</span><span><b>React 19</b><small>UI</small></span></span>
+            <span class="logo"><span class="mono">TS</span><span><b>TypeScript</b><small>End to end</small></span></span>
+            <span class="logo"><span class="mono">T</span><span><b>Tailwind v4</b><small>Styling</small></span></span>
+            <span class="logo"><span class="mono">S</span><span><b>shadcn/ui</b><small>Primitives</small></span></span>
+            <span class="logo"><span class="mono">Tr</span><span><b>Tremor Raw</b><small>Charts &amp; trackers</small></span></span>
+            <span class="logo"><span class="mono">D</span><span><b>Drizzle ORM</b><small>SQLite → Postgres</small></span></span>
+            <span class="logo"><span class="mono">G</span><span><b>react-grid-layout</b><small>Drag &amp; resize</small></span></span>
+          </div>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="wrap">
+          <div class="cta">
+            <h2>Star it, fork it, ship a connector</h2>
+            <p>The 3-month success metric for Bussola is community traction — issues and pull requests welcome.</p>
+            <div class="btn-row btn-row--center">
+              <a class="btn" href="https://github.com/notsurenaime/bussola">Open on GitHub</a>
+              <a class="btn btn--ghost" href="connectors.html">Connector roadmap</a>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div class="site-footer__inner">
+        <div class="site-footer__brand">
+          <a class="brand" href="index.html"><img src="assets/bussola-mark.svg" alt="" /> <span>Bussola</span></a>
+          <p>Local-first, plug-and-play dashboard for infrastructure and finances.</p>
+        </div>
+        <div><h4>Product</h4><ul>
+          <li><a href="features.html">Features</a></li>
+          <li><a href="connectors.html">Connectors</a></li>
+          <li><a href="pricing.html">Pricing</a></li>
+          <li><a href="https://usebussola.app">Open app</a></li>
+        </ul></div>
+        <div><h4>Project</h4><ul>
+          <li><a href="open-source.html">Open source</a></li>
+          <li><a href="https://github.com/notsurenaime/bussola">GitHub</a></li>
+          <li><a href="open-source.html#mcp">MCP server</a></li>
+        </ul></div>
+        <div><h4>Legal</h4><ul>
+          <li><a href="/privacy">Privacy</a></li>
+          <li><a href="/terms">Terms</a></li>
+          <li><a href="/imprint">Imprint</a></li>
+        </ul></div>
+        <div class="site-footer__legal">
+          <span>© <span id="year">2026</span> Malango Tech UG</span>
+          <span>Made for solo founders and small dev teams</span>
+        </div>
+      </div>
+    </footer>
+    <script>document.getElementById("year").textContent = new Date().getFullYear();</script>
+  </body>
+</html>

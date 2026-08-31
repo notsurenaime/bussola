@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Connectors — Bussola</title>
+    <meta name="description" content="Bussola connectors: Railway, Supabase, Qonto, Stripe, Resend, Sentry, Lemon Squeezy and Vercel at MVP, with GitHub, GitLab, Linear and Notion as fast-follow." />
+    <link rel="icon" href="assets/favicon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header class="site-header">
+      <div class="site-header__inner">
+        <a class="brand" href="index.html"><img src="assets/bussola-mark.svg" alt="" /> <span>Bussola</span></a>
+        <nav class="site-nav" id="nav">
+          <a href="features.html">Features</a>
+          <a href="connectors.html" aria-current="page">Connectors</a>
+          <a href="pricing.html">Pricing</a>
+          <a href="open-source.html">Open source</a>
+          <a href="https://github.com/notsurenaime/bussola">GitHub</a>
+        </nav>
+        <a class="btn btn--sm header-cta" href="https://usebussola.app">Open app</a>
+        <button class="nav-toggle" aria-label="Menu" aria-expanded="false" onclick="const n=document.getElementById('nav');const o=n.classList.toggle('is-open');this.setAttribute('aria-expanded',o)">☰</button>
+      </div>
+    </header>
+
+    <main>
+      <section class="section section--tight">
+        <div class="wrap section__head">
+          <p class="eyebrow">Connectors</p>
+          <h2>Connect everything you already use</h2>
+          <p>
+            Every connector stores its credentials per user, AES-256-GCM
+            encrypted, and is tested with a real request before it is saved.
+          </p>
+        </div>
+      </section>
+
+      <section class="wrap section--tight">
+        <h3>Wave 1 — available at MVP</h3>
+        <p class="lede" style="font-size:1rem;margin:0.4rem 0 1.5rem">API-key based. No OAuth app, no review queue, no waiting.</p>
+        <div class="logos">
+          <span class="logo"><img src="assets/brands/railway/on-light.svg" alt="" /><span><b>Railway</b><small>API token · deploys, services, usage</small></span></span>
+          <span class="logo"><img src="assets/brands/supabase/on-light.svg" alt="" /><span><b>Supabase</b><small>API token · projects, health, traffic</small></span></span>
+          <span class="logo"><img src="assets/brands/qonto/on-light.jpeg" alt="" /><span><b>Qonto</b><small>login:secret · cash &amp; transactions</small></span></span>
+          <span class="logo"><img src="assets/brands/stripe/on-light.jpeg" alt="" /><span><b>Stripe</b><small>Restricted key · revenue &amp; billing</small></span></span>
+          <span class="logo"><span class="mono">R</span><span><b>Resend</b><small>API key · email delivery</small></span></span>
+          <span class="logo"><span class="mono">S</span><span><b>Sentry</b><small>API token · error volume &amp; issues</small></span></span>
+          <span class="logo"><span class="mono">L</span><span><b>Lemon Squeezy</b><small>API key · sales &amp; subscriptions</small></span></span>
+          <span class="logo"><img src="assets/brands/vercel/on-light.svg" alt="" /><span><b>Vercel</b><small>API token · deploys &amp; projects</small></span></span>
+        </div>
+      </section>
+
+      <section class="wrap section--tight">
+        <h3>Wave 2 — fast-follow</h3>
+        <p class="lede" style="font-size:1rem;margin:0.4rem 0 1.5rem">OAuth apps. Landing shortly after launch.</p>
+        <div class="logos">
+          <span class="logo"><span class="mono">GH</span><span><b>GitHub</b><small>OAuth · reusable flow, GitLab base</small></span></span>
+          <span class="logo"><span class="mono">GL</span><span><b>GitLab</b><small>OAuth · separate implementation</small></span></span>
+          <span class="logo"><span class="mono">Li</span><span><b>Linear</b><small>OAuth · incl. webhook live updates</small></span></span>
+          <span class="logo"><span class="mono">No</span><span><b>Notion</b><small>OAuth · built last (review process)</small></span></span>
+        </div>
+      </section>
+
+      <section class="wrap section--tight" style="padding-bottom:3rem">
+        <h3>Planned</h3>
+        <p class="lede" style="font-size:1rem;margin:0.4rem 0 1.5rem">On the roadmap, not yet scheduled.</p>
+        <div class="logos">
+          <span class="logo"><img src="assets/brands/attio/on-light.svg" alt="" /><span><b>Attio</b><small>CRM</small></span></span>
+          <span class="logo"><img src="assets/brands/polar/on-light.png" alt="" /><span><b>Polar</b><small>Payments</small></span></span>
+          <span class="logo"><img src="assets/brands/netlify/on-light.svg" alt="" /><span><b>Netlify</b><small>Deploys</small></span></span>
+          <span class="logo"><span class="mono">W</span><span><b>Web analytics</b><small>Radically minimal, cookieless</small></span></span>
+        </div>
+      </section>
+
+      <section class="section section--alt">
+        <div class="wrap">
+          <div class="grid grid--3">
+            <div class="card">
+              <h3>Encrypted at rest</h3>
+              <p>Every secret is sealed with AES-256-GCM before it touches storage. Nothing is logged in the clear.</p>
+            </div>
+            <div class="card">
+              <h3>Tested on add</h3>
+              <p>Bussola makes a live call when you connect a source, so a bad key fails now — not silently at render time.</p>
+            </div>
+            <div class="card">
+              <h3>Cached politely</h3>
+              <p>Widget responses are cached ~45–60s per tenant to keep upstream rate limits and local load low.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="wrap">
+          <div class="cta">
+            <h2>Missing a connector you need?</h2>
+            <p>The connector layer is open source. Open an issue, or send a pull request.</p>
+            <div class="btn-row btn-row--center">
+              <a class="btn" href="https://github.com/notsurenaime/bussola/issues">Request one</a>
+              <a class="btn btn--ghost" href="open-source.html">How connectors work</a>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div class="site-footer__inner">
+        <div class="site-footer__brand">
+          <a class="brand" href="index.html"><img src="assets/bussola-mark.svg" alt="" /> <span>Bussola</span></a>
+          <p>Local-first, plug-and-play dashboard for infrastructure and finances.</p>
+        </div>
+        <div><h4>Product</h4><ul>
+          <li><a href="features.html">Features</a></li>
+          <li><a href="connectors.html">Connectors</a></li>
+          <li><a href="pricing.html">Pricing</a></li>
+          <li><a href="https://usebussola.app">Open app</a></li>
+        </ul></div>
+        <div><h4>Project</h4><ul>
+          <li><a href="open-source.html">Open source</a></li>
+          <li><a href="https://github.com/notsurenaime/bussola">GitHub</a></li>
+          <li><a href="open-source.html#mcp">MCP server</a></li>
+        </ul></div>
+        <div><h4>Legal</h4><ul>
+          <li><a href="/privacy">Privacy</a></li>
+          <li><a href="/terms">Terms</a></li>
+          <li><a href="/imprint">Imprint</a></li>
+        </ul></div>
+        <div class="site-footer__legal">
+          <span>© <span id="year">2026</span> Malango Tech UG</span>
+          <span>Made for solo founders and small dev teams</span>
+        </div>
+      </div>
+    </footer>
+    <script>document.getElementById("year").textContent = new Date().getFullYear();</script>
+  </body>
+</html>
