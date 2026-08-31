@@ -1,10 +1,10 @@
-import { requireTenant } from "@/lib/auth/tenant";
+import { requirePageTenant } from "@/lib/auth/tenant";
 import { COMING_SOON_PROVIDERS, LIVE_PROVIDERS, listConnections } from "@/lib/connectors";
 import { getWidgetDefinition } from "@/lib/widgets/registry";
 import { ConnectionsManager, type ConnectionView } from "./connections-manager";
 
 export default async function ConnectionsPage() {
-  const repos = await requireTenant();
+  const repos = await requirePageTenant();
   const [connections, widgetTypes] = await Promise.all([
     listConnections(repos),
     repos.widgets.listTypes(),

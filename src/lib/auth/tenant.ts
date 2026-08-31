@@ -1,4 +1,5 @@
 import { headers } from "next/headers";
+import { redirect } from "next/navigation";
 import { eq } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db";
 import { forTenant, type TenantContext, type TenantRepos } from "@/lib/db/tenant";
@@ -85,9 +86,26 @@ export async function getTenant(): Promise<TenantRepos | null> {
   });
 }
 
+/**
+ * For route handlers: throws, so `withTenant` can answer 401.
+ */
 export async function requireTenant(): Promise<TenantRepos> {
   const repos = await getTenant();
   if (!repos) throw new UnauthorizedError();
+  return repos;
+}
+
+/**
+ * For pages: redirects to the login screen instead of throwing.
+ *
+ * A page and its layout render in parallel, so a page that throws races the
+ * layout's own redirect and logs an unhandled error on every anonymous request
+ * even though the user ends up in the right place. Redirecting from both is
+ * quiet and has the same outcome.
+ */
+export async function requirePageTenant(): Promise<TenantRepos> {
+  const repos = await getTenant();
+  if (!repos) redirect("/login");
   return repos;
 }
 

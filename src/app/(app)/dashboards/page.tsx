@@ -1,11 +1,11 @@
 import { EmptyState, PageHeader } from "@/components/layout/page";
 import { GettingStarted } from "@/components/onboarding/getting-started";
-import { requireTenant } from "@/lib/auth/tenant";
+import { requirePageTenant } from "@/lib/auth/tenant";
 import { CreateDashboard } from "./create-dashboard";
 import { DashboardList, type DashboardSummary } from "./dashboard-list";
 
 export default async function DashboardsPage() {
-  const repos = await requireTenant();
+  const repos = await requirePageTenant();
 
   const [dashboards, connectionCount, widgetCount] = await Promise.all([
     repos.dashboards.list(),

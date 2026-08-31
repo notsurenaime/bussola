@@ -1,3 +1,6 @@
+import fs from "fs";
+import path from "path";
+import { randomBytes } from "crypto";
 import { betterAuth } from "better-auth";
 import { APIError } from "better-auth/api";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
@@ -18,17 +21,44 @@ import { createId } from "@/lib/id";
  */
 let authPromise: Promise<Auth> | undefined;
 
+/**
+ * The session signing key.
+ *
+ * Set BETTER_AUTH_SECRET and it is used as-is; cloud refuses to start without
+ * it. A self-hosted install with nothing configured gets a random 32-byte
+ * secret generated once and kept in the data directory — not a constant baked
+ * into the repository, which every install would share and anyone could use to
+ * forge a session cookie for any of them. Persisting it keeps local sessions
+ * alive across restarts.
+ */
 function secret(): string {
-  const value = process.env.BETTER_AUTH_SECRET;
-  if (value) return value;
+  const configured = process.env.BETTER_AUTH_SECRET;
+  if (configured) return configured;
+
   if (isCloud) {
     throw new Error(
       "BETTER_AUTH_SECRET is required when BUSSOLA_EDITION=cloud.",
     );
   }
-  // Deterministic local-dev fallback, same policy as the encryption vault:
-  // convenient on a laptop, refused in the hosted edition.
-  return "bussola-local-dev-auth-secret";
+
+  const dataDir =
+    process.env.BUSSOLA_DATA_DIR || path.join(process.cwd(), "data");
+  const secretFile = path.join(dataDir, "auth-secret");
+
+  try {
+    const existing = fs.readFileSync(secretFile, "utf8").trim();
+    if (existing.length >= 32) return existing;
+  } catch {
+    // Not created yet — fall through and write one.
+  }
+
+  const generated = randomBytes(32).toString("base64url");
+  fs.mkdirSync(dataDir, { recursive: true });
+  // Owner-only: this key is equivalent to every session on the instance.
+  fs.writeFileSync(secretFile, generated, { mode: 0o600 });
+  console.log(`[bussola] generated a session secret at ${secretFile}`);
+
+  return generated;
 }
 
 /** A URL-safe organization slug derived from the account's email. */
@@ -48,7 +78,15 @@ async function build() {
 
   return betterAuth({
     secret: secret(),
-    baseURL: process.env.BETTER_AUTH_URL || "http://localhost:3000",
+    /*
+     * Only pinned when configured. Better Auth checks request origins against
+     * this, so hardcoding a localhost:3000 default makes every auth request
+     * fail with 403 on a self-hosted install running on any other port or
+     * domain — with nothing in the response to explain why. Left undefined it
+     * infers the origin from the request, which is what self-hosting needs.
+     * Cloud sets BETTER_AUTH_URL, so it stays explicit where it matters.
+     */
+    baseURL: process.env.BETTER_AUTH_URL || undefined,
     database: drizzleAdapter(db, { provider: "pg", schema }),
 
     emailAndPassword: {

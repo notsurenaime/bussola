@@ -3,14 +3,14 @@ import {
   DashboardCanvas,
   type CanvasWidget,
 } from "@/components/dashboard/dashboard-canvas";
-import { requireTenant } from "@/lib/auth/tenant";
+import { requirePageTenant } from "@/lib/auth/tenant";
 import { toCanvasWidget } from "@/lib/widgets/serialize";
 
 type Props = { params: Promise<{ id: string }> };
 
 export default async function DashboardDetailPage({ params }: Props) {
   const { id } = await params;
-  const repos = await requireTenant();
+  const repos = await requirePageTenant();
 
   const dashboard = await repos.dashboards.get(id);
   if (!dashboard) notFound();

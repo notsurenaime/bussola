@@ -40,12 +40,18 @@ export function proxy(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  if (hasSession && isPublic) {
-    const url = request.nextUrl.clone();
-    url.pathname = "/dashboards";
-    return NextResponse.redirect(url);
-  }
-
+  /*
+   * Deliberately no "already signed in, bounce to /dashboards" here.
+   *
+   * This gate only knows whether a cookie exists, not whether the session
+   * behind it is still valid. Redirecting on cookie presence alone traps
+   * anyone holding a stale one — an expired or revoked session, or a reset
+   * database — in a loop: /login sends them to /dashboards, which finds no
+   * valid session and sends them back, with no way to sign in again.
+   *
+   * /login and /signup make that call themselves with a real session lookup,
+   * which is the only check that can tell the two apart.
+   */
   return NextResponse.next();
 }
 
