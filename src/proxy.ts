@@ -14,11 +14,12 @@ export function proxy(request: NextRequest) {
 
   // Routes that authenticate themselves and must stay reachable without a
   // session cookie: Better Auth's own endpoints, the pre-login status probe,
-  // and the cron entry point, which is guarded by a shared secret because
-  // there is no user behind it.
+  // the cron entry point (shared secret), and Stripe's webhook (signature).
+  // None of these ever has a user behind it.
   if (
     pathname.startsWith("/api/auth") ||
     pathname.startsWith("/api/internal/") ||
+    pathname === "/api/billing/webhook" ||
     pathname === "/api/status"
   ) {
     return NextResponse.next();

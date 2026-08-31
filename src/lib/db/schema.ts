@@ -8,6 +8,7 @@ import {
   timestamp,
   uniqueIndex,
 } from "drizzle-orm/pg-core";
+import type { PlanId } from "@/lib/billing/plans";
 import type { ConnectionStatus, Provider } from "@/lib/providers";
 
 /* ───────────────────────── Identity (owned by Better Auth) ─────────────────
@@ -274,6 +275,59 @@ export const connectionCache = pgTable(
     index("cache_expires_idx").on(table.expiresAt),
   ],
 );
+
+/* ─────────────────────────────── Billing (cloud) ───────────────────────────
+ *
+ * Only the hosted edition writes here. Self-hosted installs never create a row
+ * and never load the Stripe client — `lib/billing/entitlements` grants
+ * everything without consulting these tables.
+ * ------------------------------------------------------------------------- */
+
+export const subscriptions = pgTable(
+  "subscriptions",
+  {
+    id: text("id").primaryKey(),
+    /** One subscription per organization. */
+    organizationId: text("organization_id")
+      .notNull()
+      .unique()
+      .references(() => organization.id, { onDelete: "cascade" }),
+    stripeCustomerId: text("stripe_customer_id").notNull(),
+    stripeSubscriptionId: text("stripe_subscription_id"),
+    stripePriceId: text("stripe_price_id"),
+    /** Our plan id, resolved from the Stripe price. */
+    plan: text("plan").$type<PlanId>().notNull().default("free"),
+    /** Stripe's subscription status, verbatim. */
+    status: text("status").notNull().default("incomplete"),
+    currentPeriodEnd: timestamp("current_period_end", { withTimezone: true }),
+    cancelAtPeriodEnd: boolean("cancel_at_period_end").notNull().default(false),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    index("subscriptions_customer_idx").on(table.stripeCustomerId),
+  ],
+);
+
+/**
+ * Webhook events we have already applied.
+ *
+ * Stripe retries on any non-2xx and can deliver the same event more than once;
+ * the primary key is Stripe's event id, so a replay is a no-op instead of a
+ * second plan change.
+ */
+export const billingEvents = pgTable("billing_events", {
+  /** Stripe's event id. */
+  id: text("id").primaryKey(),
+  type: text("type").notNull(),
+  processedAt: timestamp("processed_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+});
 
 export const organizationRelations = relations(organization, ({ many }) => ({
   members: many(member),

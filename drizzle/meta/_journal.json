@@ -15,6 +15,13 @@
       "when": 1788175507361,
       "tag": "0001_sync_snapshots",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1788176491286,
+      "tag": "0002_billing",
+      "breakpoints": true
     }
   ]
 }

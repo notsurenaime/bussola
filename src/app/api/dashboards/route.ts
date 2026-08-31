@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { jsonError, jsonOk, withTenant } from "@/lib/api";
+import { overLimit } from "@/lib/billing/guard";
 
 export const runtime = "nodejs";
 
@@ -18,6 +19,13 @@ export async function POST(request: Request) {
     const body = await request.json().catch(() => null);
     const parsed = createSchema.safeParse(body);
     if (!parsed.success) return jsonError("Name required");
+
+    const denied = await overLimit(
+      repos,
+      "dashboards",
+      await repos.dashboards.count(),
+    );
+    if (denied) return denied;
 
     const dashboard = await repos.dashboards.create(parsed.data.name);
     return jsonOk({ dashboard }, { status: 201 });

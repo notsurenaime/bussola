@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, lt } from "drizzle-orm";
+import { and, asc, count, desc, eq, lt } from "drizzle-orm";
 import { createId } from "@/lib/id";
 import { getDb } from ".";
 import {
@@ -67,6 +67,15 @@ export function forTenant(ctx: TenantContext) {
         return row ?? null;
       },
 
+      async count() {
+        const db = await getDb();
+        const [row] = await db
+          .select({ value: count() })
+          .from(dashboards)
+          .where(eq(dashboards.organizationId, org));
+        return row?.value ?? 0;
+      },
+
       async create(name: string) {
         const db = await getDb();
         const [row] = await db
@@ -112,6 +121,20 @@ export function forTenant(ctx: TenantContext) {
             asc(dashboardWidgets.layoutY),
             asc(dashboardWidgets.layoutX),
           );
+      },
+
+      async countFor(dashboardId: string) {
+        const db = await getDb();
+        const [row] = await db
+          .select({ value: count() })
+          .from(dashboardWidgets)
+          .where(
+            and(
+              eq(dashboardWidgets.dashboardId, dashboardId),
+              eq(dashboardWidgets.organizationId, org),
+            ),
+          );
+        return row?.value ?? 0;
       },
 
       /** Next free row on the canvas, so a new widget never lands on top. */
@@ -208,6 +231,15 @@ export function forTenant(ctx: TenantContext) {
           .where(ownConnection(id))
           .limit(1);
         return row ?? null;
+      },
+
+      async count() {
+        const db = await getDb();
+        const [row] = await db
+          .select({ value: count() })
+          .from(connections)
+          .where(eq(connections.organizationId, org));
+        return row?.value ?? 0;
       },
 
       /**

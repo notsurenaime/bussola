@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { BillingSection } from "@/components/settings/billing-section";
 
 export default function SettingsPage() {
   const [encryptionConfigured, setEncryptionConfigured] = useState(false);
@@ -108,6 +109,7 @@ export default function SettingsPage() {
           </Button>
         </form>
       </section>
+      <BillingSection />
     </div>
   );
 }

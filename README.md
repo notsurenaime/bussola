@@ -64,7 +64,7 @@ The same codebase runs in two modes, selected by `BUSSOLA_EDITION`.
 | Sign-in | email + password, one account | email + password, open signup |
 | Database | PGlite or your own Postgres | managed Postgres, required |
 | Secrets | fall back to local dev values | `BUSSOLA_ENCRYPTION_KEY` + `BETTER_AUTH_SECRET` required |
-| Billing | none, everything unlocked | Stripe *(Phase 3)* |
+| Billing | none, everything unlocked | Stripe checkout, portal, webhook |
 
 This is not two builds. Every query against tenant-owned data goes through the
 organization-scoped repositories in `src/lib/db/tenant.ts`, in both editions —
@@ -117,6 +117,29 @@ dies mid-fetch just leaves its connections to become due again.
 
 The one exception is the Qonto transactions list: it is cursor-paginated and
 user-driven, so it reads through to the API behind a short per-tenant cache.
+
+## Billing
+
+Hosted only. Self-hosted never constructs a Stripe client, never creates a
+subscription row, and has no limits — `entitlementsFor()` returns unlimited
+before it touches the database, so the billing code is inert rather than
+merely unused.
+
+Plans and their limits live in `src/lib/billing/plans.ts`; Stripe is the source
+of truth for *which* plan is active, this repo decides what that plan means.
+Entitlements are read from a local subscription table that the webhook keeps up
+to date, never from Stripe in the request path — so Stripe being down slows
+nobody's dashboard.
+
+- `POST /api/billing/checkout` — Stripe Checkout for a plan
+- `POST /api/billing/portal` — Stripe's own portal for cards, invoices, cancellation
+- `POST /api/billing/webhook` — signature-verified, and idempotent on Stripe's
+  event id so a redelivery cannot apply a plan change twice
+
+Limits are enforced when creating a connection, dashboard or widget, and
+nowhere else: a downgrade never deletes anything a customer already has, it
+only stops them adding more. A price id we do not recognise resolves to the
+free plan, so a mis-configured price cannot quietly grant the top tier.
 
 ## Local private use
 

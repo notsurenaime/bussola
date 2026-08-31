@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { jsonError, jsonOk, withTenant } from "@/lib/api";
+import { overLimit } from "@/lib/billing/guard";
 import { getWidgetDefinition } from "@/lib/widgets/registry";
 import { toCanvasWidget } from "@/lib/widgets/serialize";
 
@@ -26,6 +27,13 @@ export async function POST(request: Request, { params }: Params) {
 
     const def = getWidgetDefinition(parsed.data.widgetType);
     if (!def) return jsonError("Unknown widget type");
+
+    const denied = await overLimit(
+      repos,
+      "widgetsPerDashboard",
+      await repos.widgets.countFor(dashboardId),
+    );
+    if (denied) return denied;
 
     const row = await repos.widgets.add({
       dashboardId,

@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { jsonError, jsonOk, withTenant } from "@/lib/api";
+import { overLimit } from "@/lib/billing/guard";
 import { syncNow } from "@/lib/sync/runner";
 import {
   COMING_SOON_PROVIDERS,
@@ -41,6 +42,17 @@ export async function POST(request: Request) {
     const body = await request.json().catch(() => null);
     const parsed = upsertSchema.safeParse(body);
     if (!parsed.success) return jsonError("Invalid connection payload");
+
+    // Replacing an existing connection's credentials is always allowed; only
+    // adding another one can exceed the plan.
+    if (!parsed.data.id) {
+      const denied = await overLimit(
+        repos,
+        "connections",
+        await repos.connections.count(),
+      );
+      if (denied) return denied;
+    }
 
     const id = await upsertConnection(repos, {
       id: parsed.data.id,
