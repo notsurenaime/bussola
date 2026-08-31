@@ -1,28 +1,26 @@
+import { getSessionCookie } from "better-auth/cookies";
 import { NextResponse, type NextRequest } from "next/server";
 
-const AUTH_PUBLIC = new Set([
-  "/login",
-  "/setup",
-  "/api/auth/login",
-  "/api/auth/setup",
-  "/api/auth/status",
-]);
+const PUBLIC_PATHS = new Set(["/login", "/signup"]);
 
+/**
+ * A cheap, edge-safe gate: it only checks that a session cookie is present, so
+ * it never touches the database. Whether that cookie is *valid* is decided by
+ * `getSession()` in the layout and by `withTenant()` on every API route — this
+ * exists to avoid rendering an authenticated shell for anonymous visitors.
+ */
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  if (
-    pathname.startsWith("/_next") ||
-    pathname.startsWith("/favicon") ||
-    pathname.includes(".")
-  ) {
+  // Better Auth owns /api/auth/* and must stay reachable while signed out.
+  if (pathname.startsWith("/api/auth") || pathname === "/api/status") {
     return NextResponse.next();
   }
 
-  const session = request.cookies.get("bussola_session")?.value;
-  const isPublic = AUTH_PUBLIC.has(pathname);
+  const hasSession = Boolean(getSessionCookie(request));
+  const isPublic = PUBLIC_PATHS.has(pathname);
 
-  if (!session && !isPublic) {
+  if (!hasSession && !isPublic) {
     if (pathname.startsWith("/api/")) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
@@ -34,7 +32,7 @@ export function proxy(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  if (session && (pathname === "/login" || pathname === "/setup")) {
+  if (hasSession && isPublic) {
     const url = request.nextUrl.clone();
     url.pathname = "/dashboards";
     return NextResponse.redirect(url);

@@ -26,7 +26,7 @@ beforeAll(async () => {
 
   const db = await import("./index");
   const { forTenant } = await import("./tenant");
-  const { organizations, users, memberships } = await import("./schema");
+  const { organization, user, member } = await import("./schema");
 
   await db.runMigrations();
   closeDb = db.closeDb;
@@ -36,11 +36,15 @@ beforeAll(async () => {
     const organizationId = createId("org");
     const userId = createId("usr");
     await handle
-      .insert(organizations)
+      .insert(organization)
       .values({ id: organizationId, name: slug, slug });
-    await handle.insert(users).values({ id: userId, passwordHash: "x" });
+    await handle.insert(user).values({
+      id: userId,
+      name: slug,
+      email: `${slug}@example.test`,
+    });
     await handle
-      .insert(memberships)
+      .insert(member)
       .values({ id: createId("mem"), organizationId, userId, role: "owner" });
     return forTenant({ organizationId, userId });
   };

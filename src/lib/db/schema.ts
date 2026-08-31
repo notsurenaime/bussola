@@ -1,6 +1,6 @@
 import { relations } from "drizzle-orm";
-import type { ConnectionStatus, Provider } from "@/lib/providers";
 import {
+  boolean,
   index,
   integer,
   pgTable,
@@ -8,88 +8,154 @@ import {
   timestamp,
   uniqueIndex,
 } from "drizzle-orm/pg-core";
+import type { ConnectionStatus, Provider } from "@/lib/providers";
 
-const createdAt = () =>
-  timestamp("created_at", { withTimezone: true }).notNull().defaultNow();
-const updatedAt = () =>
-  timestamp("updated_at", { withTimezone: true }).notNull().defaultNow();
+/* ───────────────────────── Identity (owned by Better Auth) ─────────────────
+ *
+ * These seven tables match the shape Better Auth expects for email/password
+ * auth plus the organization plugin. Do not hand-edit their columns: change the
+ * auth configuration in `lib/auth`, then regenerate and review the migration.
+ * ------------------------------------------------------------------------- */
 
-/**
- * The tenant boundary. Self-hosted installs hold exactly one row; cloud holds
- * one per customer. Every tenant-owned table carries `organization_id` and is
- * only reachable through the scoped repositories in `lib/db/tenant.ts`.
- */
-export const organizations = pgTable("organizations", {
+export const user = pgTable("user", {
+  id: text("id").primaryKey(),
+  name: text("name").notNull(),
+  email: text("email").notNull().unique(),
+  emailVerified: boolean("email_verified").notNull().default(false),
+  image: text("image"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+export const session = pgTable(
+  "session",
+  {
+    id: text("id").primaryKey(),
+    expiresAt: timestamp("expires_at").notNull(),
+    token: text("token").notNull().unique(),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    updatedAt: timestamp("updated_at").notNull().defaultNow(),
+    ipAddress: text("ip_address"),
+    userAgent: text("user_agent"),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    /** The organization this session is acting in — the tenant. */
+    activeOrganizationId: text("active_organization_id"),
+  },
+  (table) => [
+    index("session_user_idx").on(table.userId),
+    index("session_expires_idx").on(table.expiresAt),
+  ],
+);
+
+export const account = pgTable(
+  "account",
+  {
+    id: text("id").primaryKey(),
+    issuer: text("issuer").notNull(),
+    accountId: text("account_id").notNull(),
+    providerId: text("provider_id").notNull(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    accessToken: text("access_token"),
+    refreshToken: text("refresh_token"),
+    idToken: text("id_token"),
+    accessTokenExpiresAt: timestamp("access_token_expires_at"),
+    refreshTokenExpiresAt: timestamp("refresh_token_expires_at"),
+    scope: text("scope"),
+    password: text("password"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  },
+  (table) => [index("account_user_idx").on(table.userId)],
+);
+
+export const verification = pgTable(
+  "verification",
+  {
+    id: text("id").primaryKey(),
+    identifier: text("identifier").notNull(),
+    value: text("value").notNull(),
+    expiresAt: timestamp("expires_at").notNull(),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  },
+  (table) => [index("verification_identifier_idx").on(table.identifier)],
+);
+
+/** The tenant boundary. One row per self-hosted install, one per customer. */
+export const organization = pgTable("organization", {
   id: text("id").primaryKey(),
   name: text("name").notNull(),
   slug: text("slug").notNull().unique(),
-  createdAt: createdAt(),
-  updatedAt: updatedAt(),
+  logo: text("logo"),
+  metadata: text("metadata"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
-export const users = pgTable("users", {
-  id: text("id").primaryKey(),
-  /** Null until an account is claimed; self-hosted setup leaves it unset. */
-  email: text("email").unique(),
-  passwordHash: text("password_hash").notNull(),
-  createdAt: createdAt(),
-  updatedAt: updatedAt(),
-});
-
-export type MemberRole = "owner" | "admin" | "member";
-
-export const memberships = pgTable(
-  "memberships",
+export const member = pgTable(
+  "member",
   {
     id: text("id").primaryKey(),
     organizationId: text("organization_id")
       .notNull()
-      .references(() => organizations.id, { onDelete: "cascade" }),
+      .references(() => organization.id, { onDelete: "cascade" }),
     userId: text("user_id")
       .notNull()
-      .references(() => users.id, { onDelete: "cascade" }),
-    role: text("role").$type<MemberRole>().notNull().default("owner"),
-    createdAt: createdAt(),
+      .references(() => user.id, { onDelete: "cascade" }),
+    role: text("role").notNull().default("member"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
   },
   (table) => [
-    uniqueIndex("memberships_org_user_key").on(
-      table.organizationId,
-      table.userId,
-    ),
-    index("memberships_user_idx").on(table.userId),
+    uniqueIndex("member_org_user_key").on(table.organizationId, table.userId),
+    index("member_user_idx").on(table.userId),
   ],
 );
 
-export const sessions = pgTable(
-  "sessions",
+export const invitation = pgTable(
+  "invitation",
   {
     id: text("id").primaryKey(),
-    userId: text("user_id")
-      .notNull()
-      .references(() => users.id, { onDelete: "cascade" }),
-    /** The organization this session is acting in. */
     organizationId: text("organization_id")
       .notNull()
-      .references(() => organizations.id, { onDelete: "cascade" }),
-    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
-    createdAt: createdAt(),
+      .references(() => organization.id, { onDelete: "cascade" }),
+    email: text("email").notNull(),
+    role: text("role"),
+    status: text("status").notNull().default("pending"),
+    expiresAt: timestamp("expires_at").notNull(),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    inviterId: text("inviter_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
   },
-  (table) => [
-    index("sessions_user_idx").on(table.userId),
-    index("sessions_expires_idx").on(table.expiresAt),
-  ],
+  (table) => [index("invitation_org_idx").on(table.organizationId)],
 );
+
+/* ───────────────────────────── Tenant-owned data ───────────────────────────
+ *
+ * Every table below carries `organization_id` and is reachable only through the
+ * scoped repositories in `lib/db/tenant.ts`.
+ * ------------------------------------------------------------------------- */
+
+const orgRef = () =>
+  text("organization_id")
+    .notNull()
+    .references(() => organization.id, { onDelete: "cascade" });
 
 export const dashboards = pgTable(
   "dashboards",
   {
     id: text("id").primaryKey(),
-    organizationId: text("organization_id")
-      .notNull()
-      .references(() => organizations.id, { onDelete: "cascade" }),
+    organizationId: orgRef(),
     name: text("name").notNull(),
-    createdAt: createdAt(),
-    updatedAt: updatedAt(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
   },
   (table) => [index("dashboards_org_idx").on(table.organizationId)],
 );
@@ -98,9 +164,7 @@ export const dashboardWidgets = pgTable(
   "dashboard_widgets",
   {
     id: text("id").primaryKey(),
-    organizationId: text("organization_id")
-      .notNull()
-      .references(() => organizations.id, { onDelete: "cascade" }),
+    organizationId: orgRef(),
     dashboardId: text("dashboard_id")
       .notNull()
       .references(() => dashboards.id, { onDelete: "cascade" }),
@@ -111,8 +175,12 @@ export const dashboardWidgets = pgTable(
     layoutY: integer("layout_y").notNull().default(0),
     layoutW: integer("layout_w").notNull().default(4),
     layoutH: integer("layout_h").notNull().default(3),
-    createdAt: createdAt(),
-    updatedAt: updatedAt(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
   },
   (table) => [
     index("widgets_dashboard_idx").on(table.dashboardId),
@@ -124,18 +192,23 @@ export const connections = pgTable(
   "connections",
   {
     id: text("id").primaryKey(),
-    organizationId: text("organization_id")
-      .notNull()
-      .references(() => organizations.id, { onDelete: "cascade" }),
+    organizationId: orgRef(),
     provider: text("provider").$type<Provider>().notNull(),
     label: text("label").notNull(),
     /** AES-256-GCM payload from `lib/crypto/vault`. Never leaves the server. */
     credentialsEncrypted: text("credentials_encrypted").notNull(),
-    status: text("status").$type<ConnectionStatus>().notNull().default("unknown"),
+    status: text("status")
+      .$type<ConnectionStatus>()
+      .notNull()
+      .default("unknown"),
     lastCheckedAt: timestamp("last_checked_at", { withTimezone: true }),
     lastError: text("last_error"),
-    createdAt: createdAt(),
-    updatedAt: updatedAt(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
   },
   (table) => [index("connections_org_idx").on(table.organizationId)],
 );
@@ -144,13 +217,13 @@ export const connectionCache = pgTable(
   "connection_cache",
   {
     id: text("id").primaryKey(),
-    organizationId: text("organization_id")
-      .notNull()
-      .references(() => organizations.id, { onDelete: "cascade" }),
+    organizationId: orgRef(),
     cacheKey: text("cache_key").notNull(),
     payloadJson: text("payload_json").notNull(),
     expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
-    createdAt: createdAt(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
   },
   (table) => [
     uniqueIndex("cache_org_key_key").on(table.organizationId, table.cacheKey),
@@ -158,25 +231,25 @@ export const connectionCache = pgTable(
   ],
 );
 
-export const organizationsRelations = relations(organizations, ({ many }) => ({
-  memberships: many(memberships),
+export const organizationRelations = relations(organization, ({ many }) => ({
+  members: many(member),
   dashboards: many(dashboards),
   connections: many(connections),
 }));
 
-export const membershipsRelations = relations(memberships, ({ one }) => ({
-  organization: one(organizations, {
-    fields: [memberships.organizationId],
-    references: [organizations.id],
+export const memberRelations = relations(member, ({ one }) => ({
+  organization: one(organization, {
+    fields: [member.organizationId],
+    references: [organization.id],
   }),
-  user: one(users, { fields: [memberships.userId], references: [users.id] }),
+  user: one(user, { fields: [member.userId], references: [user.id] }),
 }));
 
 export const dashboardsRelations = relations(dashboards, ({ many, one }) => ({
   widgets: many(dashboardWidgets),
-  organization: one(organizations, {
+  organization: one(organization, {
     fields: [dashboards.organizationId],
-    references: [organizations.id],
+    references: [organization.id],
   }),
 }));
 

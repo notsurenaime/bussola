@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
 import { toast } from "sonner";
+import { authClient } from "@/lib/auth/client";
 import { PageHeader, SectionHeading } from "@/components/layout/page";
 import { ThemeToggle } from "@/components/layout/theme-toggle";
 import { Button } from "@/components/ui/button";
@@ -11,14 +11,13 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 
 export default function SettingsPage() {
-  const router = useRouter();
   const [encryptionConfigured, setEncryptionConfigured] = useState(false);
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    void fetch("/api/auth/status")
+    void fetch("/api/status")
       .then((r) => r.json())
       .then((data: { encryptionConfigured?: boolean }) => {
         setEncryptionConfigured(Boolean(data.encryptionConfigured));
@@ -28,32 +27,24 @@ export default function SettingsPage() {
   async function changePassword(e: React.FormEvent) {
     e.preventDefault();
     setSaving(true);
-    const res = await fetch("/api/auth/password", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ currentPassword, newPassword }),
+
+    // revokeOtherSessions signs out every other device; this one stays valid,
+    // so there is no need to bounce the user back to the login screen.
+    const { error } = await authClient.changePassword({
+      currentPassword,
+      newPassword,
+      revokeOtherSessions: true,
     });
-    const data = (await res.json()) as {
-      error?: string;
-      reauthRequired?: boolean;
-    };
     setSaving(false);
-    if (!res.ok) {
-      toast.error(data.error || "Failed to change password");
+
+    if (error) {
+      toast.error(error.message || "Failed to change password");
       return;
     }
+
     setCurrentPassword("");
     setNewPassword("");
-
-    if (data.reauthRequired) {
-      // Changing the password revokes every session, this one included, so drop
-      // any cached server payload on the way out.
-      toast.success("Password updated — signing you back in");
-      router.replace("/login");
-      router.refresh();
-      return;
-    }
-    toast.success("Password updated");
+    toast.success("Password updated — other devices signed out");
   }
 
   return (

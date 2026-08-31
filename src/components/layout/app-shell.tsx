@@ -12,6 +12,7 @@ import {
 } from "@phosphor-icons/react";
 import { BussolaMark } from "@/components/brand/bussola-mark";
 import { ThemeToggle } from "@/components/layout/theme-toggle";
+import { signOut } from "@/lib/auth/client";
 import { Button } from "@/components/ui/button";
 import {
   Tooltip,
@@ -48,7 +49,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   }
 
   async function logout() {
-    await fetch("/api/auth/logout", { method: "POST" });
+    await signOut();
     router.push("/login");
     router.refresh();
   }

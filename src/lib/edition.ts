@@ -31,6 +31,7 @@ export function assertEditionConfig(): void {
   if (!process.env.BUSSOLA_ENCRYPTION_KEY) {
     missing.push("BUSSOLA_ENCRYPTION_KEY");
   }
+  if (!process.env.BETTER_AUTH_SECRET) missing.push("BETTER_AUTH_SECRET");
 
   if (missing.length) {
     throw new Error(

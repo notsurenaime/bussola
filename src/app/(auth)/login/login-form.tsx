@@ -1,48 +1,51 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
+import { signIn } from "@/lib/auth/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
-export function LoginForm() {
+export function LoginForm({ signupOpen }: { signupOpen: boolean }) {
   const router = useRouter();
   const search = useSearchParams();
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-
-  useEffect(() => {
-    void fetch("/api/auth/status")
-      .then((r) => r.json())
-      .then((data: { configured?: boolean; authenticated?: boolean }) => {
-        if (!data.configured) router.replace("/setup");
-        if (data.authenticated) router.replace("/dashboards");
-      });
-  }, [router]);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
     setLoading(true);
-    const res = await fetch("/api/auth/login", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ password }),
-    });
-    const data = (await res.json()) as { error?: string };
+
+    const { error: signInError } = await signIn.email({ email, password });
     setLoading(false);
-    if (!res.ok) {
-      setError(data.error || "Login failed");
+
+    if (signInError) {
+      setError(signInError.message || "Sign in failed");
       return;
     }
+
     router.push(search.get("next") || "/dashboards");
     router.refresh();
   }
 
   return (
     <form onSubmit={onSubmit} className="space-y-4">
+      <div className="space-y-2">
+        <Label htmlFor="email">Email</Label>
+        <Input
+          id="email"
+          type="email"
+          autoComplete="email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          required
+        />
+      </div>
       <div className="space-y-2">
         <Label htmlFor="password">Password</Label>
         <Input
@@ -58,6 +61,14 @@ export function LoginForm() {
       <Button type="submit" className="w-full" disabled={loading}>
         {loading ? "Signing in…" : "Sign in"}
       </Button>
+      {signupOpen ? (
+        <p className="text-center text-sm text-muted-foreground">
+          No account yet?{" "}
+          <Link href="/signup" className="text-foreground underline">
+            Create one
+          </Link>
+        </p>
+      ) : null}
     </form>
   );
 }

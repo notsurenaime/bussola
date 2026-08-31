@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { AppShell } from "@/components/layout/app-shell";
-import { getSessionUser, hasUser } from "@/lib/auth/session";
+import { getSession, hasAccount } from "@/lib/auth/tenant";
 
 // Every page in this group is per-tenant and reads the database, so none of
 // them may be prerendered at build time.
@@ -11,10 +11,10 @@ export default async function AppLayout({
 }: {
   children: React.ReactNode;
 }) {
-  if (!(await hasUser())) {
-    redirect("/setup");
+  if (!(await hasAccount())) {
+    redirect("/signup");
   }
-  if (!(await getSessionUser())) {
+  if (!(await getSession())) {
     redirect("/login");
   }
 

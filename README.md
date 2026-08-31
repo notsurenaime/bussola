@@ -23,7 +23,8 @@ npm run db:migrate
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000), create a local admin password, then:
+Open [http://localhost:3000](http://localhost:3000), claim the instance with an
+account only you hold, then:
 
 1. **Connections** — paste API tokens for Railway / Netlify / Supabase / Qonto
 2. **Dashboards** — create a canvas
@@ -59,10 +60,10 @@ The same codebase runs in two modes, selected by `BUSSOLA_EDITION`.
 
 | | `self-hosted` (default) | `cloud` |
 |---|---|---|
-| Tenancy | one organization, created at setup | one per customer |
-| Sign-in | single admin password | signup + login *(Phase 1)* |
+| Tenancy | one organization, created on first signup | one per customer |
+| Sign-in | email + password, one account | email + password, open signup |
 | Database | PGlite or your own Postgres | managed Postgres, required |
-| Encryption key | falls back to a local dev key | required — startup fails without it |
+| Secrets | fall back to local dev values | `BUSSOLA_ENCRYPTION_KEY` + `BETTER_AUTH_SECRET` required |
 | Billing | none, everything unlocked | Stripe *(Phase 3)* |
 
 This is not two builds. Every query against tenant-owned data goes through the
@@ -71,11 +72,23 @@ so the self-hosted path exercises the very isolation code that keeps hosted
 customers apart, and ESLint refuses to compile a route handler that reaches
 around it.
 
+## Auth
+
+Identity runs on [Better Auth](https://better-auth.com), inside the app and on
+the same Postgres as everything else — no external identity provider, so the
+hosted and self-hosted editions run the *same* auth code rather than two
+implementations.
+
+Self-hosted accepts exactly one account: the first person to reach `/signup`
+claims the instance, and every later attempt is refused. Cloud leaves signup
+open, and each account gets its own organization the moment it is created.
+
 ## Local private use
 
 - Data lives in `./data/pgdata` (or your `DATABASE_URL` server)
 - API secrets are encrypted with AES-256-GCM
-- Single-user password auth via HTTP-only session cookie
+- Auth is [Better Auth](https://better-auth.com): email + password, sessions in
+  your own database, CSRF-checked, no third-party identity service
 - Light / dark theme with the Bussola palette and **Elms Sans**
 
 ## Widget catalog
