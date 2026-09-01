@@ -3,38 +3,41 @@
 import { format } from "date-fns";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
+import { StatCard } from "@/components/dashboard/widgets/stat-card";
+import { ActivityTracker } from "@/components/dashboard/widgets/activity-tracker";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { KpiCard } from "@/components/tremor/kpi-card";
-import { Tracker } from "@/components/tremor/tracker";
-import { DeployHealth } from "@/components/tremor/deploy-health";
-import { BarCompare } from "@/components/tremor/bar-compare";
-import { AccountPie } from "@/components/tremor/account-pie";
-import { BalanceLine } from "@/components/tremor/balance-line";
-import { QontoTransactionsWidget } from "@/components/dashboard/qonto-transactions-widget";
+  ActivityPanel,
+  type ActivityPanelEvent,
+} from "@/components/dashboard/widgets/activity-panel";
+import { BarChart } from "@/components/dashboard/widgets/bar-chart";
+import { DonutChart } from "@/components/dashboard/widgets/donut-chart";
+import { LineChart } from "@/components/dashboard/widgets/line-chart";
+import { DataTable } from "@/components/dashboard/widgets/data-table";
+import {
+  StatusDot,
+  StatusList,
+  type StatusRow,
+} from "@/components/dashboard/widgets/status-list";
 import {
   ConnectPrompt,
   DemoNotice,
+  NoData,
+  StaleNotice,
+  WidgetMessage,
+} from "@/components/dashboard/widgets/widget-messages";
+import { QontoTransactionsWidget } from "@/components/dashboard/qonto-transactions-widget";
+import {
   deployBadgeVariant,
   formatCores,
   formatGb,
-  NoData,
   paymentBadgeVariant,
-  StaleNotice,
-  StatusDot,
-  StatusList,
-  statusLabel,
-  WidgetMessage,
-} from "@/components/dashboard/renderers/shared";
+  shortAge,
+  shortId,
+} from "@/lib/widgets/widget-format";
 import { formatMoney, formatSignedMoney } from "@/lib/format/money";
 import type {
   PaymentItem,
+  RailwayDeployAttempt,
   ResendDomainItem,
   ResendEmailItem,
   RevenueSummary,
@@ -136,6 +139,32 @@ type SyncMeta = {
   lastError?: string | null;
 };
 
+/** Maps a Railway deploy attempt's raw status to a short human label. */
+function attemptStatusLabel(attempt: RailwayDeployAttempt): string {
+  const raw = attempt.rawStatus.toUpperCase();
+  if (raw === "FAILED") return "Deploy failed";
+  if (raw === "CRASHED") return "Crashed";
+  if (raw === "BUILDING") return "Building";
+  if (raw === "DEPLOYING") return "Deploying";
+  if (raw === "QUEUED") return "Queued";
+  if (raw === "WAITING") return "Waiting";
+  if (raw === "INITIALIZING") return "Starting";
+  return attempt.stage;
+}
+
+function eventFromAttempt(
+  attempt: RailwayDeployAttempt,
+  tone: "destructive" | "warning",
+): ActivityPanelEvent {
+  return {
+    id: attempt.id,
+    age: shortAge(attempt.createdAt),
+    label: attemptStatusLabel(attempt),
+    tone,
+    meta: shortId(attempt.id),
+  };
+}
+
 function renderWidget(
   type: Exclude<WidgetType, "qonto-transactions">,
   data: Record<string, unknown>,
@@ -146,7 +175,59 @@ function renderWidget(
       if (!health) {
         return <NoData label="No services found for this connection." />;
       }
-      return <DeployHealth health={health} />;
+      const behind = health.behindCount;
+      const liveAge = shortAge(health.active.createdAt);
+      const events: ActivityPanelEvent[] = [
+        ...(health.inFlight ? [eventFromAttempt(health.inFlight, "warning" as const)] : []),
+        ...health.failedSinceActive
+          .slice(0, 3)
+          .map((attempt) => eventFromAttempt(attempt, "destructive" as const)),
+      ];
+      return (
+        <ActivityPanel
+          title={health.serviceName}
+          subtitle={health.projectName}
+          status={{
+            label:
+              health.active.status === "healthy"
+                ? "Healthy"
+                : health.active.status === "crashed"
+                  ? "Crashed"
+                  : health.active.status === "sleeping"
+                    ? "Sleeping"
+                    : "Unknown",
+            tone:
+              health.active.status === "healthy"
+                ? "positive"
+                : health.active.status === "crashed"
+                  ? "negative"
+                  : "neutral",
+          }}
+          headline={
+            behind > 0
+              ? `${behind} behind`
+              : health.active.status === "crashed"
+                ? "Crashed"
+                : health.inFlight
+                  ? "Shipping"
+                  : "Up to date"
+          }
+          headlineTone={
+            behind > 0 || health.active.status === "crashed"
+              ? "negative"
+              : "neutral"
+          }
+          meta={[
+            liveAge ? `live ${liveAge}` : null,
+            health.active.commitHash,
+            behind === 0 ? health.active.label : null,
+          ]
+            .filter(Boolean)
+            .join(" · ")}
+          events={events}
+          moreCount={Math.max(behind - health.failedSinceActive.slice(0, 3).length, 0)}
+        />
+      );
     }
     case "railway-services": {
       const items = (data.items as StatusItem[]) || [];
@@ -163,7 +244,7 @@ function renderWidget(
       const allHealthy = fleet.healthy === fleet.total;
       const issues = fleet.crashed + fleet.degraded;
       return (
-        <KpiCard
+        <StatCard
           label="Healthy services"
           value={`${fleet.healthy}/${fleet.total}`}
           hint={
@@ -190,7 +271,7 @@ function renderWidget(
       }
       return (
         <div className="flex h-full flex-col justify-center gap-3">
-          <BarCompare
+          <BarChart
             rows={[
               {
                 label: "CPU",
@@ -225,7 +306,7 @@ function renderWidget(
       }
       return (
         <div className="flex h-full flex-col justify-center gap-3">
-          <BarCompare
+          <BarChart
             rows={usage.map((row) => ({
               label: row.label,
               value: row.value,
@@ -243,41 +324,39 @@ function renderWidget(
         return <NoData label="No recent deployments." />;
       }
       return (
-        <div className="min-h-0 flex-1 overflow-auto overscroll-contain">
-          <Table>
-            <TableHeader className="sticky top-0 z-10 bg-card">
-              <TableRow>
-                <TableHead className="h-9">Service</TableHead>
-                <TableHead className="h-9">Status</TableHead>
-                <TableHead className="h-9 text-right">When</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {deploys.map((deploy) => (
-                <TableRow key={deploy.id}>
-                  <TableCell className="py-2">
-                    <div className="flex min-w-0 flex-col gap-0.5">
-                      <span className="truncate font-medium">
-                        {deploy.serviceName}
-                      </span>
-                      <span className="truncate text-xs text-muted-foreground">
-                        {deploy.projectName}
-                      </span>
-                    </div>
-                  </TableCell>
-                  <TableCell className="py-2">
-                    <Badge variant={deployBadgeVariant(deploy.status)}>
-                      {deploy.rawStatus.toLowerCase()}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="whitespace-nowrap py-2 text-right text-muted-foreground">
-                    {format(new Date(deploy.createdAt), "MMM d · HH:mm")}
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
+        <DataTable
+          data={deploys}
+          rowKey={(deploy) => deploy.id}
+          columns={[
+            {
+              header: "Service",
+              render: (deploy) => (
+                <div className="flex min-w-0 flex-col gap-0.5">
+                  <span className="truncate font-medium">
+                    {deploy.serviceName}
+                  </span>
+                  <span className="truncate text-xs text-muted-foreground">
+                    {deploy.projectName}
+                  </span>
+                </div>
+              ),
+            },
+            {
+              header: "Status",
+              render: (deploy) => (
+                <Badge variant={deployBadgeVariant(deploy.status)}>
+                  {deploy.rawStatus.toLowerCase()}
+                </Badge>
+              ),
+            },
+            {
+              header: "When",
+              align: "right",
+              className: "whitespace-nowrap text-muted-foreground",
+              render: (deploy) => format(new Date(deploy.createdAt), "MMM d · HH:mm"),
+            },
+          ]}
+        />
       );
     }
     case "netlify-tracker": {
@@ -297,7 +376,7 @@ function renderWidget(
       return (
         <div className="flex h-full flex-col justify-center gap-3">
           <p className="truncate text-sm font-medium">{first.name}</p>
-          <Tracker data={points} hoverEffect />
+          <ActivityTracker data={points} hoverEffect />
           <p className="text-xs text-muted-foreground">
             {first.detail}
             {items.length > 1 ? ` · +${items.length - 1} more` : ""}
@@ -319,7 +398,7 @@ function renderWidget(
         return <NoData label="No Netlify sites found." />;
       }
       return (
-        <KpiCard
+        <StatCard
           label="Ready sites"
           value={`${healthy}/${total}`}
           hint={total === 1 ? "1 site" : `${total} sites`}
@@ -334,43 +413,39 @@ function renderWidget(
         return <NoData label="No recent deployments." />;
       }
       return (
-        <div className="min-h-0 flex-1 overflow-auto overscroll-contain">
-          <Table>
-            <TableHeader className="sticky top-0 z-10 bg-card">
-              <TableRow>
-                <TableHead className="h-9">Site</TableHead>
-                <TableHead className="h-9">Status</TableHead>
-                <TableHead className="h-9 text-right">When</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {deploys.map((deploy) => (
-                <TableRow key={deploy.id}>
-                  <TableCell className="py-2">
-                    <div className="flex min-w-0 flex-col gap-0.5">
-                      <span className="truncate font-medium">
-                        {deploy.siteName}
-                      </span>
-                      {deploy.branch ? (
-                        <span className="truncate text-xs text-muted-foreground">
-                          {deploy.branch}
-                        </span>
-                      ) : null}
-                    </div>
-                  </TableCell>
-                  <TableCell className="py-2">
-                    <Badge variant={deployBadgeVariant(deploy.status)}>
-                      {deploy.rawState.replace(/_/g, " ")}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="whitespace-nowrap py-2 text-right text-muted-foreground">
-                    {format(new Date(deploy.createdAt), "MMM d · HH:mm")}
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
+        <DataTable
+          data={deploys}
+          rowKey={(deploy) => deploy.id}
+          columns={[
+            {
+              header: "Site",
+              render: (deploy) => (
+                <div className="flex min-w-0 flex-col gap-0.5">
+                  <span className="truncate font-medium">{deploy.siteName}</span>
+                  {deploy.branch ? (
+                    <span className="truncate text-xs text-muted-foreground">
+                      {deploy.branch}
+                    </span>
+                  ) : null}
+                </div>
+              ),
+            },
+            {
+              header: "Status",
+              render: (deploy) => (
+                <Badge variant={deployBadgeVariant(deploy.status)}>
+                  {deploy.rawState.replace(/_/g, " ")}
+                </Badge>
+              ),
+            },
+            {
+              header: "When",
+              align: "right",
+              className: "whitespace-nowrap text-muted-foreground",
+              render: (deploy) => format(new Date(deploy.createdAt), "MMM d · HH:mm"),
+            },
+          ]}
+        />
       );
     }
     case "netlify-builds": {
@@ -389,7 +464,7 @@ function renderWidget(
               ? "positive"
               : "neutral";
       return (
-        <KpiCard
+        <StatCard
           label="Build minutes"
           value={String(builds.current)}
           hint={builds.label}
@@ -412,7 +487,7 @@ function renderWidget(
       }
       return (
         <div className="flex h-full flex-col justify-center gap-3">
-          <BarCompare
+          <BarChart
             rows={forms.slice(0, 5).map((form) => ({
               label: `${form.name} · ${form.siteName}`,
               value: form.submissionCount,
@@ -434,7 +509,7 @@ function renderWidget(
         return <NoData label="No Supabase projects found." />;
       }
       return (
-        <KpiCard
+        <StatCard
           label="Healthy projects"
           value={`${healthy}/${total}`}
           hint={total === 1 ? "1 project" : `${total} projects`}
@@ -457,31 +532,13 @@ function renderWidget(
           <NoData label="No service health data yet (check PAT permissions)." />
         );
       }
-      return (
-        <div className="flex h-full min-h-0 flex-col">
-          <ul className="min-h-0 flex-1 divide-y divide-border/60 overflow-y-auto overscroll-contain">
-            {services.map((service) => (
-              <li
-                key={service.id}
-                className="flex items-center gap-2.5 py-2 text-sm"
-              >
-                <StatusDot status={service.status} />
-                <div className="min-w-0 flex-1">
-                  <p className="truncate font-medium">
-                    {service.projectName} / {service.serviceName}
-                  </p>
-                  <p className="truncate text-xs text-muted-foreground">
-                    {service.detail}
-                  </p>
-                </div>
-                <span className="shrink-0 text-xs text-muted-foreground">
-                  {statusLabel(service.status)}
-                </span>
-              </li>
-            ))}
-          </ul>
-        </div>
-      );
+      const items: StatusRow[] = services.map((service) => ({
+        id: service.id,
+        name: `${service.projectName} / ${service.serviceName}`,
+        status: service.status,
+        detail: service.detail,
+      }));
+      return <StatusList items={items} />;
     }
     case "supabase-traffic": {
       const traffic = (data.traffic as SupabaseTrafficBucket[]) || [];
@@ -490,7 +547,7 @@ function renderWidget(
       }
       return (
         <div className="flex h-full flex-col justify-center gap-3">
-          <BarCompare
+          <BarChart
             rows={traffic.map((row) => ({
               label: row.label,
               value: row.value,
@@ -510,7 +567,7 @@ function renderWidget(
         return <NoData label="No API requests recorded yet." />;
       }
       return (
-        <KpiCard
+        <StatCard
           label={`${volume.days}-day requests`}
           value={new Intl.NumberFormat(undefined, {
             notation: volume.total >= 10000 ? "compact" : "standard",
@@ -527,7 +584,7 @@ function renderWidget(
       }
       if (advisors.total === 0) {
         return (
-          <KpiCard
+          <StatCard
             label="Security findings"
             value="0"
             hint="No open issues"
@@ -538,7 +595,7 @@ function renderWidget(
       }
       return (
         <div className="flex h-full min-h-0 flex-col gap-3">
-          <KpiCard
+          <StatCard
             label="Security findings"
             value={String(advisors.total)}
             hint={`${advisors.errors} errors · ${advisors.warnings} warnings`}
@@ -571,7 +628,7 @@ function renderWidget(
           ? balances[0].accountName
           : `${balances.length} accounts`;
       return (
-        <KpiCard
+        <StatCard
           label="Total cash"
           value={formatMoney(liquidity.booked, liquidity.currency)}
           hint={hint}
@@ -585,7 +642,7 @@ function renderWidget(
       }
       const tied = Math.max(liquidity.pendingDelta, 0);
       return (
-        <KpiCard
+        <StatCard
           label="Available to spend"
           value={formatMoney(liquidity.available, liquidity.currency)}
           hint={
@@ -608,7 +665,7 @@ function renderWidget(
             ? "negative"
             : "neutral";
       return (
-        <KpiCard
+        <StatCard
           label={`${cashflow.days}-day net`}
           value={formatSignedMoney(cashflow.net, cashflow.currency)}
           hint={`${cashflow.transactionCount} completed txs`}
@@ -633,7 +690,7 @@ function renderWidget(
       }
       return (
         <div className="flex h-full flex-col justify-center gap-3">
-          <BarCompare
+          <BarChart
             rows={[
               {
                 label: "In",
@@ -664,14 +721,14 @@ function renderWidget(
         return <NoData label="No Qonto accounts found." />;
       }
       return (
-        <AccountPie
-          accounts={balances.map((account, index) => ({
+        <DonutChart
+          items={balances.map((account, index) => ({
             id: `${account.accountName}-${index}`,
             name: account.accountName,
             value: account.balance,
             display: formatMoney(account.balance, account.currency),
             sharePct: account.sharePct ?? 0,
-            main: account.main,
+            highlight: account.main,
           }))}
         />
       );
@@ -702,10 +759,11 @@ function renderWidget(
               {formatSignedMoney(delta, history.currency)} · {history.days}d
             </p>
           </div>
-          <BalanceLine
+          <LineChart
             className="min-h-0 flex-1"
             points={history.points.map((point) => ({
-              ...point,
+              label: point.label,
+              value: point.balance,
               display: formatMoney(point.balance, history.currency),
             }))}
           />
@@ -721,7 +779,7 @@ function renderWidget(
       const revenue = data.revenue as RevenueSummary | undefined;
       if (!revenue) return <NoData label="No subscription data yet." />;
       return (
-        <KpiCard
+        <StatCard
           label="Monthly recurring revenue"
           value={formatMoney(revenue.mrr, revenue.currency.toUpperCase())}
           hint={`${revenue.activeSubscriptions} active${
@@ -739,7 +797,7 @@ function renderWidget(
       const revenue = data.revenue as RevenueSummary | undefined;
       if (!volume) return <NoData label="No payments in the last 30 days." />;
       return (
-        <KpiCard
+        <StatCard
           label="Revenue (30 days)"
           value={formatMoney(
             volume.value,
@@ -754,7 +812,7 @@ function renderWidget(
       const revenue = data.revenue as RevenueSummary | undefined;
       if (!volume) return <NoData label="No store revenue yet." />;
       return (
-        <KpiCard
+        <StatCard
           label="Revenue (30 days)"
           value={formatMoney(
             volume.value,
@@ -772,49 +830,48 @@ function renderWidget(
         return <NoData label="No payments yet." />;
       }
       return (
-        <div className="min-h-0 flex-1 overflow-auto overscroll-contain">
-          <Table>
-            <TableHeader className="sticky top-0 z-10 bg-card">
-              <TableRow>
-                <TableHead className="h-9">Payment</TableHead>
-                <TableHead className="h-9">Status</TableHead>
-                <TableHead className="h-9 text-right">Amount</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {payments.map((payment) => (
-                <TableRow key={payment.id}>
-                  <TableCell className="py-2">
-                    <div className="flex min-w-0 flex-col gap-0.5">
-                      <span className="truncate font-medium">
-                        {payment.description}
-                      </span>
-                      <span className="truncate text-xs text-muted-foreground">
-                        {payment.customer ||
-                          format(new Date(payment.createdAt), "d MMM, HH:mm")}
-                      </span>
-                    </div>
-                  </TableCell>
-                  <TableCell className="py-2">
-                    <Badge variant={paymentBadgeVariant(payment.status)}>
-                      {payment.status}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="py-2 text-right font-medium tabular-nums">
-                    {formatMoney(payment.amount, payment.currency.toUpperCase())}
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
+        <DataTable
+          data={payments}
+          rowKey={(payment) => payment.id}
+          columns={[
+            {
+              header: "Payment",
+              render: (payment) => (
+                <div className="flex min-w-0 flex-col gap-0.5">
+                  <span className="truncate font-medium">
+                    {payment.description}
+                  </span>
+                  <span className="truncate text-xs text-muted-foreground">
+                    {payment.customer ||
+                      format(new Date(payment.createdAt), "d MMM, HH:mm")}
+                  </span>
+                </div>
+              ),
+            },
+            {
+              header: "Status",
+              render: (payment) => (
+                <Badge variant={paymentBadgeVariant(payment.status)}>
+                  {payment.status}
+                </Badge>
+              ),
+            },
+            {
+              header: "Amount",
+              align: "right",
+              className: "font-medium tabular-nums",
+              render: (payment) =>
+                formatMoney(payment.amount, payment.currency.toUpperCase()),
+            },
+          ]}
+        />
       );
     }
     case "sentry-issues": {
       const unresolved = Number(data.unresolved ?? 0);
       const events = Number(data.events24h ?? 0);
       return (
-        <KpiCard
+        <StatCard
           label="Unresolved issues"
           value={data.truncated ? `${unresolved}+` : String(unresolved)}
           hint={`${events.toLocaleString()} events in 24h`}
@@ -829,38 +886,32 @@ function renderWidget(
         return <NoData label="No unresolved issues. " />;
       }
       return (
-        <div className="min-h-0 flex-1 overflow-auto overscroll-contain">
-          <Table>
-            <TableHeader className="sticky top-0 z-10 bg-card">
-              <TableRow>
-                <TableHead className="h-9">Issue</TableHead>
-                <TableHead className="h-9 text-right">Events</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {issues.map((issue) => (
-                <TableRow key={issue.id}>
-                  <TableCell className="py-2">
-                    <div className="flex min-w-0 items-start gap-2">
-                      <StatusDot status={issue.status} />
-                      <div className="flex min-w-0 flex-col gap-0.5">
-                        <span className="truncate font-medium">
-                          {issue.title}
-                        </span>
-                        <span className="truncate text-xs text-muted-foreground">
-                          {issue.projectName || issue.culprit || issue.level}
-                        </span>
-                      </div>
-                    </div>
-                  </TableCell>
-                  <TableCell className="py-2 text-right tabular-nums">
-                    {issue.count.toLocaleString()}
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
+        <DataTable
+          data={issues}
+          rowKey={(issue) => issue.id}
+          columns={[
+            {
+              header: "Issue",
+              render: (issue) => (
+                <div className="flex min-w-0 items-start gap-2">
+                  <StatusDot status={issue.status} />
+                  <div className="flex min-w-0 flex-col gap-0.5">
+                    <span className="truncate font-medium">{issue.title}</span>
+                    <span className="truncate text-xs text-muted-foreground">
+                      {issue.projectName || issue.culprit || issue.level}
+                    </span>
+                  </div>
+                </div>
+              ),
+            },
+            {
+              header: "Events",
+              align: "right",
+              className: "tabular-nums",
+              render: (issue) => issue.count.toLocaleString(),
+            },
+          ]}
+        />
       );
     }
     case "sentry-projects": {
@@ -901,35 +952,30 @@ function renderWidget(
         return <NoData label="No emails sent yet." />;
       }
       return (
-        <div className="min-h-0 flex-1 overflow-auto overscroll-contain">
-          <Table>
-            <TableHeader className="sticky top-0 z-10 bg-card">
-              <TableRow>
-                <TableHead className="h-9">Email</TableHead>
-                <TableHead className="h-9 text-right">Status</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {emails.map((email) => (
-                <TableRow key={email.id}>
-                  <TableCell className="py-2">
-                    <div className="flex min-w-0 flex-col gap-0.5">
-                      <span className="truncate font-medium">
-                        {email.subject}
-                      </span>
-                      <span className="truncate text-xs text-muted-foreground">
-                        {email.to}
-                      </span>
-                    </div>
-                  </TableCell>
-                  <TableCell className="py-2 text-right">
-                    <Badge variant="secondary">{email.status}</Badge>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
+        <DataTable
+          data={emails}
+          rowKey={(email) => email.id}
+          columns={[
+            {
+              header: "Email",
+              render: (email) => (
+                <div className="flex min-w-0 flex-col gap-0.5">
+                  <span className="truncate font-medium">{email.subject}</span>
+                  <span className="truncate text-xs text-muted-foreground">
+                    {email.to}
+                  </span>
+                </div>
+              ),
+            },
+            {
+              header: "Status",
+              align: "right",
+              render: (email) => (
+                <Badge variant="secondary">{email.status}</Badge>
+              ),
+            },
+          ]}
+        />
       );
     }
     case "vercel-tracker": {
@@ -945,7 +991,7 @@ function renderWidget(
           {entries.map(([name, points]) => (
             <div key={name} className="space-y-1.5">
               <p className="truncate text-xs text-muted-foreground">{name}</p>
-              <Tracker data={points} />
+              <ActivityTracker data={points} />
             </div>
           ))}
         </div>
@@ -964,43 +1010,41 @@ function renderWidget(
         return <NoData label="No recent deployments." />;
       }
       return (
-        <div className="min-h-0 flex-1 overflow-auto overscroll-contain">
-          <Table>
-            <TableHeader className="sticky top-0 z-10 bg-card">
-              <TableRow>
-                <TableHead className="h-9">Project</TableHead>
-                <TableHead className="h-9">Status</TableHead>
-                <TableHead className="h-9 text-right">When</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {deploys.map((deploy) => (
-                <TableRow key={deploy.id}>
-                  <TableCell className="py-2">
-                    <div className="flex min-w-0 flex-col gap-0.5">
-                      <span className="truncate font-medium">
-                        {deploy.projectName}
-                      </span>
-                      {deploy.branch || deploy.commitMessage ? (
-                        <span className="truncate text-xs text-muted-foreground">
-                          {deploy.commitMessage || deploy.branch}
-                        </span>
-                      ) : null}
-                    </div>
-                  </TableCell>
-                  <TableCell className="py-2">
-                    <Badge variant={deployBadgeVariant(deploy.status)}>
-                      {deploy.rawState}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="py-2 text-right text-xs text-muted-foreground">
-                    {format(new Date(deploy.createdAt), "d MMM, HH:mm")}
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
+        <DataTable
+          data={deploys}
+          rowKey={(deploy) => deploy.id}
+          columns={[
+            {
+              header: "Project",
+              render: (deploy) => (
+                <div className="flex min-w-0 flex-col gap-0.5">
+                  <span className="truncate font-medium">
+                    {deploy.projectName}
+                  </span>
+                  {deploy.branch || deploy.commitMessage ? (
+                    <span className="truncate text-xs text-muted-foreground">
+                      {deploy.commitMessage || deploy.branch}
+                    </span>
+                  ) : null}
+                </div>
+              ),
+            },
+            {
+              header: "Status",
+              render: (deploy) => (
+                <Badge variant={deployBadgeVariant(deploy.status)}>
+                  {deploy.rawState}
+                </Badge>
+              ),
+            },
+            {
+              header: "When",
+              align: "right",
+              className: "text-xs text-muted-foreground",
+              render: (deploy) => format(new Date(deploy.createdAt), "d MMM, HH:mm"),
+            },
+          ]}
+        />
       );
     }
     case "status-board": {

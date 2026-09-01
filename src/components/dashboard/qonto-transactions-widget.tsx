@@ -8,7 +8,7 @@ import {
   useState,
 } from "react";
 import { format } from "date-fns";
-import { WidgetMessage } from "@/components/dashboard/renderers/shared";
+import { WidgetMessage } from "@/components/dashboard/widgets/widget-messages";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import {

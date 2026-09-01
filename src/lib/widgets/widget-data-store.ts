@@ -1,6 +1,6 @@
 "use client";
 
-import { useSyncExternalStore } from "react";
+import { useCallback, useSyncExternalStore } from "react";
 import type { WidgetType } from "@/lib/widgets/registry";
 
 /**
@@ -18,6 +18,11 @@ type Bucket =
   | "netlify"
   | "supabase"
   | "qonto"
+  | "stripe"
+  | "lemonsqueezy"
+  | "sentry"
+  | "resend"
+  | "vercel"
   | "status-board";
 
 const CANONICAL: Record<Bucket, WidgetType> = {
@@ -25,6 +30,11 @@ const CANONICAL: Record<Bucket, WidgetType> = {
   netlify: "netlify-tracker",
   supabase: "supabase-health",
   qonto: "qonto-balance",
+  stripe: "stripe-mrr",
+  lemonsqueezy: "lemonsqueezy-mrr",
+  sentry: "sentry-issues",
+  resend: "resend-domains",
+  vercel: "vercel-tracker",
   "status-board": "status-board",
 };
 
@@ -33,6 +43,11 @@ export function bucketFor(type: WidgetType): Bucket {
   if (type.startsWith("railway-")) return "railway";
   if (type.startsWith("netlify-")) return "netlify";
   if (type.startsWith("supabase-")) return "supabase";
+  if (type.startsWith("stripe-")) return "stripe";
+  if (type.startsWith("lemonsqueezy-")) return "lemonsqueezy";
+  if (type.startsWith("sentry-")) return "sentry";
+  if (type.startsWith("resend-")) return "resend";
+  if (type.startsWith("vercel-")) return "vercel";
   return "qonto";
 }
 
@@ -129,9 +144,14 @@ function subscribe(bucket: Bucket, listener: () => void): () => void {
 
 export function useWidgetData(type: WidgetType): WidgetSnapshot {
   const bucket = bucketFor(type);
-  return useSyncExternalStore(
-    (listener) => subscribe(bucket, listener),
-    () => getEntry(bucket).snapshot,
-    () => LOADING,
+  // useSyncExternalStore re-subscribes whenever the `subscribe` function
+  // identity changes, so an inline closure here would unsubscribe and
+  // resubscribe (deleting and recreating the entry) on every render.
+  const subscribeToBucket = useCallback(
+    (listener: () => void) => subscribe(bucket, listener),
+    [bucket],
   );
+  const getSnapshot = useCallback(() => getEntry(bucket).snapshot, [bucket]);
+
+  return useSyncExternalStore(subscribeToBucket, getSnapshot, () => LOADING);
 }
