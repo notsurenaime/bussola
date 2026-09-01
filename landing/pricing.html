@@ -1,0 +1,184 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Pricing — Bussola</title>
+    <meta name="description" content="Bussola pricing: Solo at 12€/mo, Team/Agency at 39€/mo. All connectors on every plan. Self-host for free." />
+    <link rel="icon" href="assets/favicon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header class="site-header">
+      <div class="site-header__inner">
+        <a class="brand" href="index.html"><img src="assets/bussola-mark.svg" alt="" /> <span>Bussola</span></a>
+        <nav class="site-nav" id="nav">
+          <a href="features.html">Features</a>
+          <a href="connectors.html">Connectors</a>
+          <a href="pricing.html" aria-current="page">Pricing</a>
+          <a href="open-source.html">Open source</a>
+          <a href="https://github.com/notsurenaime/bussola">GitHub</a>
+        </nav>
+        <a class="btn btn--sm header-cta" href="https://usebussola.app">Open app</a>
+        <button class="nav-toggle" aria-label="Menu" aria-expanded="false" onclick="const n=document.getElementById('nav');const o=n.classList.toggle('is-open');this.setAttribute('aria-expanded',o)">☰</button>
+      </div>
+    </header>
+
+    <main>
+      <section class="section section--tight">
+        <div class="wrap section__head section__head--center">
+          <p class="eyebrow">Pricing</p>
+          <h2>Two plans. All connectors on both.</h2>
+          <p>Or run the open-source app on your own infrastructure for free, forever.</p>
+        </div>
+      </section>
+
+      <section class="wrap">
+        <div class="plans">
+          <div class="plan">
+            <span class="plan__tag">Solo</span>
+            <h3>For one founder</h3>
+            <div class="plan__price">12€ <span>/ month</span></div>
+            <p class="plan__sub">or 108€ / year — 9€ / month effective</p>
+            <ul>
+              <li>3–5 dashboards, 8 widgets each</li>
+              <li>All connectors, unlimited</li>
+              <li>1 user</li>
+              <li>30 days of data history</li>
+              <li>Email alerts</li>
+              <li>MCP server</li>
+            </ul>
+            <a class="btn" href="https://usebussola.app">Start Solo</a>
+          </div>
+
+          <div class="plan plan--featured">
+            <span class="plan__tag">Team / Agency</span>
+            <h3>For a small team</h3>
+            <div class="plan__price">39€ <span>/ month</span></div>
+            <p class="plan__sub">or 384€ / year — 32€ / month · +8€ per extra seat</p>
+            <ul>
+              <li>~20 dashboards, ~12 widgets each</li>
+              <li>All connectors, unlimited</li>
+              <li>5 users included</li>
+              <li>12 months of data history</li>
+              <li>Unlimited read-only links + white-label</li>
+              <li>Email + Slack + Discord alerts</li>
+              <li>MCP server with team-wide config</li>
+            </ul>
+            <a class="btn" href="https://usebussola.app">Start Team</a>
+          </div>
+
+          <div class="plan">
+            <span class="plan__tag">Self-hosted</span>
+            <h3>Run it yourself</h3>
+            <div class="plan__price">0€ <span>/ forever</span></div>
+            <p class="plan__sub">MIT-licensed, on your own infrastructure</p>
+            <ul>
+              <li>Every feature, no plan gating</li>
+              <li>All connectors</li>
+              <li>Your database, your keys</li>
+              <li>Community support on GitHub</li>
+            </ul>
+            <a class="btn btn--ghost" href="open-source.html">Self-host guide</a>
+          </div>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="wrap section__head">
+          <h2>Plan comparison</h2>
+        </div>
+        <div class="wrap table-scroll">
+          <table>
+            <thead>
+              <tr><th>&nbsp;</th><th>Solo</th><th>Team / Agency</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>Price</td><td>12€ / mo · 108€ / yr</td><td>39€ / mo · 384€ / yr</td></tr>
+              <tr><td>Dashboards</td><td>3–5</td><td>~20</td></tr>
+              <tr><td>Widgets per dashboard</td><td>8</td><td>~12</td></tr>
+              <tr><td>Connectors</td><td>All, unlimited</td><td>All, unlimited</td></tr>
+              <tr><td>Users</td><td>1</td><td>5 included, +8€ / seat</td></tr>
+              <tr><td>Data history</td><td>30 days</td><td>12 months</td></tr>
+              <tr><td>Read-only sharing</td><td>—</td><td>Unlimited + white-label</td></tr>
+              <tr><td>Alerts</td><td>Email</td><td>Email + Slack + Discord</td></tr>
+              <tr><td>MCP server</td><td>Yes</td><td>Yes, team-wide config</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="section section--alt">
+        <div class="wrap section__head">
+          <p class="eyebrow">FAQ</p>
+          <h2>Good to know</h2>
+        </div>
+        <div class="wrap faq">
+          <details open>
+            <summary>Is the hosted version the same code as open source?</summary>
+            <p>Yes. The hosted version is the same app with billing, plan limits and multi-tenant auth on top. Self-hosting removes the limits.</p>
+          </details>
+          <details>
+            <summary>Do connectors cost extra?</summary>
+            <p>No. Every connector is included on every paid plan and on the self-hosted build. You only pay for your own upstream API usage, if any.</p>
+          </details>
+          <details>
+            <summary>What happens to my API keys?</summary>
+            <p>They are encrypted with AES-256-GCM at rest and are only ever editable through the web UI — never through the MCP server or any API.</p>
+          </details>
+          <details>
+            <summary>Can I switch plans or cancel any time?</summary>
+            <p>Yes. Billing runs through Stripe Checkout and the Stripe customer portal, so upgrades, downgrades and cancellation are self-serve.</p>
+          </details>
+          <details>
+            <summary>Is there a free trial?</summary>
+            <p>Every account opens in demo-data mode, so you can explore a full dashboard before connecting anything or entering a card.</p>
+          </details>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="wrap">
+          <div class="cta">
+            <h2>Start on the plan that fits</h2>
+            <p>Move up when your team or your history needs grow. Nothing is locked in.</p>
+            <div class="btn-row btn-row--center">
+              <a class="btn" href="https://usebussola.app">Open app</a>
+              <a class="btn btn--ghost" href="open-source.html">Or self-host</a>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div class="site-footer__inner">
+        <div class="site-footer__brand">
+          <a class="brand" href="index.html"><img src="assets/bussola-mark.svg" alt="" /> <span>Bussola</span></a>
+          <p>Local-first, plug-and-play dashboard for infrastructure and finances.</p>
+        </div>
+        <div><h4>Product</h4><ul>
+          <li><a href="features.html">Features</a></li>
+          <li><a href="connectors.html">Connectors</a></li>
+          <li><a href="pricing.html">Pricing</a></li>
+          <li><a href="https://usebussola.app">Open app</a></li>
+        </ul></div>
+        <div><h4>Project</h4><ul>
+          <li><a href="open-source.html">Open source</a></li>
+          <li><a href="https://github.com/notsurenaime/bussola">GitHub</a></li>
+          <li><a href="open-source.html#mcp">MCP server</a></li>
+        </ul></div>
+        <div><h4>Legal</h4><ul>
+          <li><a href="/privacy">Privacy</a></li>
+          <li><a href="/terms">Terms</a></li>
+          <li><a href="/imprint">Imprint</a></li>
+        </ul></div>
+        <div class="site-footer__legal">
+          <span>© <span id="year">2026</span> Malango Tech UG</span>
+          <span>Made for solo founders and small dev teams</span>
+        </div>
+      </div>
+    </footer>
+    <script>document.getElementById("year").textContent = new Date().getFullYear();</script>
+  </body>
+</html>

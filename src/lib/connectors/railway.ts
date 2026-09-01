@@ -13,6 +13,7 @@ import type {
   TrackerPoint,
 } from "./types";
 import { friendlyStatusLabel, toUserFacingError } from "./errors";
+import { fetchJson } from "./http";
 
 const ENDPOINT = "https://backboard.railway.com/graphql/v2";
 const DEPLOY_TRAIL_LEN = 24;
@@ -38,21 +39,14 @@ async function railwayGraphql<T>(
     headers.Authorization = `Bearer ${token}`;
   }
 
-  const res = await fetch(ENDPOINT, {
-    method: "POST",
-    headers,
-    body: JSON.stringify({ query, variables }),
-    cache: "no-store",
-  });
-
-  if (!res.ok) {
-    throw new Error(`Railway API ${res.status}`);
-  }
-
-  const json = (await res.json()) as {
+  const json = await fetchJson<{
     data?: T;
     errors?: Array<{ message: string }>;
-  };
+  }>(
+    ENDPOINT,
+    { method: "POST", headers, body: JSON.stringify({ query, variables }) },
+    { label: "Railway" },
+  );
 
   if (json.errors?.length) {
     throw new Error(json.errors[0]?.message || "Railway GraphQL error");
@@ -111,76 +105,59 @@ async function resolveRailwayAuth(token: string): Promise<{
   };
 }
 
-/** Map Railway deployment status → board/tracker tone. */
-function statusColor(status: string): TrackerPoint["status"] {
-  const s = status.toUpperCase();
-  if (s === "SUCCESS") return "ok";
-  if (s === "CRASHED") return "error";
-  if (s === "FAILED") return "warn";
-  if (
-    s === "BUILDING" ||
-    s === "DEPLOYING" ||
-    s === "INITIALIZING" ||
-    s === "QUEUED" ||
-    s === "WAITING"
-  ) {
-    return "warn";
-  }
-  if (s === "REMOVED" || s === "REMOVING" || s === "SLEEPING" || s === "SKIPPED") {
-    return "idle";
-  }
-  return "idle";
+type Tone = TrackerPoint["status"];
+type ActiveStatus = RailwayDeployHealth["active"]["status"];
+
+type StatusSpec = {
+  tone: Tone;
+  label: string;
+  stage: string;
+  active: ActiveStatus;
+  inFlight?: boolean;
+  failed?: boolean;
+  liveCandidate?: boolean;
+};
+
+/** Single source of truth: raw Railway deploy status → everything derived from it. */
+const RAILWAY_STATUS: Record<string, StatusSpec> = {
+  SUCCESS: { tone: "ok", label: "Running", stage: "Running", active: "healthy", liveCandidate: true },
+  CRASHED: { tone: "error", label: "Crashed", stage: "Crashed at runtime", active: "crashed", liveCandidate: true },
+  FAILED: { tone: "warn", label: "Failed", stage: "Failed to ship", active: "unknown", failed: true },
+  BUILDING: { tone: "warn", label: "Building", stage: "Building", active: "unknown", inFlight: true },
+  DEPLOYING: { tone: "warn", label: "Deploying", stage: "Deploying", active: "unknown", inFlight: true },
+  INITIALIZING: { tone: "warn", label: "Starting", stage: "Starting", active: "unknown", inFlight: true },
+  QUEUED: { tone: "warn", label: "Queued", stage: "Queued", active: "unknown", inFlight: true },
+  WAITING: { tone: "warn", label: "Waiting", stage: "Waiting", active: "unknown", inFlight: true },
+  SLEEPING: { tone: "idle", label: "Sleeping", stage: "Sleeping", active: "sleeping" },
+  REMOVED: { tone: "idle", label: "Removed", stage: "Removed", active: "unknown" },
+  REMOVING: { tone: "idle", label: "Removed", stage: "Removed", active: "unknown" },
+  SKIPPED: { tone: "idle", label: "Skipped", stage: "Skipped", active: "unknown" },
+};
+
+const TONE_CLASS: Record<Tone, string> = {
+  ok: "bg-success",
+  warn: "bg-warning",
+  error: "bg-destructive",
+  idle: "bg-muted-foreground/30",
+};
+
+function statusSpec(raw?: string): StatusSpec | undefined {
+  return raw ? RAILWAY_STATUS[raw.toUpperCase()] : undefined;
 }
 
-function colorFor(status: TrackerPoint["status"]): string {
-  switch (status) {
-    case "ok":
-      return "bg-success";
-    case "warn":
-      return "bg-warning";
-    case "error":
-      return "bg-destructive";
-    case "idle":
-      return "bg-muted-foreground/30";
-    default: {
-      const _exhaustive: never = status;
-      return _exhaustive;
-    }
-  }
+export function statusColor(status: string): Tone {
+  return statusSpec(status)?.tone ?? "idle";
 }
 
-function rawStatusLabel(raw: string): string {
-  const s = raw.toUpperCase();
-  switch (s) {
-    case "SUCCESS":
-      return "Running";
-    case "CRASHED":
-      return "Crashed";
-    case "FAILED":
-      return "Failed";
-    case "SLEEPING":
-      return "Sleeping";
-    case "BUILDING":
-      return "Building";
-    case "DEPLOYING":
-      return "Deploying";
-    case "QUEUED":
-      return "Queued";
-    case "WAITING":
-      return "Waiting";
-    case "INITIALIZING":
-      return "Starting";
-    case "REMOVED":
-    case "REMOVING":
-      return "Removed";
-    case "SKIPPED":
-      return "Skipped";
-    default:
-      return friendlyStatusLabel(statusColor(raw));
-  }
+function colorFor(status: Tone): string {
+  return TONE_CLASS[status];
 }
 
-function isHealthyService(status: TrackerPoint["status"]): boolean {
+export function rawStatusLabel(raw: string): string {
+  return statusSpec(raw)?.label ?? friendlyStatusLabel(statusColor(raw));
+}
+
+function isHealthyService(status: Tone): boolean {
   return status === "ok";
 }
 
@@ -233,100 +210,61 @@ function metaString(
   return undefined;
 }
 
-function deployLabel(meta?: Record<string, unknown> | null): string {
+/** Commit label / hash / branch pulled from a deployment's `meta` blob. */
+function readDeployMeta(meta?: Record<string, unknown> | null): {
+  label: string;
+  commitHash?: string;
+  branch?: string;
+} {
+  const hash = metaString(meta, "commitHash", "commitSha", "sha");
+  const commitHash = hash ? hash.slice(0, 7) : undefined;
   const message = metaString(meta, "commitMessage", "message", "title");
+  let label = "Deploy";
   if (message) {
     const oneLine = message.split("\n")[0].trim();
-    return oneLine.length > 72 ? `${oneLine.slice(0, 69)}…` : oneLine;
+    label = oneLine.length > 72 ? `${oneLine.slice(0, 69)}…` : oneLine;
+  } else if (commitHash) {
+    label = commitHash;
   }
-  const hash = metaString(meta, "commitHash", "commitSha", "sha");
-  if (hash) return hash.slice(0, 7);
-  return "Deploy";
+  return { label, commitHash, branch: metaString(meta, "branch", "branchName") };
 }
 
-function deployCommitHash(
-  meta?: Record<string, unknown> | null,
-): string | undefined {
-  const hash = metaString(meta, "commitHash", "commitSha", "sha");
-  return hash ? hash.slice(0, 7) : undefined;
-}
-
-function deployBranch(
-  meta?: Record<string, unknown> | null,
-): string | undefined {
-  return metaString(meta, "branch", "branchName");
-}
-
-/** Infer human stage from Railway status (+ light meta hints). */
-function deployStage(
+/** Human stage from status, with a light meta hint for the FAILED reason. */
+export function deployStage(
   rawStatus: string,
   meta?: Record<string, unknown> | null,
 ): string {
-  const s = rawStatus.toUpperCase();
-  const reason = metaString(meta, "reason", "error", "failureReason");
-  if (s === "FAILED") {
-    if (reason) {
-      const lower = reason.toLowerCase();
-      if (lower.includes("build")) return "Build failed";
-      if (lower.includes("health")) return "Healthcheck failed";
-      if (lower.includes("deploy")) return "Deploy failed";
-    }
-    return "Failed to ship";
+  const spec = statusSpec(rawStatus);
+  if (spec?.failed) {
+    const reason =
+      metaString(meta, "reason", "error", "failureReason")?.toLowerCase() ?? "";
+    if (reason.includes("build")) return "Build failed";
+    if (reason.includes("health")) return "Healthcheck failed";
+    if (reason.includes("deploy")) return "Deploy failed";
   }
-  if (s === "CRASHED") return "Crashed at runtime";
-  if (s === "BUILDING") return "Building";
-  if (s === "DEPLOYING") return "Deploying";
-  if (s === "INITIALIZING") return "Starting";
-  if (s === "QUEUED") return "Queued";
-  if (s === "WAITING") return "Waiting";
-  if (s === "SUCCESS") return "Running";
-  if (s === "SLEEPING") return "Sleeping";
-  if (s === "REMOVED" || s === "REMOVING") return "Removed";
-  if (s === "SKIPPED") return "Skipped";
-  return rawStatusLabel(rawStatus);
+  return spec?.stage ?? rawStatusLabel(rawStatus);
 }
 
 function toAttempt(d: DeploymentNode): RailwayDeployAttempt {
+  const { label, commitHash, branch } = readDeployMeta(d.meta);
   return {
     id: d.id,
     createdAt: d.createdAt,
     rawStatus: d.status,
     stage: deployStage(d.status, d.meta),
-    label: deployLabel(d.meta),
-    commitHash: deployCommitHash(d.meta),
-    branch: deployBranch(d.meta),
+    label,
+    commitHash,
+    branch,
   };
 }
 
-function isInFlightStatus(status: string): boolean {
-  const s = status.toUpperCase();
-  return (
-    s === "BUILDING" ||
-    s === "DEPLOYING" ||
-    s === "INITIALIZING" ||
-    s === "QUEUED" ||
-    s === "WAITING"
-  );
-}
+const isInFlightStatus = (s: string) => statusSpec(s)?.inFlight === true;
+const isFailedAttemptStatus = (s: string) => statusSpec(s)?.failed === true;
+const isLiveCandidateStatus = (s: string) =>
+  statusSpec(s)?.liveCandidate === true;
 
-function isFailedAttemptStatus(status: string): boolean {
-  return status.toUpperCase() === "FAILED";
-}
-
-function isLiveCandidateStatus(status: string): boolean {
-  const s = status.toUpperCase();
-  return s === "SUCCESS" || s === "SLEEPING" || s === "CRASHED";
-}
-
-function activeStatusFromRaw(
-  raw?: string,
-): RailwayDeployHealth["active"]["status"] {
-  if (!raw) return "unknown";
-  const s = raw.toUpperCase();
-  if (s === "SUCCESS") return "healthy";
-  if (s === "CRASHED") return "crashed";
-  if (s === "SLEEPING") return "sleeping";
-  return "unknown";
+function activeStatusFromRaw(raw?: string): ActiveStatus {
+  return statusSpec(raw)?.active ?? "unknown";
 }
 
 /**
@@ -374,8 +312,8 @@ function buildServiceDeployHealth(
       ? {
           status: activeStatusFromRaw(live.status),
           createdAt: live.createdAt,
-          label: deployLabel(live.meta),
-          commitHash: deployCommitHash(live.meta),
+          label: readDeployMeta(live.meta).label,
+          commitHash: readDeployMeta(live.meta).commitHash,
           rawStatus: live.status,
         }
       : { status: "unknown" },
@@ -457,84 +395,38 @@ function buildDeployTrail(
   };
 }
 
-async function fetchServiceDeployments(
+const DEPLOYMENTS_QUERY = `query ($input: DeploymentListInput!, $first: Int!) {
+  deployments(input: $input, first: $first) {
+    edges { node { id status createdAt serviceId meta } }
+  }
+}`;
+
+async function fetchDeployments(
   token: string,
   mode: AuthMode,
-  input: {
+  opts: {
     projectId: string;
     environmentId?: string;
-    serviceId: string;
+    serviceId?: string;
+    first: number;
+    swallow?: boolean;
   },
-): Promise<DeploymentNode[]> {
-  const data = await railwayGraphql<{
-    deployments: { edges: Array<{ node: DeploymentNode }> };
-  }>(
-    token,
-    `query ($input: DeploymentListInput!, $first: Int!) {
-      deployments(input: $input, first: $first) {
-        edges {
-          node {
-            id
-            status
-            createdAt
-            serviceId
-            meta
-          }
-        }
-      }
-    }`,
-    mode,
-    {
-      first: 48,
-      input: {
-        projectId: input.projectId,
-        ...(input.environmentId
-          ? { environmentId: input.environmentId }
-          : {}),
-        serviceId: input.serviceId,
-      },
-    },
-  );
-
-  return data.deployments.edges.map((e) => e.node);
-}
-
-async function fetchProjectDeployments(
-  token: string,
-  mode: AuthMode,
-  projectId: string,
-  environmentId?: string,
 ): Promise<DeploymentNode[]> {
   try {
     const data = await railwayGraphql<{
       deployments: { edges: Array<{ node: DeploymentNode }> };
-    }>(
-      token,
-      `query ($input: DeploymentListInput!, $first: Int!) {
-        deployments(input: $input, first: $first) {
-          edges {
-            node {
-              id
-              status
-              createdAt
-              serviceId
-              meta
-            }
-          }
-        }
-      }`,
-      mode,
-      {
-        first: RECENT_DEPLOYS,
-        input: {
-          projectId,
-          ...(environmentId ? { environmentId } : {}),
-        },
+    }>(token, DEPLOYMENTS_QUERY, mode, {
+      first: opts.first,
+      input: {
+        projectId: opts.projectId,
+        ...(opts.environmentId ? { environmentId: opts.environmentId } : {}),
+        ...(opts.serviceId ? { serviceId: opts.serviceId } : {}),
       },
-    );
+    });
     return data.deployments.edges.map((e) => e.node);
-  } catch {
-    return [];
+  } catch (error) {
+    if (opts.swallow) return [];
+    throw error;
   }
 }
 
@@ -650,28 +542,35 @@ async function fetchEnvironmentMetrics(
   }
 }
 
-function formatUsageValue(measurement: string, value: number): string {
+/** One estimated-usage measurement → its display label and formatted value. */
+function usageRow(measurement: string, value: number): { label: string; display: string } {
   const m = measurement.toUpperCase();
-  if (m.includes("CPU")) {
-    return `${value.toFixed(value >= 10 ? 1 : 2)} vCPU·h`;
-  }
-  if (m.includes("MEMORY") || m.includes("DISK") || m.includes("NETWORK") || m.includes("GB")) {
-    return `${value.toFixed(value >= 10 ? 1 : 2)} GB`;
-  }
-  return value.toFixed(2);
-}
+  const n = (unit: string) => `${value.toFixed(value >= 10 ? 1 : 2)} ${unit}`;
 
-function usageLabel(measurement: string): string {
-  const m = measurement.toUpperCase();
-  if (m.includes("CPU")) return "CPU";
-  if (m.includes("MEMORY")) return "Memory";
-  if (m.includes("NETWORK_TX") || m.includes("EGRESS")) return "Egress";
-  if (m.includes("NETWORK_RX")) return "Ingress";
-  if (m.includes("DISK") || m.includes("VOLUME")) return "Disk";
-  return measurement
-    .replace(/_/g, " ")
-    .toLowerCase()
-    .replace(/^\w/, (c) => c.toUpperCase());
+  let label: string;
+  if (m.includes("CPU")) label = "CPU";
+  else if (m.includes("MEMORY")) label = "Memory";
+  else if (m.includes("NETWORK_TX") || m.includes("EGRESS")) label = "Egress";
+  else if (m.includes("NETWORK_RX")) label = "Ingress";
+  else if (m.includes("DISK") || m.includes("VOLUME")) label = "Disk";
+  else
+    label = measurement
+      .replace(/_/g, " ")
+      .toLowerCase()
+      .replace(/^\w/, (c) => c.toUpperCase());
+
+  let display: string;
+  if (m.includes("CPU")) display = n("vCPU·h");
+  else if (
+    m.includes("MEMORY") ||
+    m.includes("DISK") ||
+    m.includes("NETWORK") ||
+    m.includes("GB")
+  )
+    display = n("GB");
+  else display = value.toFixed(2);
+
+  return { label, display };
 }
 
 async function fetchEstimatedUsage(
@@ -739,22 +638,12 @@ async function fetchEstimatedUsage(
     );
     const hit = exact || match;
     if (!hit) continue;
-    items.push({
-      measurement: hit[0],
-      label: usageLabel(hit[0]),
-      value: hit[1],
-      display: formatUsageValue(hit[0], hit[1]),
-    });
+    items.push({ measurement: hit[0], value: hit[1], ...usageRow(hit[0], hit[1]) });
   }
 
   if (items.length === 0) {
     for (const [measurement, value] of aggregates) {
-      items.push({
-        measurement,
-        label: usageLabel(measurement),
-        value,
-        display: formatUsageValue(measurement, value),
-      });
+      items.push({ measurement, value, ...usageRow(measurement, value) });
       if (items.length >= 4) break;
     }
   }
@@ -904,12 +793,12 @@ export async function fetchRailwayDashboard(
     if (environmentId) environmentIds.add(environmentId);
 
     // Prefer project-wide deploy list when possible.
-    const projectDeploys = await fetchProjectDeployments(
-      token,
-      auth.mode,
-      project.id,
+    const projectDeploys = await fetchDeployments(token, auth.mode, {
+      projectId: project.id,
       environmentId,
-    );
+      first: RECENT_DEPLOYS,
+      swallow: true,
+    });
 
     for (const serviceEdge of project.services.edges) {
       const service = serviceEdge.node;
@@ -932,15 +821,12 @@ export async function fetchRailwayDashboard(
       const hasLive = deployments.some((d) => isLiveCandidateStatus(d.status));
       if (deployments.length === 0 || !hasLive) {
         try {
-          const serviceDeploys = await fetchServiceDeployments(
-            token,
-            auth.mode,
-            {
-              projectId: project.id,
-              environmentId,
-              serviceId: service.id,
-            },
-          );
+          const serviceDeploys = await fetchDeployments(token, auth.mode, {
+            projectId: project.id,
+            environmentId,
+            serviceId: service.id,
+            first: 48,
+          });
           if (serviceDeploys.length > 0) deployments = serviceDeploys;
         } catch {
           // Keep whatever project-level list we already have.
@@ -1000,9 +886,7 @@ export async function fetchRailwayDashboard(
           status: statusColor(d.status),
           rawStatus: d.status,
           createdAt: d.createdAt,
-          label: deployLabel(d.meta),
-          commitHash: deployCommitHash(d.meta),
-          branch: deployBranch(d.meta),
+          ...readDeployMeta(d.meta),
           stage: deployStage(d.status, d.meta),
         });
       }
@@ -1020,9 +904,7 @@ export async function fetchRailwayDashboard(
         status: statusColor(d.status),
         rawStatus: d.status,
         createdAt: d.createdAt,
-        label: deployLabel(d.meta),
-        commitHash: deployCommitHash(d.meta),
-        branch: deployBranch(d.meta),
+        ...readDeployMeta(d.meta),
         stage: deployStage(d.status, d.meta),
       });
     }
@@ -1082,12 +964,4 @@ export async function fetchRailwayDashboard(
     resources,
     usage,
   };
-}
-
-/** Back-compat for status-board and older callers. */
-export async function fetchRailwayStatus(
-  apiKey: string,
-): Promise<{ items: StatusItem[]; trackers: Record<string, TrackerPoint[]> }> {
-  const dash = await fetchRailwayDashboard(apiKey);
-  return { items: dash.items, trackers: dash.trackers };
 }

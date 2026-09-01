@@ -1,4 +1,10 @@
-import { CompassRoseIcon } from "@phosphor-icons/react";
+/*
+ * The /ssr entry, not the default one: the default export is marked
+ * "use client", so importing it into a server component (not-found, error
+ * pages) fails at build time with "createContext is not a function". The SSR
+ * build renders identically and stays usable from client components too.
+ */
+import { CompassRoseIcon } from "@phosphor-icons/react/ssr";
 import { cn } from "@/lib/utils";
 
 type BussolaMarkProps = {

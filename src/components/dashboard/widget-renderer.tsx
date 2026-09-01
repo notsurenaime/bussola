@@ -1,29 +1,49 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import Link from "next/link";
 import { format } from "date-fns";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
+import { StatCard } from "@/components/dashboard/widgets/stat-card";
+import { ActivityTracker } from "@/components/dashboard/widgets/activity-tracker";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { KpiCard } from "@/components/tremor/kpi-card";
-import { Tracker } from "@/components/tremor/tracker";
-import { DeployHealth } from "@/components/tremor/deploy-health";
-import { BarCompare } from "@/components/tremor/bar-compare";
-import { AccountPie } from "@/components/tremor/account-pie";
-import { BalanceLine } from "@/components/tremor/balance-line";
+  ActivityPanel,
+  type ActivityPanelEvent,
+} from "@/components/dashboard/widgets/activity-panel";
+import { BarChart } from "@/components/dashboard/widgets/bar-chart";
+import { DonutChart } from "@/components/dashboard/widgets/donut-chart";
+import { LineChart } from "@/components/dashboard/widgets/line-chart";
+import { DataTable } from "@/components/dashboard/widgets/data-table";
+import {
+  StatusDot,
+  StatusList,
+  type StatusRow,
+} from "@/components/dashboard/widgets/status-list";
+import {
+  ConnectPrompt,
+  DemoNotice,
+  NoData,
+  StaleNotice,
+  WidgetMessage,
+} from "@/components/dashboard/widgets/widget-messages";
 import { QontoTransactionsWidget } from "@/components/dashboard/qonto-transactions-widget";
-import { getSourceMeta, SourceIcon } from "@/components/brand/source-icons";
+import {
+  deployBadgeVariant,
+  formatCores,
+  formatGb,
+  paymentBadgeVariant,
+  shortAge,
+  shortId,
+} from "@/lib/widgets/widget-format";
 import { formatMoney, formatSignedMoney } from "@/lib/format/money";
-import type { Provider } from "@/lib/db/schema";
 import type {
+  PaymentItem,
+  RailwayDeployAttempt,
+  ResendDomainItem,
+  ResendEmailItem,
+  RevenueSummary,
+  SentryIssueItem,
+  MoneyPoint,
+  VercelDeployItem,
   BalanceHistory,
   BalanceInfo,
   CashflowPeriod,
@@ -44,136 +64,21 @@ import type {
 } from "@/lib/connectors/types";
 import type { WidgetType } from "@/lib/widgets/registry";
 import { getWidgetDefinition } from "@/lib/widgets/registry";
+import { useWidgetData } from "@/lib/widgets/widget-data-store";
 
 type WidgetRendererProps = {
   type: WidgetType;
 };
 
-function StatusDot({ status }: { status: string }) {
-  const color =
-    status === "ok"
-      ? "bg-success"
-      : status === "warn"
-        ? "bg-warning"
-        : status === "error"
-          ? "bg-destructive"
-          : "bg-muted-foreground/40";
-  return (
-    <span
-      className={`inline-block size-2 shrink-0 rounded-full ${color}`}
-      aria-hidden
-    />
-  );
-}
-
-function statusLabel(status: string): string {
-  switch (status) {
-    case "ok":
-      return "Operational";
-    case "warn":
-      return "Degraded";
-    case "error":
-      return "Down";
-    case "idle":
-      return "Idle";
-    default:
-      return "Unknown";
-  }
-}
-
-function deployBadgeVariant(
-  status: TrackerPoint["status"],
-): "secondary" | "outline" | "destructive" {
-  switch (status) {
-    case "ok":
-      return "outline";
-    case "warn":
-      return "secondary";
-    case "error":
-      return "destructive";
-    case "idle":
-      return "secondary";
-    default: {
-      const _exhaustive: never = status;
-      return _exhaustive;
-    }
-  }
-}
-
-function ConnectPrompt({ provider }: { provider: string }) {
-  const label =
-    provider === "multi" ? "a source" : getSourceMeta(provider).title;
-  return (
-    <div className="flex h-full flex-col justify-center gap-2">
-      <p className="text-sm font-medium">Connect {label}</p>
-      <Link
-        href="/connections"
-        className="text-sm text-muted-foreground underline-offset-4 hover:underline"
-      >
-        Open Connections
-      </Link>
-    </div>
-  );
-}
-
-function NoData({ label }: { label: string }) {
-  return (
-    <div className="flex h-full items-center">
-      <p className="text-sm text-muted-foreground">{label}</p>
-    </div>
-  );
-}
-
-function formatCores(value: number): string {
-  return `${value.toFixed(value >= 1 ? 2 : 3)} cores`;
-}
-
-function formatGb(value: number): string {
-  return `${value.toFixed(value >= 10 ? 1 : 2)} GB`;
-}
-
 export function WidgetRenderer({ type }: WidgetRendererProps) {
-  const [data, setData] = useState<Record<string, unknown> | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    if (type === "qonto-transactions") return;
-
-    let cancelled = false;
-    let timer: ReturnType<typeof setInterval> | undefined;
-
-    async function load() {
-      try {
-        const res = await fetch(`/api/widgets/data?type=${type}`);
-        const json = (await res.json()) as Record<string, unknown> & {
-          error?: string;
-        };
-        if (!res.ok) throw new Error(json.error || "Failed to load");
-        if (!cancelled) {
-          setData(json);
-          setError(null);
-          setLoading(false);
-        }
-      } catch {
-        if (!cancelled) {
-          setError("Couldn’t load this widget. Try reconnecting the source.");
-          setLoading(false);
-        }
-      }
-    }
-
-    void load();
-    timer = setInterval(() => void load(), 60000);
-    return () => {
-      cancelled = true;
-      if (timer) clearInterval(timer);
-    };
-  }, [type]);
-
   if (type === "qonto-transactions") {
     return <QontoTransactionsWidget />;
   }
+  return <LiveWidget type={type} />;
+}
+
+function LiveWidget({ type }: { type: Exclude<WidgetType, "qonto-transactions"> }) {
+  const { data, error, loading } = useWidgetData(type);
 
   if (loading) {
     return (
@@ -187,15 +92,10 @@ export function WidgetRenderer({ type }: WidgetRendererProps) {
 
   if (error) {
     return (
-      <div className="flex h-full flex-col justify-center gap-2">
-        <p className="text-sm text-muted-foreground">{error}</p>
-        <Link
-          href="/connections"
-          className="text-sm text-muted-foreground underline-offset-4 hover:underline"
-        >
-          Check Connections
-        </Link>
-      </div>
+      <WidgetMessage
+        title={error}
+        action={{ href: "/connections", label: "Check Connections" }}
+      />
     );
   }
 
@@ -207,42 +107,134 @@ export function WidgetRenderer({ type }: WidgetRendererProps) {
     return <ConnectPrompt provider={provider} />;
   }
 
+  const sync = data._sync as SyncMeta | undefined;
+  const isDemo = data._demo === true;
+
+  // The worker gave up on this source — showing the last snapshot as if it
+  // were current would hide a credential that needs replacing.
+  if (sync?.disabled) {
+    return (
+      <WidgetMessage
+        title={sync.lastError || "Syncing stopped for this source."}
+        action={{ href: "/connections", label: "Reconnect" }}
+      />
+    );
+  }
+
+  return (
+    <>
+      {isDemo ? (
+        <DemoNotice provider={String(data.provider ?? getWidgetDefinition(type)?.provider ?? "")} />
+      ) : null}
+      {sync?.stale ? <StaleNotice fetchedAt={sync.fetchedAt} /> : null}
+      <div className="flex min-h-0 flex-1 flex-col">{renderWidget(type, data)}</div>
+    </>
+  );
+}
+
+type SyncMeta = {
+  fetchedAt?: string | null;
+  stale?: boolean;
+  disabled?: boolean;
+  lastError?: string | null;
+};
+
+/** Maps a Railway deploy attempt's raw status to a short human label. */
+function attemptStatusLabel(attempt: RailwayDeployAttempt): string {
+  const raw = attempt.rawStatus.toUpperCase();
+  if (raw === "FAILED") return "Deploy failed";
+  if (raw === "CRASHED") return "Crashed";
+  if (raw === "BUILDING") return "Building";
+  if (raw === "DEPLOYING") return "Deploying";
+  if (raw === "QUEUED") return "Queued";
+  if (raw === "WAITING") return "Waiting";
+  if (raw === "INITIALIZING") return "Starting";
+  return attempt.stage;
+}
+
+function eventFromAttempt(
+  attempt: RailwayDeployAttempt,
+  tone: "destructive" | "warning",
+): ActivityPanelEvent {
+  return {
+    id: attempt.id,
+    age: shortAge(attempt.createdAt),
+    label: attemptStatusLabel(attempt),
+    tone,
+    meta: shortId(attempt.id),
+  };
+}
+
+function renderWidget(
+  type: Exclude<WidgetType, "qonto-transactions">,
+  data: Record<string, unknown>,
+) {
   switch (type) {
     case "railway-tracker": {
       const health = data.deployHealth as RailwayDeployHealth | null | undefined;
       if (!health) {
         return <NoData label="No services found for this connection." />;
       }
-      return <DeployHealth health={health} />;
+      const behind = health.behindCount;
+      const liveAge = shortAge(health.active.createdAt);
+      const events: ActivityPanelEvent[] = [
+        ...(health.inFlight ? [eventFromAttempt(health.inFlight, "warning" as const)] : []),
+        ...health.failedSinceActive
+          .slice(0, 3)
+          .map((attempt) => eventFromAttempt(attempt, "destructive" as const)),
+      ];
+      return (
+        <ActivityPanel
+          title={health.serviceName}
+          subtitle={health.projectName}
+          status={{
+            label:
+              health.active.status === "healthy"
+                ? "Healthy"
+                : health.active.status === "crashed"
+                  ? "Crashed"
+                  : health.active.status === "sleeping"
+                    ? "Sleeping"
+                    : "Unknown",
+            tone:
+              health.active.status === "healthy"
+                ? "positive"
+                : health.active.status === "crashed"
+                  ? "negative"
+                  : "neutral",
+          }}
+          headline={
+            behind > 0
+              ? `${behind} behind`
+              : health.active.status === "crashed"
+                ? "Crashed"
+                : health.inFlight
+                  ? "Shipping"
+                  : "Up to date"
+          }
+          headlineTone={
+            behind > 0 || health.active.status === "crashed"
+              ? "negative"
+              : "neutral"
+          }
+          meta={[
+            liveAge ? `live ${liveAge}` : null,
+            health.active.commitHash,
+            behind === 0 ? health.active.label : null,
+          ]
+            .filter(Boolean)
+            .join(" · ")}
+          events={events}
+          moreCount={Math.max(behind - health.failedSinceActive.slice(0, 3).length, 0)}
+        />
+      );
     }
     case "railway-services": {
       const items = (data.items as StatusItem[]) || [];
       if (items.length === 0) {
         return <NoData label="No Railway services found." />;
       }
-      return (
-        <div className="flex h-full min-h-0 flex-col">
-          <ul className="min-h-0 flex-1 divide-y divide-border/60 overflow-y-auto overscroll-contain">
-            {items.map((item) => (
-              <li
-                key={item.id}
-                className="flex items-center gap-2.5 py-2 text-sm"
-              >
-                <StatusDot status={item.status} />
-                <div className="min-w-0 flex-1">
-                  <p className="truncate font-medium">{item.name}</p>
-                  <p className="truncate text-xs text-muted-foreground">
-                    {item.detail}
-                  </p>
-                </div>
-                <span className="shrink-0 text-xs text-muted-foreground">
-                  {statusLabel(item.status)}
-                </span>
-              </li>
-            ))}
-          </ul>
-        </div>
-      );
+      return <StatusList items={items} />;
     }
     case "railway-fleet": {
       const fleet = data.fleet as RailwayFleetHealth | undefined;
@@ -252,7 +244,7 @@ export function WidgetRenderer({ type }: WidgetRendererProps) {
       const allHealthy = fleet.healthy === fleet.total;
       const issues = fleet.crashed + fleet.degraded;
       return (
-        <KpiCard
+        <StatCard
           label="Healthy services"
           value={`${fleet.healthy}/${fleet.total}`}
           hint={
@@ -279,7 +271,7 @@ export function WidgetRenderer({ type }: WidgetRendererProps) {
       }
       return (
         <div className="flex h-full flex-col justify-center gap-3">
-          <BarCompare
+          <BarChart
             rows={[
               {
                 label: "CPU",
@@ -314,7 +306,7 @@ export function WidgetRenderer({ type }: WidgetRendererProps) {
       }
       return (
         <div className="flex h-full flex-col justify-center gap-3">
-          <BarCompare
+          <BarChart
             rows={usage.map((row) => ({
               label: row.label,
               value: row.value,
@@ -332,41 +324,39 @@ export function WidgetRenderer({ type }: WidgetRendererProps) {
         return <NoData label="No recent deployments." />;
       }
       return (
-        <div className="min-h-0 flex-1 overflow-auto overscroll-contain">
-          <Table>
-            <TableHeader className="sticky top-0 z-10 bg-card">
-              <TableRow>
-                <TableHead className="h-9">Service</TableHead>
-                <TableHead className="h-9">Status</TableHead>
-                <TableHead className="h-9 text-right">When</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {deploys.map((deploy) => (
-                <TableRow key={deploy.id}>
-                  <TableCell className="py-2">
-                    <div className="flex min-w-0 flex-col gap-0.5">
-                      <span className="truncate font-medium">
-                        {deploy.serviceName}
-                      </span>
-                      <span className="truncate text-xs text-muted-foreground">
-                        {deploy.projectName}
-                      </span>
-                    </div>
-                  </TableCell>
-                  <TableCell className="py-2">
-                    <Badge variant={deployBadgeVariant(deploy.status)}>
-                      {deploy.rawStatus.toLowerCase()}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="whitespace-nowrap py-2 text-right text-muted-foreground">
-                    {format(new Date(deploy.createdAt), "MMM d · HH:mm")}
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
+        <DataTable
+          data={deploys}
+          rowKey={(deploy) => deploy.id}
+          columns={[
+            {
+              header: "Service",
+              render: (deploy) => (
+                <div className="flex min-w-0 flex-col gap-0.5">
+                  <span className="truncate font-medium">
+                    {deploy.serviceName}
+                  </span>
+                  <span className="truncate text-xs text-muted-foreground">
+                    {deploy.projectName}
+                  </span>
+                </div>
+              ),
+            },
+            {
+              header: "Status",
+              render: (deploy) => (
+                <Badge variant={deployBadgeVariant(deploy.status)}>
+                  {deploy.rawStatus.toLowerCase()}
+                </Badge>
+              ),
+            },
+            {
+              header: "When",
+              align: "right",
+              className: "whitespace-nowrap text-muted-foreground",
+              render: (deploy) => format(new Date(deploy.createdAt), "MMM d · HH:mm"),
+            },
+          ]}
+        />
       );
     }
     case "netlify-tracker": {
@@ -386,7 +376,7 @@ export function WidgetRenderer({ type }: WidgetRendererProps) {
       return (
         <div className="flex h-full flex-col justify-center gap-3">
           <p className="truncate text-sm font-medium">{first.name}</p>
-          <Tracker data={points} hoverEffect />
+          <ActivityTracker data={points} hoverEffect />
           <p className="text-xs text-muted-foreground">
             {first.detail}
             {items.length > 1 ? ` · +${items.length - 1} more` : ""}
@@ -399,29 +389,7 @@ export function WidgetRenderer({ type }: WidgetRendererProps) {
       if (items.length === 0) {
         return <NoData label="No Netlify sites found." />;
       }
-      return (
-        <div className="flex h-full min-h-0 flex-col">
-          <ul className="min-h-0 flex-1 divide-y divide-border/60 overflow-y-auto overscroll-contain">
-            {items.map((item) => (
-              <li
-                key={item.id}
-                className="flex items-center gap-2.5 py-2 text-sm"
-              >
-                <StatusDot status={item.status} />
-                <div className="min-w-0 flex-1">
-                  <p className="truncate font-medium">{item.name}</p>
-                  <p className="truncate text-xs text-muted-foreground">
-                    {item.detail}
-                  </p>
-                </div>
-                <span className="shrink-0 text-xs text-muted-foreground">
-                  {statusLabel(item.status)}
-                </span>
-              </li>
-            ))}
-          </ul>
-        </div>
-      );
+      return <StatusList items={items} />;
     }
     case "netlify-health": {
       const healthy = Number(data.healthy || 0);
@@ -430,7 +398,7 @@ export function WidgetRenderer({ type }: WidgetRendererProps) {
         return <NoData label="No Netlify sites found." />;
       }
       return (
-        <KpiCard
+        <StatCard
           label="Ready sites"
           value={`${healthy}/${total}`}
           hint={total === 1 ? "1 site" : `${total} sites`}
@@ -445,43 +413,39 @@ export function WidgetRenderer({ type }: WidgetRendererProps) {
         return <NoData label="No recent deployments." />;
       }
       return (
-        <div className="min-h-0 flex-1 overflow-auto overscroll-contain">
-          <Table>
-            <TableHeader className="sticky top-0 z-10 bg-card">
-              <TableRow>
-                <TableHead className="h-9">Site</TableHead>
-                <TableHead className="h-9">Status</TableHead>
-                <TableHead className="h-9 text-right">When</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {deploys.map((deploy) => (
-                <TableRow key={deploy.id}>
-                  <TableCell className="py-2">
-                    <div className="flex min-w-0 flex-col gap-0.5">
-                      <span className="truncate font-medium">
-                        {deploy.siteName}
-                      </span>
-                      {deploy.branch ? (
-                        <span className="truncate text-xs text-muted-foreground">
-                          {deploy.branch}
-                        </span>
-                      ) : null}
-                    </div>
-                  </TableCell>
-                  <TableCell className="py-2">
-                    <Badge variant={deployBadgeVariant(deploy.status)}>
-                      {deploy.rawState.replace(/_/g, " ")}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="whitespace-nowrap py-2 text-right text-muted-foreground">
-                    {format(new Date(deploy.createdAt), "MMM d · HH:mm")}
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
+        <DataTable
+          data={deploys}
+          rowKey={(deploy) => deploy.id}
+          columns={[
+            {
+              header: "Site",
+              render: (deploy) => (
+                <div className="flex min-w-0 flex-col gap-0.5">
+                  <span className="truncate font-medium">{deploy.siteName}</span>
+                  {deploy.branch ? (
+                    <span className="truncate text-xs text-muted-foreground">
+                      {deploy.branch}
+                    </span>
+                  ) : null}
+                </div>
+              ),
+            },
+            {
+              header: "Status",
+              render: (deploy) => (
+                <Badge variant={deployBadgeVariant(deploy.status)}>
+                  {deploy.rawState.replace(/_/g, " ")}
+                </Badge>
+              ),
+            },
+            {
+              header: "When",
+              align: "right",
+              className: "whitespace-nowrap text-muted-foreground",
+              render: (deploy) => format(new Date(deploy.createdAt), "MMM d · HH:mm"),
+            },
+          ]}
+        />
       );
     }
     case "netlify-builds": {
@@ -500,7 +464,7 @@ export function WidgetRenderer({ type }: WidgetRendererProps) {
               ? "positive"
               : "neutral";
       return (
-        <KpiCard
+        <StatCard
           label="Build minutes"
           value={String(builds.current)}
           hint={builds.label}
@@ -523,7 +487,7 @@ export function WidgetRenderer({ type }: WidgetRendererProps) {
       }
       return (
         <div className="flex h-full flex-col justify-center gap-3">
-          <BarCompare
+          <BarChart
             rows={forms.slice(0, 5).map((form) => ({
               label: `${form.name} · ${form.siteName}`,
               value: form.submissionCount,
@@ -545,7 +509,7 @@ export function WidgetRenderer({ type }: WidgetRendererProps) {
         return <NoData label="No Supabase projects found." />;
       }
       return (
-        <KpiCard
+        <StatCard
           label="Healthy projects"
           value={`${healthy}/${total}`}
           hint={total === 1 ? "1 project" : `${total} projects`}
@@ -559,29 +523,7 @@ export function WidgetRenderer({ type }: WidgetRendererProps) {
       if (items.length === 0) {
         return <NoData label="No Supabase projects found." />;
       }
-      return (
-        <div className="flex h-full min-h-0 flex-col">
-          <ul className="min-h-0 flex-1 divide-y divide-border/60 overflow-y-auto overscroll-contain">
-            {items.map((item) => (
-              <li
-                key={item.id}
-                className="flex items-center gap-2.5 py-2 text-sm"
-              >
-                <StatusDot status={item.status} />
-                <div className="min-w-0 flex-1">
-                  <p className="truncate font-medium">{item.name}</p>
-                  <p className="truncate text-xs text-muted-foreground">
-                    {item.detail}
-                  </p>
-                </div>
-                <span className="shrink-0 text-xs text-muted-foreground">
-                  {statusLabel(item.status)}
-                </span>
-              </li>
-            ))}
-          </ul>
-        </div>
-      );
+      return <StatusList items={items} />;
     }
     case "supabase-services": {
       const services = (data.services as SupabaseServiceItem[]) || [];
@@ -590,31 +532,13 @@ export function WidgetRenderer({ type }: WidgetRendererProps) {
           <NoData label="No service health data yet (check PAT permissions)." />
         );
       }
-      return (
-        <div className="flex h-full min-h-0 flex-col">
-          <ul className="min-h-0 flex-1 divide-y divide-border/60 overflow-y-auto overscroll-contain">
-            {services.map((service) => (
-              <li
-                key={service.id}
-                className="flex items-center gap-2.5 py-2 text-sm"
-              >
-                <StatusDot status={service.status} />
-                <div className="min-w-0 flex-1">
-                  <p className="truncate font-medium">
-                    {service.projectName} / {service.serviceName}
-                  </p>
-                  <p className="truncate text-xs text-muted-foreground">
-                    {service.detail}
-                  </p>
-                </div>
-                <span className="shrink-0 text-xs text-muted-foreground">
-                  {statusLabel(service.status)}
-                </span>
-              </li>
-            ))}
-          </ul>
-        </div>
-      );
+      const items: StatusRow[] = services.map((service) => ({
+        id: service.id,
+        name: `${service.projectName} / ${service.serviceName}`,
+        status: service.status,
+        detail: service.detail,
+      }));
+      return <StatusList items={items} />;
     }
     case "supabase-traffic": {
       const traffic = (data.traffic as SupabaseTrafficBucket[]) || [];
@@ -623,7 +547,7 @@ export function WidgetRenderer({ type }: WidgetRendererProps) {
       }
       return (
         <div className="flex h-full flex-col justify-center gap-3">
-          <BarCompare
+          <BarChart
             rows={traffic.map((row) => ({
               label: row.label,
               value: row.value,
@@ -643,7 +567,7 @@ export function WidgetRenderer({ type }: WidgetRendererProps) {
         return <NoData label="No API requests recorded yet." />;
       }
       return (
-        <KpiCard
+        <StatCard
           label={`${volume.days}-day requests`}
           value={new Intl.NumberFormat(undefined, {
             notation: volume.total >= 10000 ? "compact" : "standard",
@@ -660,7 +584,7 @@ export function WidgetRenderer({ type }: WidgetRendererProps) {
       }
       if (advisors.total === 0) {
         return (
-          <KpiCard
+          <StatCard
             label="Security findings"
             value="0"
             hint="No open issues"
@@ -671,7 +595,7 @@ export function WidgetRenderer({ type }: WidgetRendererProps) {
       }
       return (
         <div className="flex h-full min-h-0 flex-col gap-3">
-          <KpiCard
+          <StatCard
             label="Security findings"
             value={String(advisors.total)}
             hint={`${advisors.errors} errors · ${advisors.warnings} warnings`}
@@ -704,7 +628,7 @@ export function WidgetRenderer({ type }: WidgetRendererProps) {
           ? balances[0].accountName
           : `${balances.length} accounts`;
       return (
-        <KpiCard
+        <StatCard
           label="Total cash"
           value={formatMoney(liquidity.booked, liquidity.currency)}
           hint={hint}
@@ -718,7 +642,7 @@ export function WidgetRenderer({ type }: WidgetRendererProps) {
       }
       const tied = Math.max(liquidity.pendingDelta, 0);
       return (
-        <KpiCard
+        <StatCard
           label="Available to spend"
           value={formatMoney(liquidity.available, liquidity.currency)}
           hint={
@@ -741,7 +665,7 @@ export function WidgetRenderer({ type }: WidgetRendererProps) {
             ? "negative"
             : "neutral";
       return (
-        <KpiCard
+        <StatCard
           label={`${cashflow.days}-day net`}
           value={formatSignedMoney(cashflow.net, cashflow.currency)}
           hint={`${cashflow.transactionCount} completed txs`}
@@ -766,7 +690,7 @@ export function WidgetRenderer({ type }: WidgetRendererProps) {
       }
       return (
         <div className="flex h-full flex-col justify-center gap-3">
-          <BarCompare
+          <BarChart
             rows={[
               {
                 label: "In",
@@ -797,14 +721,14 @@ export function WidgetRenderer({ type }: WidgetRendererProps) {
         return <NoData label="No Qonto accounts found." />;
       }
       return (
-        <AccountPie
-          accounts={balances.map((account, index) => ({
+        <DonutChart
+          items={balances.map((account, index) => ({
             id: `${account.accountName}-${index}`,
             name: account.accountName,
             value: account.balance,
             display: formatMoney(account.balance, account.currency),
             sharePct: account.sharePct ?? 0,
-            main: account.main,
+            highlight: account.main,
           }))}
         />
       );
@@ -835,10 +759,11 @@ export function WidgetRenderer({ type }: WidgetRendererProps) {
               {formatSignedMoney(delta, history.currency)} · {history.days}d
             </p>
           </div>
-          <BalanceLine
+          <LineChart
             className="min-h-0 flex-1"
             points={history.points.map((point) => ({
-              ...point,
+              label: point.label,
+              value: point.balance,
               display: formatMoney(point.balance, history.currency),
             }))}
           />
@@ -847,6 +772,279 @@ export function WidgetRenderer({ type }: WidgetRendererProps) {
             {history.incomplete ? " · partial window" : ""}
           </p>
         </div>
+      );
+    }
+    case "stripe-mrr":
+    case "lemonsqueezy-mrr": {
+      const revenue = data.revenue as RevenueSummary | undefined;
+      if (!revenue) return <NoData label="No subscription data yet." />;
+      return (
+        <StatCard
+          label="Monthly recurring revenue"
+          value={formatMoney(revenue.mrr, revenue.currency.toUpperCase())}
+          hint={`${revenue.activeSubscriptions} active${
+            revenue.trialingSubscriptions > 0
+              ? ` · ${revenue.trialingSubscriptions} trialing`
+              : ""
+          }`}
+          trend={revenue.truncated ? "Partial — very large account" : undefined}
+          trendTone="neutral"
+        />
+      );
+    }
+    case "stripe-revenue": {
+      const volume = data.volume30d as MoneyPoint | undefined;
+      const revenue = data.revenue as RevenueSummary | undefined;
+      if (!volume) return <NoData label="No payments in the last 30 days." />;
+      return (
+        <StatCard
+          label="Revenue (30 days)"
+          value={formatMoney(
+            volume.value,
+            (revenue?.currency ?? "eur").toUpperCase(),
+          )}
+          hint={volume.display}
+        />
+      );
+    }
+    case "lemonsqueezy-revenue": {
+      const volume = data.revenue30d as MoneyPoint | undefined;
+      const revenue = data.revenue as RevenueSummary | undefined;
+      if (!volume) return <NoData label="No store revenue yet." />;
+      return (
+        <StatCard
+          label="Revenue (30 days)"
+          value={formatMoney(
+            volume.value,
+            (revenue?.currency ?? "usd").toUpperCase(),
+          )}
+          hint={volume.display}
+        />
+      );
+    }
+    case "stripe-payments":
+    case "lemonsqueezy-orders": {
+      const payments =
+        ((data.payments ?? data.orders) as PaymentItem[] | undefined) || [];
+      if (payments.length === 0) {
+        return <NoData label="No payments yet." />;
+      }
+      return (
+        <DataTable
+          data={payments}
+          rowKey={(payment) => payment.id}
+          columns={[
+            {
+              header: "Payment",
+              render: (payment) => (
+                <div className="flex min-w-0 flex-col gap-0.5">
+                  <span className="truncate font-medium">
+                    {payment.description}
+                  </span>
+                  <span className="truncate text-xs text-muted-foreground">
+                    {payment.customer ||
+                      format(new Date(payment.createdAt), "d MMM, HH:mm")}
+                  </span>
+                </div>
+              ),
+            },
+            {
+              header: "Status",
+              render: (payment) => (
+                <Badge variant={paymentBadgeVariant(payment.status)}>
+                  {payment.status}
+                </Badge>
+              ),
+            },
+            {
+              header: "Amount",
+              align: "right",
+              className: "font-medium tabular-nums",
+              render: (payment) =>
+                formatMoney(payment.amount, payment.currency.toUpperCase()),
+            },
+          ]}
+        />
+      );
+    }
+    case "sentry-issues": {
+      const unresolved = Number(data.unresolved ?? 0);
+      const events = Number(data.events24h ?? 0);
+      return (
+        <StatCard
+          label="Unresolved issues"
+          value={data.truncated ? `${unresolved}+` : String(unresolved)}
+          hint={`${events.toLocaleString()} events in 24h`}
+          trend={unresolved === 0 ? "All clear" : undefined}
+          trendTone={unresolved === 0 ? "positive" : "neutral"}
+        />
+      );
+    }
+    case "sentry-recent": {
+      const issues = (data.issues as SentryIssueItem[]) || [];
+      if (issues.length === 0) {
+        return <NoData label="No unresolved issues. " />;
+      }
+      return (
+        <DataTable
+          data={issues}
+          rowKey={(issue) => issue.id}
+          columns={[
+            {
+              header: "Issue",
+              render: (issue) => (
+                <div className="flex min-w-0 items-start gap-2">
+                  <StatusDot status={issue.status} />
+                  <div className="flex min-w-0 flex-col gap-0.5">
+                    <span className="truncate font-medium">{issue.title}</span>
+                    <span className="truncate text-xs text-muted-foreground">
+                      {issue.projectName || issue.culprit || issue.level}
+                    </span>
+                  </div>
+                </div>
+              ),
+            },
+            {
+              header: "Events",
+              align: "right",
+              className: "tabular-nums",
+              render: (issue) => issue.count.toLocaleString(),
+            },
+          ]}
+        />
+      );
+    }
+    case "sentry-projects": {
+      const projects = (data.projects as StatusItem[]) || [];
+      if (projects.length === 0) {
+        return <NoData label="No Sentry projects found." />;
+      }
+      return <StatusList items={projects} />;
+    }
+    case "resend-domains": {
+      const domains = (data.domains as ResendDomainItem[]) || [];
+      if (domains.length === 0) {
+        return <NoData label="No sending domains configured." />;
+      }
+      return (
+        <StatusList
+          items={domains.map((domain) => ({
+            id: domain.id,
+            name: domain.name,
+            status: domain.status,
+            detail: domain.rawStatus,
+            provider: "resend",
+          }))}
+        />
+      );
+    }
+    case "resend-emails": {
+      if (data.emailsUnavailable) {
+        return (
+          <WidgetMessage
+            title="This Resend key cannot list sent emails. Use a key with full access to see them here."
+            action={{ href: "/connections", label: "Update key" }}
+          />
+        );
+      }
+      const emails = (data.emails as ResendEmailItem[]) || [];
+      if (emails.length === 0) {
+        return <NoData label="No emails sent yet." />;
+      }
+      return (
+        <DataTable
+          data={emails}
+          rowKey={(email) => email.id}
+          columns={[
+            {
+              header: "Email",
+              render: (email) => (
+                <div className="flex min-w-0 flex-col gap-0.5">
+                  <span className="truncate font-medium">{email.subject}</span>
+                  <span className="truncate text-xs text-muted-foreground">
+                    {email.to}
+                  </span>
+                </div>
+              ),
+            },
+            {
+              header: "Status",
+              align: "right",
+              render: (email) => (
+                <Badge variant="secondary">{email.status}</Badge>
+              ),
+            },
+          ]}
+        />
+      );
+    }
+    case "vercel-tracker": {
+      const trackers = (data.trackers as Record<string, TrackerPoint[]>) || {};
+      const entries = Object.entries(trackers).filter(
+        ([, points]) => points.length > 0,
+      );
+      if (entries.length === 0) {
+        return <NoData label="No Vercel deployments yet." />;
+      }
+      return (
+        <div className="min-h-0 flex-1 space-y-3 overflow-auto overscroll-contain">
+          {entries.map(([name, points]) => (
+            <div key={name} className="space-y-1.5">
+              <p className="truncate text-xs text-muted-foreground">{name}</p>
+              <ActivityTracker data={points} />
+            </div>
+          ))}
+        </div>
+      );
+    }
+    case "vercel-projects": {
+      const items = (data.items as StatusItem[]) || [];
+      if (items.length === 0) {
+        return <NoData label="No Vercel projects found." />;
+      }
+      return <StatusList items={items} />;
+    }
+    case "vercel-deploys": {
+      const deploys = (data.recentDeploys as VercelDeployItem[]) || [];
+      if (deploys.length === 0) {
+        return <NoData label="No recent deployments." />;
+      }
+      return (
+        <DataTable
+          data={deploys}
+          rowKey={(deploy) => deploy.id}
+          columns={[
+            {
+              header: "Project",
+              render: (deploy) => (
+                <div className="flex min-w-0 flex-col gap-0.5">
+                  <span className="truncate font-medium">
+                    {deploy.projectName}
+                  </span>
+                  {deploy.branch || deploy.commitMessage ? (
+                    <span className="truncate text-xs text-muted-foreground">
+                      {deploy.commitMessage || deploy.branch}
+                    </span>
+                  ) : null}
+                </div>
+              ),
+            },
+            {
+              header: "Status",
+              render: (deploy) => (
+                <Badge variant={deployBadgeVariant(deploy.status)}>
+                  {deploy.rawState}
+                </Badge>
+              ),
+            },
+            {
+              header: "When",
+              align: "right",
+              className: "text-xs text-muted-foreground",
+              render: (deploy) => format(new Date(deploy.createdAt), "d MMM, HH:mm"),
+            },
+          ]}
+        />
       );
     }
     case "status-board": {
@@ -861,30 +1059,7 @@ export function WidgetRenderer({ type }: WidgetRendererProps) {
       if (items.length === 0) {
         return <NoData label="No status items from connected sources." />;
       }
-      return (
-        <div className="flex h-full min-h-0 flex-col">
-          <ul className="min-h-0 flex-1 divide-y divide-border/60 overflow-y-auto overscroll-contain">
-            {items.map((item) => (
-              <li
-                key={`${item.provider}-${item.id}`}
-                className="flex items-center gap-2.5 py-2 text-sm"
-              >
-                <StatusDot status={item.status} />
-                <SourceIcon
-                  provider={item.provider as Provider}
-                  className="size-3.5 shrink-0"
-                />
-                <p className="min-w-0 flex-1 truncate font-medium">
-                  {item.name}
-                </p>
-                <span className="shrink-0 text-xs text-muted-foreground">
-                  {statusLabel(item.status)}
-                </span>
-              </li>
-            ))}
-          </ul>
-        </div>
-      );
+      return <StatusList items={items} showSourceIcon />;
     }
     default: {
       const _exhaustive: never = type;

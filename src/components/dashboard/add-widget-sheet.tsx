@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import dynamic from "next/dynamic";
 import Link from "next/link";
 import { MagnifyingGlassIcon } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
@@ -17,9 +18,16 @@ import {
 } from "@/components/ui/sheet";
 import { Badge } from "@/components/ui/badge";
 import { SourceIcon, getSourceMeta } from "@/components/brand/source-icons";
-import { WidgetPreview } from "@/components/dashboard/widget-previews";
+import { ConnectionDialog } from "@/components/connections/connection-dialog";
+const WidgetPreview = dynamic(
+  () =>
+    import("@/components/dashboard/widget-previews").then(
+      (m) => m.WidgetPreview,
+    ),
+  { ssr: false },
+);
 import { WIDGET_REGISTRY, type WidgetType } from "@/lib/widgets/registry";
-import type { Provider } from "@/lib/db/schema";
+import type { Provider } from "@/lib/providers";
 import { cn } from "@/lib/utils";
 
 type ConnectionSummary = {
@@ -42,24 +50,32 @@ function isConnected(
 }
 
 export function AddWidgetSheet({
+  open,
+  onOpenChange,
   onAdd,
 }: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
   onAdd: (type: WidgetType) => Promise<void>;
 }) {
-  const [open, setOpen] = useState(false);
   const [connections, setConnections] = useState<ConnectionSummary[]>([]);
   const [pending, setPending] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [showUnconnected, setShowUnconnected] = useState(false);
+  const [connecting, setConnecting] = useState<Provider | null>(null);
 
-  useEffect(() => {
-    if (!open) return;
+  const refreshConnections = useCallback(() => {
     void fetch("/api/connections")
       .then((r) => r.json())
       .then((data: { connections?: ConnectionSummary[] }) => {
         setConnections(data.connections || []);
       });
-  }, [open]);
+  }, []);
+
+  useEffect(() => {
+    if (!open) return;
+    refreshConnections();
+  }, [open, refreshConnections]);
 
   const connected = useMemo(
     () =>
@@ -86,7 +102,7 @@ export function AddWidgetSheet({
     <Sheet
       open={open}
       onOpenChange={(next) => {
-        setOpen(next);
+        onOpenChange(next);
         if (!next) {
           setQuery("");
           setShowUnconnected(false);
@@ -149,6 +165,8 @@ export function AddWidgetSheet({
             widgets.map((widget) => {
               const live = isConnected(widget.provider, connected);
               const sourceLabel = getSourceMeta(widget.provider).title;
+              const provider =
+                widget.provider === "multi" ? null : widget.provider;
 
               return (
                 <div
@@ -190,18 +208,28 @@ export function AddWidgetSheet({
                         setPending(widget.type);
                         await onAdd(widget.type);
                         setPending(null);
-                        setOpen(false);
+                        onOpenChange(false);
                       }}
                     >
                       {pending === widget.type ? "Adding…" : "Add to dashboard"}
                     </Button>
-                  ) : (
+                  ) : provider === null ? (
                     <Button
                       size="sm"
                       variant="outline"
                       className="w-full"
                       nativeButton={false}
                       render={<Link href="/connections" />}
+                    >
+                      Connect {sourceLabel}
+                    </Button>
+                  ) : (
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      className="w-full"
+                      onClick={() => setConnecting(provider)}
                     >
                       Connect {sourceLabel}
                     </Button>
@@ -212,6 +240,17 @@ export function AddWidgetSheet({
           )}
         </div>
       </SheetContent>
+
+      {connecting ? (
+        <ConnectionDialog
+          provider={connecting}
+          onClose={() => setConnecting(null)}
+          onSaved={() => {
+            setConnecting(null);
+            refreshConnections();
+          }}
+        />
+      ) : null}
     </Sheet>
   );
 }

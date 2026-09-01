@@ -1,12 +1,15 @@
-import { eq } from "drizzle-orm";
 import { decryptSecret, encryptSecret } from "@/lib/crypto/vault";
-import { getDb } from "@/lib/db";
-import { connections, type Provider } from "@/lib/db/schema";
-import { createId } from "@/lib/id";
+import type { TenantRepos } from "@/lib/db/tenant";
+import type { Provider } from "@/lib/db/schema";
+import { lemonsqueezyConnector } from "./lemonsqueezy";
 import { netlifyConnector } from "./netlify";
 import { qontoConnector } from "./qonto";
 import { railwayConnector } from "./railway";
+import { resendConnector } from "./resend";
+import { sentryConnector } from "./sentry";
+import { stripeConnector } from "./stripe";
 import { supabaseConnector } from "./supabase";
+import { vercelConnector } from "./vercel";
 import type { ConnectionCredentials, Connector, TestResult } from "./types";
 
 const connectors: Record<string, Connector> = {
@@ -14,20 +17,34 @@ const connectors: Record<string, Connector> = {
   netlify: netlifyConnector,
   supabase: supabaseConnector,
   qonto: qontoConnector,
+  stripe: stripeConnector,
+  lemonsqueezy: lemonsqueezyConnector,
+  sentry: sentryConnector,
+  resend: resendConnector,
+  vercel: vercelConnector,
 };
 
+/** Wave 1: everything that authenticates with a pasted key or token. */
 export const LIVE_PROVIDERS: Provider[] = [
   "railway",
+  "vercel",
   "netlify",
   "supabase",
+  "sentry",
+  "stripe",
+  "lemonsqueezy",
+  "resend",
   "qonto",
 ];
 
+/** Wave 2 needs an OAuth app; the rest is planned but unscheduled. */
 export const COMING_SOON_PROVIDERS: Provider[] = [
-  "stripe",
+  "github",
+  "gitlab",
+  "linear",
+  "notion",
   "polar",
   "attio",
-  "vercel",
   "webtraffic",
 ];
 
@@ -37,39 +54,6 @@ export function getConnector(provider: string): Connector | null {
 
 export function parseCredentials(encrypted: string): ConnectionCredentials {
   return JSON.parse(decryptSecret(encrypted)) as ConnectionCredentials;
-}
-
-export async function testAndPersist(
-  connectionId: string,
-): Promise<TestResult> {
-  const db = getDb();
-  const row = db
-    .select()
-    .from(connections)
-    .where(eq(connections.id, connectionId))
-    .get();
-  if (!row) {
-    return { ok: false, message: "Connection not found" };
-  }
-
-  const connector = getConnector(row.provider);
-  if (!connector) {
-    return { ok: false, message: "Provider not supported yet" };
-  }
-
-  const credentials = parseCredentials(row.credentialsEncrypted);
-  const result = await connector.test(credentials);
-  db.update(connections)
-    .set({
-      status: result.ok ? "connected" : "error",
-      lastCheckedAt: new Date(),
-      lastError: result.ok ? null : result.message,
-      updatedAt: new Date(),
-    })
-    .where(eq(connections.id, connectionId))
-    .run();
-
-  return result;
 }
 
 function normalizeCredentials(
@@ -91,73 +75,99 @@ function normalizeCredentials(
   };
 }
 
-export function upsertConnection(input: {
-  id?: string;
-  provider: Provider;
-  label: string;
-  credentials: ConnectionCredentials;
-}) {
-  const db = getDb();
-  const now = new Date();
-  const credentials = normalizeCredentials(input.credentials);
-  const encrypted = encryptSecret(JSON.stringify(credentials));
-
-  if (input.id) {
-    db.update(connections)
-      .set({
-        label: input.label,
-        credentialsEncrypted: encrypted,
-        status: "unknown",
-        lastError: null,
-        updatedAt: now,
-      })
-      .where(eq(connections.id, input.id))
-      .run();
-    return input.id;
+/**
+ * Run the provider's credential check and record the outcome.
+ *
+ * `repos` is already bound to the caller's organization, so an id belonging to
+ * another tenant resolves to nothing rather than being tested or overwritten.
+ */
+export async function testAndPersist(
+  repos: TenantRepos,
+  connectionId: string,
+): Promise<TestResult> {
+  const row = await repos.connections.get(connectionId);
+  if (!row) {
+    return { ok: false, message: "Connection not found" };
   }
 
-  const id = createId("con");
-  db.insert(connections)
-    .values({
-      id,
-      provider: input.provider,
-      label: input.label,
-      credentialsEncrypted: encrypted,
-      status: "unknown",
-      createdAt: now,
-      updatedAt: now,
-    })
-    .run();
-  return id;
+  const connector = getConnector(row.provider);
+  if (!connector) {
+    return { ok: false, message: "Provider not supported yet" };
+  }
+
+  const credentials = parseCredentials(row.credentialsEncrypted);
+  const result = await connector.test(credentials);
+
+  await repos.connections.recordTest(connectionId, {
+    status: result.ok ? "connected" : "error",
+    error: result.ok ? null : result.message,
+  });
+
+  return result;
 }
 
-export function listConnections() {
-  return getDb().select().from(connections).all().map((row) => ({
+export async function upsertConnection(
+  repos: TenantRepos,
+  input: {
+    id?: string;
+    provider: Provider;
+    label: string;
+    credentials: ConnectionCredentials;
+  },
+): Promise<string | null> {
+  const credentialsEncrypted = encryptSecret(
+    JSON.stringify(normalizeCredentials(input.credentials)),
+  );
+
+  if (input.id) {
+    const updated = await repos.connections.update(input.id, {
+      label: input.label,
+      credentialsEncrypted,
+    });
+    return updated?.id ?? null;
+  }
+
+  const created = await repos.connections.create({
+    provider: input.provider,
+    label: input.label,
+    credentialsEncrypted,
+  });
+  return created.id;
+}
+
+/**
+ * Connection rows minus the ciphertext, safe to serialize to the client.
+ *
+ * Includes the background sync state: whether it is still scheduled, when it
+ * last succeeded, and how many attempts have failed in a row. Without that,
+ * a connection whose token was revoked looks identical to a healthy one until
+ * someone notices the numbers have stopped moving.
+ */
+export async function listConnections(repos: TenantRepos) {
+  const rows = await repos.connections.list();
+  return rows.map((row) => ({
     id: row.id,
-    provider: row.provider as Provider,
+    provider: row.provider,
     label: row.label,
     status: row.status,
     lastCheckedAt: row.lastCheckedAt,
     lastError: row.lastError,
+    syncEnabled: row.syncEnabled,
+    lastSyncedAt: row.lastSyncedAt,
+    nextSyncAt: row.nextSyncAt,
+    consecutiveFailures: row.consecutiveFailures,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   }));
-}
-
-export function getConnectionByProvider(provider: Provider) {
-  return getDb()
-    .select()
-    .from(connections)
-    .where(eq(connections.provider, provider))
-    .get();
-}
-
-export function deleteConnection(id: string) {
-  getDb().delete(connections).where(eq(connections.id, id)).run();
 }
 
 export * from "./railway";
 export * from "./netlify";
 export * from "./supabase";
 export * from "./qonto";
+export * from "./stripe";
+export * from "./lemonsqueezy";
+export * from "./sentry";
+export * from "./resend";
+export * from "./vercel";
 export * from "./types";

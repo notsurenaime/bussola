@@ -1,16 +1,30 @@
 import { Suspense } from "react";
+import { redirect } from "next/navigation";
+import { AuthShell } from "@/components/layout/auth-shell";
+import { getSession, hasAccount } from "@/lib/auth/tenant";
+import { isCloud } from "@/lib/edition";
 import { LoginForm } from "./login-form";
 
-export default function LoginPage() {
+export const dynamic = "force-dynamic";
+
+export default async function LoginPage() {
+  const claimed = await hasAccount();
+  if (!claimed) redirect("/signup");
+  if (await getSession()) redirect("/dashboards");
+
   return (
-    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-background px-4">
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_15%_30%,var(--color-almond-cream-200),transparent_40%),radial-gradient(circle_at_85%_10%,var(--color-taupe-200),transparent_35%)] dark:bg-[radial-gradient(circle_at_15%_30%,var(--color-dark-coffee-900),transparent_40%),radial-gradient(circle_at_85%_10%,var(--color-black-800),transparent_35%)]"
-      />
-      <Suspense fallback={<div className="text-muted-foreground">Loading…</div>}>
-        <LoginForm />
+    <AuthShell
+      description={
+        isCloud
+          ? "Sign in to your Bussola workspace."
+          : "Sign in to your local dashboard."
+      }
+    >
+      <Suspense
+        fallback={<p className="text-sm text-muted-foreground">Loading…</p>}
+      >
+        <LoginForm signupOpen={isCloud} />
       </Suspense>
-    </div>
+    </AuthShell>
   );
 }

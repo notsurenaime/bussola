@@ -1,28 +1,34 @@
+import { getSessionCookie } from "better-auth/cookies";
 import { NextResponse, type NextRequest } from "next/server";
 
-const AUTH_PUBLIC = new Set([
-  "/login",
-  "/setup",
-  "/api/auth/login",
-  "/api/auth/setup",
-  "/api/auth/status",
-]);
+const PUBLIC_PATHS = new Set(["/login", "/signup"]);
 
+/**
+ * A cheap, edge-safe gate: it only checks that a session cookie is present, so
+ * it never touches the database. Whether that cookie is *valid* is decided by
+ * `getSession()` in the layout and by `withTenant()` on every API route — this
+ * exists to avoid rendering an authenticated shell for anonymous visitors.
+ */
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
+  // Routes that authenticate themselves and must stay reachable without a
+  // session cookie: Better Auth's own endpoints, the pre-login status probe,
+  // the cron entry point (shared secret), and Stripe's webhook (signature).
+  // None of these ever has a user behind it.
   if (
-    pathname.startsWith("/_next") ||
-    pathname.startsWith("/favicon") ||
-    pathname.includes(".")
+    pathname.startsWith("/api/auth") ||
+    pathname.startsWith("/api/internal/") ||
+    pathname === "/api/billing/webhook" ||
+    pathname === "/api/status"
   ) {
     return NextResponse.next();
   }
 
-  const session = request.cookies.get("bussola_session")?.value;
-  const isPublic = AUTH_PUBLIC.has(pathname);
+  const hasSession = Boolean(getSessionCookie(request));
+  const isPublic = PUBLIC_PATHS.has(pathname);
 
-  if (!session && !isPublic) {
+  if (!hasSession && !isPublic) {
     if (pathname.startsWith("/api/")) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
@@ -34,12 +40,18 @@ export function proxy(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  if (session && (pathname === "/login" || pathname === "/setup")) {
-    const url = request.nextUrl.clone();
-    url.pathname = "/dashboards";
-    return NextResponse.redirect(url);
-  }
-
+  /*
+   * Deliberately no "already signed in, bounce to /dashboards" here.
+   *
+   * This gate only knows whether a cookie exists, not whether the session
+   * behind it is still valid. Redirecting on cookie presence alone traps
+   * anyone holding a stale one — an expired or revoked session, or a reset
+   * database — in a loop: /login sends them to /dashboards, which finds no
+   * valid session and sends them back, with no way to sign in again.
+   *
+   * /login and /signup make that call themselves with a real session lookup,
+   * which is the only check that can tell the two apart.
+   */
   return NextResponse.next();
 }
 

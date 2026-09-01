@@ -1,4 +1,4 @@
-import type { Provider } from "@/lib/db/schema";
+import type { Provider } from "@/lib/providers";
 
 export type ConnectionCredentials = {
   apiKey?: string;
@@ -257,3 +257,128 @@ export interface Connector {
   provider: Provider;
   test(credentials: ConnectionCredentials): Promise<TestResult>;
 }
+
+/* ─────────────────────────────── Stripe ─────────────────────────────────── */
+
+export type MoneyPoint = {
+  label: string;
+  value: number;
+  display: string;
+};
+
+export type RevenueSummary = {
+  currency: string;
+  /** Normalised monthly recurring revenue across active subscriptions. */
+  mrr: number;
+  activeSubscriptions: number;
+  trialingSubscriptions: number;
+  /** True when pagination stopped before every subscription was counted. */
+  truncated: boolean;
+};
+
+export type PaymentItem = {
+  id: string;
+  description: string;
+  amount: number;
+  currency: string;
+  status: "succeeded" | "pending" | "failed" | "refunded";
+  createdAt: string;
+  customer?: string;
+};
+
+export type StripeDashboard = {
+  revenue: RevenueSummary;
+  /** Gross volume over the trailing 30 days. */
+  volume30d: MoneyPoint;
+  payments: PaymentItem[];
+  balance: { currency: string; available: number; pending: number } | null;
+};
+
+/* ───────────────────────────── Lemon Squeezy ────────────────────────────── */
+
+export type LemonSqueezyDashboard = {
+  storeName?: string;
+  revenue: RevenueSummary;
+  /** Store revenue over the trailing 30 days, as Lemon Squeezy reports it. */
+  revenue30d: MoneyPoint;
+  orders: PaymentItem[];
+};
+
+/* ─────────────────────────────── Sentry ─────────────────────────────────── */
+
+export type SentryIssueItem = {
+  id: string;
+  title: string;
+  culprit?: string;
+  level: string;
+  status: TrackerPoint["status"];
+  count: number;
+  userCount: number;
+  lastSeen: string;
+  projectName?: string;
+  permalink?: string;
+};
+
+export type SentryDashboard = {
+  organizationName?: string;
+  unresolved: number;
+  /** Events across the trailing 24 hours, as reported per issue. */
+  events24h: number;
+  issues: SentryIssueItem[];
+  projects: StatusItem[];
+  /** True when the issue list was capped before the real total. */
+  truncated: boolean;
+};
+
+/* ─────────────────────────────── Resend ─────────────────────────────────── */
+
+export type ResendDomainItem = {
+  id: string;
+  name: string;
+  status: TrackerPoint["status"];
+  rawStatus: string;
+  region?: string;
+  createdAt?: string;
+};
+
+export type ResendEmailItem = {
+  id: string;
+  to: string;
+  subject: string;
+  status: string;
+  sentAt: string;
+};
+
+export type ResendDashboard = {
+  domains: ResendDomainItem[];
+  verified: number;
+  total: number;
+  emails: ResendEmailItem[];
+  /**
+   * True when the key could not list sent emails. Resend gates that endpoint,
+   * so the rest of the dashboard still renders rather than failing whole.
+   */
+  emailsUnavailable: boolean;
+};
+
+/* ─────────────────────────────── Vercel ─────────────────────────────────── */
+
+export type VercelDeployItem = {
+  id: string;
+  projectName: string;
+  status: TrackerPoint["status"];
+  rawState: string;
+  target?: string;
+  branch?: string;
+  commitMessage?: string;
+  createdAt: string;
+  url?: string;
+};
+
+export type VercelDashboard = {
+  items: StatusItem[];
+  trackers: Record<string, TrackerPoint[]>;
+  ready: number;
+  total: number;
+  recentDeploys: VercelDeployItem[];
+};

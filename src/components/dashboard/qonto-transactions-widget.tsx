@@ -7,8 +7,8 @@ import {
   useRef,
   useState,
 } from "react";
-import Link from "next/link";
 import { format } from "date-fns";
+import { WidgetMessage } from "@/components/dashboard/widgets/widget-messages";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -188,28 +188,22 @@ export function QontoTransactionsWidget() {
 
   if (needsConnection) {
     return (
-      <div ref={rootRef} className="flex h-full flex-col justify-center gap-2">
-        <p className="text-sm font-medium">Connect Qonto</p>
-        <Link
-          href="/connections"
-          className="text-sm text-muted-foreground underline-offset-4 hover:underline"
-        >
-          Open Connections
-        </Link>
+      <div ref={rootRef} className="h-full">
+        <WidgetMessage
+          title="Connect Qonto to see this widget."
+          action={{ href: "/connections", label: "Open Connections" }}
+        />
       </div>
     );
   }
 
   if (error) {
     return (
-      <div ref={rootRef} className="flex h-full flex-col justify-center gap-2">
-        <p className="text-sm text-muted-foreground">{error}</p>
-        <Link
-          href="/connections"
-          className="text-sm text-muted-foreground underline-offset-4 hover:underline"
-        >
-          Check Connections
-        </Link>
+      <div ref={rootRef} className="h-full">
+        <WidgetMessage
+          title={error}
+          action={{ href: "/connections", label: "Check Connections" }}
+        />
       </div>
     );
   }
@@ -224,9 +218,7 @@ export function QontoTransactionsWidget() {
           <Skeleton className="h-8 w-2/3" />
         </div>
       ) : transactions.length === 0 ? (
-        <div className="flex h-full items-center">
-          <p className="text-sm text-muted-foreground">No recent transactions.</p>
-        </div>
+        <WidgetMessage title="No recent transactions." />
       ) : (
         <div
           ref={scrollRef}
