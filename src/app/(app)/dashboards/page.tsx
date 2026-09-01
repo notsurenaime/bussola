@@ -1,22 +1,32 @@
 import { EmptyState, PageHeader } from "@/components/layout/page";
-import { GettingStarted } from "@/components/onboarding/getting-started";
 import { requirePageTenant } from "@/lib/auth/tenant";
+import type { WidgetType } from "@/lib/widgets/registry";
 import { CreateDashboard } from "./create-dashboard";
-import { DashboardList, type DashboardSummary } from "./dashboard-list";
+import { DashboardGallery, type DashboardSummary } from "./dashboard-gallery";
 
 export default async function DashboardsPage() {
   const repos = await requirePageTenant();
 
-  const [dashboards, connectionCount, widgetCount] = await Promise.all([
+  const [dashboards, widgetTypeRows] = await Promise.all([
     repos.dashboards.list(),
-    repos.connections.count(),
-    repos.widgets.countAll(),
+    repos.widgets.listTypesByDashboard(),
   ]);
+
+  const widgetTypesByDashboard = new Map<string, WidgetType[]>();
+  for (const row of widgetTypeRows) {
+    const types = widgetTypesByDashboard.get(row.dashboardId) ?? [];
+    types.push(row.widgetType as WidgetType);
+    widgetTypesByDashboard.set(row.dashboardId, types);
+  }
 
   const summaries: DashboardSummary[] = dashboards.map((dashboard) => ({
     id: dashboard.id,
     name: dashboard.name,
     updatedAt: dashboard.updatedAt.toISOString(),
+    starred: dashboard.starred,
+    // Capped so the thumbnail stays a preview, not a full re-render of the
+    // canvas — the top-left corner of the layout is what a user recognizes.
+    widgetTypes: (widgetTypesByDashboard.get(dashboard.id) ?? []).slice(0, 4),
   }));
 
   return (
@@ -27,14 +37,6 @@ export default async function DashboardsPage() {
         actions={<CreateDashboard />}
       />
 
-      <GettingStarted
-        state={{
-          hasConnection: connectionCount > 0,
-          hasDashboard: dashboards.length > 0,
-          hasWidget: widgetCount > 0,
-        }}
-      />
-
       {summaries.length === 0 ? (
         <EmptyState
           title="No dashboards yet"
@@ -42,7 +44,7 @@ export default async function DashboardsPage() {
           action={<CreateDashboard label="Create dashboard" />}
         />
       ) : (
-        <DashboardList dashboards={summaries} />
+        <DashboardGallery dashboards={summaries} />
       )}
     </div>
   );

@@ -1,0 +1,1 @@
+ALTER TABLE "dashboards" ADD COLUMN "starred" boolean DEFAULT false NOT NULL;

@@ -1,7 +1,8 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   ResponsiveGridLayout,
   useContainerWidth,
@@ -13,11 +14,14 @@ import {
   ArrowLeftIcon,
   FloppyDiskIcon,
   PencilSimpleIcon,
+  StarIcon,
 } from "@phosphor-icons/react";
 import { EmptyState, PageHeader } from "@/components/layout/page";
 import { Button } from "@/components/ui/button";
 import { AddWidgetSheet } from "@/components/dashboard/add-widget-sheet";
 import { WidgetFrame } from "@/components/dashboard/widget-frame";
+import { useCurrentDashboard } from "@/components/layout/current-dashboard-context";
+import { starDashboardAction } from "@/app/(app)/dashboards/actions";
 import { getWidgetDefinition, type WidgetType } from "@/lib/widgets/registry";
 import { cn } from "@/lib/utils";
 import "react-grid-layout/css/styles.css";
@@ -34,17 +38,56 @@ type DashboardCanvasProps = {
   dashboardId: string;
   name: string;
   initialWidgets: CanvasWidget[];
+  initialStarred: boolean;
 };
 
 export function DashboardCanvas({
   dashboardId,
   name,
   initialWidgets,
+  initialStarred,
 }: DashboardCanvasProps) {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const { setCurrent } = useCurrentDashboard();
   const { width, containerRef, mounted } = useContainerWidth();
   const [editMode, setEditMode] = useState(false);
   const [widgets, setWidgets] = useState(initialWidgets);
   const [saving, setSaving] = useState(false);
+  // A dashboard lands here fresh from creation with ?addWidget=1 — open the
+  // gallery immediately instead of making the user find the button.
+  const [addWidgetOpen, setAddWidgetOpen] = useState(
+    () => searchParams.get("addWidget") === "1",
+  );
+  const [starred, setStarred] = useState(initialStarred);
+  const [starring, setStarring] = useState(false);
+
+  async function toggleStarred() {
+    const next = !starred;
+    setStarring(true);
+    setStarred(next);
+    const result = await starDashboardAction(dashboardId, next);
+    setStarring(false);
+    if (!result.ok) {
+      setStarred(!next);
+      toast.error(result.error);
+      return;
+    }
+    router.refresh();
+  }
+
+  useEffect(() => {
+    if (searchParams.get("addWidget") !== "1") return;
+    router.replace(`/dashboards/${dashboardId}`, { scroll: false });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // The sidebar has no way to know a dynamic route's data on its own, so the
+  // open dashboard reports itself for the "current" sub-tab.
+  useEffect(() => {
+    setCurrent({ id: dashboardId, name });
+    return () => setCurrent(null);
+  }, [dashboardId, name, setCurrent]);
 
   const layout: Layout = useMemo(
     () =>
@@ -149,7 +192,25 @@ export function DashboardCanvas({
               {saving ? (
                 <span className="text-xs text-muted-foreground">Saving…</span>
               ) : null}
-              <AddWidgetSheet onAdd={addWidget} />
+              <AddWidgetSheet
+                open={addWidgetOpen}
+                onOpenChange={setAddWidgetOpen}
+                onAdd={addWidget}
+              />
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                aria-label={starred ? "Unstar dashboard" : "Star dashboard"}
+                aria-pressed={starred}
+                disabled={starring}
+                onClick={toggleStarred}
+              >
+                <StarIcon
+                  className="size-4"
+                  weight={starred ? "fill" : "regular"}
+                />
+              </Button>
               <Button
                 type="button"
                 variant={editMode ? "default" : "outline"}
@@ -171,7 +232,11 @@ export function DashboardCanvas({
         <EmptyState
           title="Empty canvas"
           description="Add a tracker or KPI block to start composing this dashboard."
-          action={<AddWidgetSheet onAdd={addWidget} />}
+          action={
+            <Button type="button" onClick={() => setAddWidgetOpen(true)}>
+              Add widget
+            </Button>
+          }
         />
       ) : (
         <div

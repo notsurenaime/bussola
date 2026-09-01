@@ -40,7 +40,7 @@ export async function createDashboardAction(
 
   const dashboard = await repos.dashboards.create(parsed.data);
   revalidatePath("/dashboards");
-  redirect(`/dashboards/${dashboard.id}`);
+  redirect(`/dashboards/${dashboard.id}?addWidget=1`);
 }
 
 export async function deleteDashboardAction(
@@ -51,5 +51,17 @@ export async function deleteDashboardAction(
   if (!removed) return { ok: false, error: "Dashboard not found" };
 
   revalidatePath("/dashboards");
+  return { ok: true };
+}
+
+export async function starDashboardAction(
+  id: string,
+  starred: boolean,
+): Promise<ActionResult> {
+  const repos = await requireTenant();
+  const dashboard = await repos.dashboards.star(id, starred);
+  if (!dashboard) return { ok: false, error: "Dashboard not found" };
+
+  revalidatePath("/dashboards", "layout");
   return { ok: true };
 }

@@ -79,7 +79,7 @@ export function BillingSection() {
     : null;
 
   return (
-    <section className="space-y-4 border-t border-border pt-6">
+    <section className="space-y-4">
       <SectionHeading
         title="Plan"
         description="Billing is handled by Stripe."

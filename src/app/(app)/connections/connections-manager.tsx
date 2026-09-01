@@ -24,7 +24,7 @@ import { PROVIDER_CATALOG } from "@/lib/connectors/catalog";
 import { connectionHealth } from "@/lib/connectors/health";
 import type { Provider } from "@/lib/providers";
 import { cn } from "@/lib/utils";
-import { ConnectionDialog } from "./connection-dialog";
+import { ConnectionDialog } from "@/components/connections/connection-dialog";
 
 export type ConnectionView = {
   id: string;

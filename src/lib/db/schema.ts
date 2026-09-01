@@ -151,6 +151,7 @@ export const dashboards = pgTable(
     id: text("id").primaryKey(),
     organizationId: orgRef(),
     name: text("name").notNull(),
+    starred: boolean("starred").notNull().default(false),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),

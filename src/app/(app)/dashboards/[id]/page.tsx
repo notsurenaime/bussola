@@ -24,6 +24,7 @@ export default async function DashboardDetailPage({ params }: Props) {
       dashboardId={dashboard.id}
       name={dashboard.name}
       initialWidgets={widgets}
+      initialStarred={dashboard.starred}
     />
   );
 }

@@ -78,6 +78,16 @@ export function forTenant(ctx: TenantContext) {
         return row?.value ?? 0;
       },
 
+      /** For the sidebar's persistent shortcuts. */
+      async listStarred() {
+        const db = await getDb();
+        return db
+          .select()
+          .from(dashboards)
+          .where(and(eq(dashboards.organizationId, org), eq(dashboards.starred, true)))
+          .orderBy(desc(dashboards.updatedAt));
+      },
+
       async create(name: string) {
         const db = await getDb();
         const [row] = await db
@@ -92,6 +102,16 @@ export function forTenant(ctx: TenantContext) {
         const [row] = await db
           .update(dashboards)
           .set({ name, updatedAt: new Date() })
+          .where(ownDashboard(id))
+          .returning();
+        return row ?? null;
+      },
+
+      async star(id: string, starred: boolean) {
+        const db = await getDb();
+        const [row] = await db
+          .update(dashboards)
+          .set({ starred })
           .where(ownDashboard(id))
           .returning();
         return row ?? null;
@@ -133,6 +153,19 @@ export function forTenant(ctx: TenantContext) {
           .from(dashboardWidgets)
           .where(eq(dashboardWidgets.organizationId, org));
         return rows.map((row) => row.widgetType);
+      },
+
+      /** Widget types per dashboard, in layout order, for gallery thumbnails. */
+      async listTypesByDashboard() {
+        const db = await getDb();
+        return db
+          .select({
+            dashboardId: dashboardWidgets.dashboardId,
+            widgetType: dashboardWidgets.widgetType,
+          })
+          .from(dashboardWidgets)
+          .where(eq(dashboardWidgets.organizationId, org))
+          .orderBy(asc(dashboardWidgets.layoutY), asc(dashboardWidgets.layoutX));
       },
 
       /** Widgets across every dashboard, for the setup checklist. */
