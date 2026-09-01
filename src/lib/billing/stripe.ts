@@ -49,9 +49,7 @@ export function webhookSecret(): string {
 }
 
 export function appUrl(): string {
-  return (
-    process.env.BETTER_AUTH_URL ||
-    process.env.NEXT_PUBLIC_APP_URL ||
-    "http://localhost:3000"
-  );
+  // Cloud requires BETTER_AUTH_URL, so this fallback only ever applies to a
+  // self-hosted install poking at billing, where it is inert anyway.
+  return process.env.BETTER_AUTH_URL || "http://localhost:3000";
 }

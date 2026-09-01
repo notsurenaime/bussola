@@ -9,6 +9,7 @@ const CLOUD_REQUIRED = [
   "DATABASE_URL",
   "BUSSOLA_ENCRYPTION_KEY",
   "BETTER_AUTH_SECRET",
+  "BETTER_AUTH_URL",
 ] as const;
 
 async function loadEdition(env: Record<string, string | undefined>) {
@@ -67,6 +68,7 @@ describe("cloud", () => {
       DATABASE_URL: "postgres://localhost/bussola",
       BUSSOLA_ENCRYPTION_KEY: "a".repeat(64),
       BETTER_AUTH_SECRET: "secret",
+      BETTER_AUTH_URL: "https://app.example",
     });
     expect(isCloud).toBe(true);
     expect(() => assertEditionConfig()).not.toThrow();

@@ -32,6 +32,9 @@ export function assertEditionConfig(): void {
     missing.push("BUSSOLA_ENCRYPTION_KEY");
   }
   if (!process.env.BETTER_AUTH_SECRET) missing.push("BETTER_AUTH_SECRET");
+  // Without it, request origins are inferred rather than pinned — fine for a
+  // laptop, too loose for a deployment taking other people's credentials.
+  if (!process.env.BETTER_AUTH_URL) missing.push("BETTER_AUTH_URL");
 
   if (missing.length) {
     throw new Error(
