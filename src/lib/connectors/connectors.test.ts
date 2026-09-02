@@ -1,7 +1,14 @@
 import { describe, expect, it } from "vitest";
 import { orderStatus } from "./lemonsqueezy";
 import { levelStatus, projectStatus } from "./sentry";
-import { domainStatus, domainStatusLabel } from "./resend";
+import {
+  broadcastStatusTone,
+  domainStatus,
+  domainStatusLabel,
+  emailStatusTone,
+  outcomeSlices,
+} from "./resend";
+import type { ResendMetricTotals } from "./types";
 import { deployStateLabel, deployStatus } from "./vercel";
 import { COMING_SOON_PROVIDERS, LIVE_PROVIDERS, getConnector } from "./index";
 
@@ -54,6 +61,108 @@ describe("Resend domain status", () => {
   it("renders raw statuses readably", () => {
     expect(domainStatusLabel("temporary_failure")).toBe("temporary failure");
     expect(domainStatusLabel(undefined)).toBe("Unknown");
+  });
+});
+
+describe("Resend email status tone", () => {
+  it("treats engagement as a good outcome, not just delivery", () => {
+    expect(emailStatusTone("delivered")).toBe("ok");
+    expect(emailStatusTone("opened")).toBe("ok");
+    expect(emailStatusTone("clicked")).toBe("ok");
+  });
+
+  it("separates a hard failure from a soft one", () => {
+    expect(emailStatusTone("bounced")).toBe("error");
+    expect(emailStatusTone("failed")).toBe("error");
+    expect(emailStatusTone("delivery_delayed")).toBe("warn");
+    expect(emailStatusTone("complained")).toBe("warn");
+  });
+
+  it("leaves an unresolved send neutral", () => {
+    expect(emailStatusTone("queued")).toBe("idle");
+    expect(emailStatusTone("scheduled")).toBe("idle");
+    expect(emailStatusTone(undefined)).toBe("idle");
+  });
+});
+
+describe("Resend broadcast status tone", () => {
+  it("maps the lifecycle", () => {
+    expect(broadcastStatusTone("sent")).toBe("ok");
+    expect(broadcastStatusTone("scheduled")).toBe("warn");
+    expect(broadcastStatusTone("queued")).toBe("warn");
+    expect(broadcastStatusTone("canceled")).toBe("error");
+    expect(broadcastStatusTone("draft")).toBe("idle");
+  });
+});
+
+describe("Resend outcome slices", () => {
+  const totals = (over: Partial<ResendMetricTotals>): ResendMetricTotals => ({
+    sent: 0,
+    delivered: 0,
+    opened: 0,
+    uniqueOpened: 0,
+    clicked: 0,
+    uniqueClicked: 0,
+    failed: 0,
+    bounced: 0,
+    deliveryRate: 0,
+    openRate: 0,
+    clickRate: 0,
+    ...over,
+  });
+
+  const bySlice = (input: ResendMetricTotals) =>
+    Object.fromEntries(
+      outcomeSlices(input).map((slice) => [slice.id, slice.value]),
+    );
+
+  it("counts each email once, at the furthest step it reached", () => {
+    // 100 delivered, 40 of them opened, 10 of those also clicked.
+    const result = bySlice(
+      totals({
+        sent: 100,
+        delivered: 100,
+        uniqueOpened: 40,
+        uniqueClicked: 10,
+      }),
+    );
+    expect(result).toEqual({
+      clicked: 10,
+      opened: 30,
+      delivered: 60,
+      failed: 0,
+    });
+  });
+
+  it("sums back to what was sent", () => {
+    const input = totals({
+      sent: 100,
+      delivered: 92,
+      uniqueOpened: 40,
+      uniqueClicked: 10,
+      bounced: 6,
+      failed: 2,
+    });
+    const sum = outcomeSlices(input).reduce((acc, s) => acc + s.value, 0);
+    expect(sum).toBe(input.sent);
+  });
+
+  it("ignores repeat opens, which would otherwise overcount", () => {
+    // 30 opens spread across 19 recipients — the slice follows the unique count.
+    const result = bySlice(
+      totals({ sent: 27, delivered: 27, opened: 30, uniqueOpened: 19 }),
+    );
+    expect(result.opened).toBe(19);
+    expect(result.delivered).toBe(8);
+  });
+
+  it("never produces a negative slice when counts disagree", () => {
+    // Opens can be attributed to a delivery from before the window.
+    const result = bySlice(
+      totals({ sent: 5, delivered: 5, uniqueOpened: 9, uniqueClicked: 7 }),
+    );
+    expect(result.opened).toBe(2);
+    expect(result.delivered).toBe(0);
   });
 });
 

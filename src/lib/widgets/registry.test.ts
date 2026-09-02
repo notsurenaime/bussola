@@ -62,6 +62,13 @@ describe("widget registry", () => {
     }
   });
 
+  it("links every source-backed widget to where its data lives", () => {
+    for (const widget of WIDGET_REGISTRY) {
+      if (widget.provider === "multi") continue;
+      expect(widget.sourceUrl, widget.type).toMatch(/^https:\/\//);
+    }
+  });
+
   it("points every widget at a live provider", () => {
     for (const widget of WIDGET_REGISTRY) {
       if (widget.provider === "multi") continue;

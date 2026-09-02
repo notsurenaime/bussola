@@ -2,6 +2,7 @@ import type {
   ConnectionCredentials,
   Connector,
   StatusItem,
+  SupabaseAdvisorIssue,
   SupabaseAdvisorsSummary,
   SupabaseDashboard,
   SupabaseServiceItem,
@@ -83,6 +84,8 @@ type AdvisorLint = {
   description?: string;
   detail?: string;
   categories?: string[];
+  remediation?: string;
+  kind?: "security" | "performance";
 };
 
 function projectRef(project: SupabaseProject): string {
@@ -110,9 +113,17 @@ function mapServiceStatus(
   healthy: boolean | undefined,
   status?: string,
 ): TrackerPoint["status"] {
-  if (typeof healthy === "boolean") {
-    return healthy ? "ok" : "error";
+  // The health endpoint reports its own three-value enum, which is narrower
+  // than a project's lifecycle status.
+  switch (status?.toUpperCase()) {
+    case "ACTIVE_HEALTHY":
+      return "ok";
+    case "COMING_UP":
+      return "warn";
+    case "UNHEALTHY":
+      return "error";
   }
+  if (typeof healthy === "boolean") return healthy ? "ok" : "error";
   if (!status) return "idle";
   return mapProjectStatus(status);
 }
@@ -141,14 +152,21 @@ function serviceDisplayName(raw: string): string {
     case "functions":
     case "edge_functions":
     case "edge-functions":
-      return "Functions";
+      return "Edge Functions";
     case "rest":
     case "postgrest":
-      return "API";
+      return "PostgREST";
     default:
       return raw.charAt(0).toUpperCase() + raw.slice(1);
   }
 }
+
+/**
+ * The complete set the health endpoint accepts. Anything else is rejected
+ * outright, and `services` is required — omitting it 400s rather than
+ * defaulting to all of them.
+ */
+const HEALTH_SERVICES = ["db", "rest", "auth", "realtime", "storage"] as const;
 
 async function fetchProjectHealth(
   token: string,
@@ -157,13 +175,44 @@ async function fetchProjectHealth(
   try {
     const data = await supabaseFetch<ServiceHealthRaw[] | { services?: ServiceHealthRaw[] }>(
       token,
-      `/projects/${encodeURIComponent(ref)}/health`,
+      `/projects/${encodeURIComponent(ref)}/health?services=${HEALTH_SERVICES.join(",")}&timeout_ms=2000`,
     );
     if (Array.isArray(data)) return data;
     if (data && Array.isArray(data.services)) return data.services;
     return [];
   } catch {
     return [];
+  }
+}
+
+/**
+ * Edge Functions have no entry in the health endpoint's service enum, so their
+ * row comes from the deployment state of the functions themselves. That is a
+ * weaker signal than a liveness probe — it says the functions are deployed and
+ * not throttled, not that they are currently serving — and the detail text says
+ * so rather than dressing it up as health.
+ */
+async function fetchFunctionsHealth(
+  token: string,
+  ref: string,
+): Promise<{ status: TrackerPoint["status"]; detail: string } | null> {
+  try {
+    const fns = await supabaseFetch<Array<{ status?: string }>>(
+      token,
+      `/projects/${encodeURIComponent(ref)}/functions`,
+    );
+    if (!Array.isArray(fns) || fns.length === 0) return null;
+
+    const active = fns.filter((f) => f.status === "ACTIVE").length;
+    const throttled = fns.filter((f) => f.status === "THROTTLED").length;
+    return {
+      status: throttled > 0 ? "warn" : active === fns.length ? "ok" : "warn",
+      detail: throttled > 0
+        ? `${throttled} of ${fns.length} throttled`
+        : `${active} deployed`,
+    };
+  } catch {
+    return null;
   }
 }
 
@@ -182,20 +231,42 @@ async function fetchProjectUsage(
   }
 }
 
-async function fetchProjectSecurityAdvisors(
+/**
+ * Two lints that mean "we could not check", not "we found a problem". Counting
+ * them would report a paused project as having findings.
+ */
+const NON_FINDING_LINTS = new Set(["advisor_check_unavailable", "project_not_active"]);
+
+async function fetchAdvisorKind(
   token: string,
   ref: string,
+  kind: "security" | "performance",
 ): Promise<AdvisorLint[]> {
   try {
     const data = await supabaseFetch<{ lints?: AdvisorLint[] } | AdvisorLint[]>(
       token,
-      `/projects/${encodeURIComponent(ref)}/advisors/security`,
+      `/projects/${encodeURIComponent(ref)}/advisors/${kind}`,
     );
-    if (Array.isArray(data)) return data;
-    return data.lints || [];
+    const lints = Array.isArray(data) ? data : data.lints || [];
+    return lints
+      .filter((lint) => !NON_FINDING_LINTS.has(lint.name || ""))
+      .map((lint) => ({ ...lint, kind }));
   } catch {
+    // The security endpoint is flagged experimental, so one kind failing must
+    // not take the other down with it.
     return [];
   }
+}
+
+async function fetchProjectAdvisors(
+  token: string,
+  ref: string,
+): Promise<AdvisorLint[]> {
+  const [security, performance] = await Promise.all([
+    fetchAdvisorKind(token, ref, "security"),
+    fetchAdvisorKind(token, ref, "performance"),
+  ]);
+  return [...security, ...performance];
 }
 
 function normalizeServices(
@@ -210,14 +281,18 @@ function normalizeServices(
         row.service ||
         row.info?.name ||
         `service-${index}`;
+      // `healthy` is marked deprecated in favour of `status`, so `status` wins
+      // and the boolean is only a fallback for older responses.
+      const statusText = row.status || row.info?.status;
       const healthy =
         typeof row.healthy === "boolean"
           ? row.healthy
           : typeof row.info?.healthy === "boolean"
             ? row.info.healthy
             : undefined;
-      const statusText = row.status || row.info?.status;
-      const status = mapServiceStatus(healthy, statusText);
+      const status = statusText
+        ? mapServiceStatus(undefined, statusText)
+        : mapServiceStatus(healthy, undefined);
       const serviceName = serviceDisplayName(rawName);
       return {
         id: `${projectId}:${rawName}`,
@@ -289,6 +364,7 @@ export async function fetchSupabaseDashboard(
   let realtime = 0;
   let usageAvailable = false;
 
+  const advisorIssues: SupabaseAdvisorIssue[] = [];
   const advisorSummary: SupabaseAdvisorsSummary = {
     total: 0,
     errors: 0,
@@ -301,13 +377,24 @@ export async function fetchSupabaseDashboard(
   // Sequential-ish batches to respect analytics rate limits (30/min).
   for (const project of detailProjects) {
     const ref = projectRef(project);
-    const [healthRows, usageRows, lints] = await Promise.all([
+    const [healthRows, usageRows, lints, functions] = await Promise.all([
       fetchProjectHealth(token, ref),
       fetchProjectUsage(token, ref),
-      fetchProjectSecurityAdvisors(token, ref),
+      fetchProjectAdvisors(token, ref),
+      fetchFunctionsHealth(token, ref),
     ]);
 
     services.push(...normalizeServices(project.name, ref, healthRows));
+    if (functions) {
+      services.push({
+        id: `${ref}:functions`,
+        projectName: project.name,
+        serviceName: "Edge Functions",
+        status: functions.status,
+        healthy: functions.status === "ok",
+        detail: functions.detail,
+      });
+    }
 
     if (usageRows.length > 0) {
       usageAvailable = true;
@@ -324,17 +411,28 @@ export async function fetchSupabaseDashboard(
     }
     for (const lint of lints) {
       advisorSummary.total += 1;
-      const level = (lint.level || "").toUpperCase();
-      if (level === "ERROR" || level === "CRITICAL") advisorSummary.errors += 1;
-      else if (level === "WARN" || level === "WARNING") advisorSummary.warnings += 1;
+      const level = (lint.level || "INFO").toUpperCase();
+      if (level === "ERROR") advisorSummary.errors += 1;
+      else if (level === "WARN") advisorSummary.warnings += 1;
       else advisorSummary.infos += 1;
+
+      advisorIssues.push({
+        id: `${ref}:${lint.name || advisorIssues.length}`,
+        name: lint.name || "advisor_finding",
+        title: lint.title || lint.name || "Advisor finding",
+        level: level === "ERROR" || level === "WARN" ? level : "INFO",
+        status: level === "ERROR" ? "error" : level === "WARN" ? "warn" : "idle",
+        kind: lint.kind || "security",
+        projectName: project.name,
+        detail: lint.description || lint.detail,
+      });
 
       if ((advisorSummary.top?.length || 0) < 5) {
         advisorSummary.top = [
           ...(advisorSummary.top || []),
           {
             title: lint.title || lint.name || "Advisor finding",
-            level: level || "INFO",
+            level,
             projectName: project.name,
           },
         ];
@@ -344,7 +442,7 @@ export async function fetchSupabaseDashboard(
 
   const traffic: SupabaseTrafficBucket[] = usageAvailable
     ? [
-        { label: "REST", value: rest, display: formatCount(rest) },
+        { label: "PostgREST", value: rest, display: formatCount(rest) },
         { label: "Auth", value: auth, display: formatCount(auth) },
         { label: "Storage", value: storage, display: formatCount(storage) },
         { label: "Realtime", value: realtime, display: formatCount(realtime) },
@@ -367,6 +465,11 @@ export async function fetchSupabaseDashboard(
         : "No usage data yet",
     },
     advisors: advisorSummary,
+    // Errors first, then warnings — the list is read top-down for what to fix.
+    advisorIssues: advisorIssues.sort((a, b) => {
+      const rank = { ERROR: 0, WARN: 1, INFO: 2 } as const;
+      return rank[a.level] - rank[b.level];
+    }),
   };
 }
 

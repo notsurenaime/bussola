@@ -1,4 +1,5 @@
 import type { dashboardWidgets } from "@/lib/db/schema";
+import { parseWidgetConfig, type WidgetConfig } from "./config";
 
 type WidgetRow = typeof dashboardWidgets.$inferSelect;
 
@@ -6,7 +7,9 @@ export type CanvasWidgetDto = {
   id: string;
   widgetType: string;
   title: string | null;
-  config: Record<string, unknown>;
+  /** Null means "this organization's default connection for the provider". */
+  connectionId: string | null;
+  config: WidgetConfig;
   layout: { i: string; x: number; y: number; w: number; h: number };
 };
 
@@ -15,19 +18,23 @@ export type CanvasWidgetDto = {
  * renders — previously inlined identically in three route handlers.
  */
 export function toCanvasWidget(row: WidgetRow): CanvasWidgetDto {
-  let config: Record<string, unknown> = {};
+  let raw: unknown = {};
   try {
-    config = JSON.parse(row.configJson || "{}") as Record<string, unknown>;
+    raw = JSON.parse(row.configJson || "{}");
   } catch {
     // A malformed config must not take the whole dashboard down.
-    config = {};
+    raw = {};
   }
 
   return {
     id: row.id,
     widgetType: row.widgetType,
     title: row.title,
-    config,
+    connectionId: row.connectionId,
+    // Parsed here rather than in the component: a config written by an older
+    // build, or by hand through the API, reaches the canvas already clamped to
+    // what the renderer knows how to apply.
+    config: parseWidgetConfig(raw),
     layout: {
       i: row.id,
       x: row.layoutX,

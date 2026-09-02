@@ -20,6 +20,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { formatMoney } from "@/lib/format/money";
+import { useWidgetDataEndpoint } from "@/lib/widgets/widget-data-store";
 import type { TransactionItem } from "@/lib/connectors/types";
 
 const ROW_HEIGHT_PX = 52;
@@ -52,7 +53,29 @@ function pageSizeForHeight(height: number): number {
   return Math.min(MAX_PAGE_SIZE, Math.max(MIN_PAGE_SIZE, fitted));
 }
 
-export function QontoTransactionsWidget() {
+type QontoTransactionsWidgetProps = {
+  /**
+   * Which Qonto connection to read. Absent means the organization's default.
+   *
+   * Repointing the widget at another account invalidates everything loaded so
+   * far — the cursor belongs to the old account's page sequence, and appending
+   * to it would interleave two businesses' transactions. The caller keys this
+   * component on the connection so React discards the state for us, rather
+   * than an effect resetting six pieces of it by hand.
+   */
+  connectionId?: string | null;
+  /** Rows per page, when the widget's settings pin one. */
+  limit?: number;
+};
+
+export function QontoTransactionsWidget({
+  connectionId,
+  limit: limitOverride,
+}: QontoTransactionsWidgetProps = {}) {
+  // Cursor pagination is this widget's own, so it fetches directly rather than
+  // through the shared store — but it must still read from wherever the rest
+  // of the page reads, share link included.
+  const endpoint = useWidgetDataEndpoint();
   const rootRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const sentinelRef = useRef<HTMLDivElement>(null);
@@ -87,17 +110,20 @@ export function QontoTransactionsWidget() {
       if (mode === "append") setLoadingMore(true);
       else setLoading(true);
 
-      const limit = pageSizeForHeight(height || 240);
+      // A pinned limit wins over the height estimate: someone who asked for
+      // ten rows means ten, not "however many fit".
+      const limit = limitOverride ?? pageSizeForHeight(height || 240);
       const params = new URLSearchParams({
         type: "qonto-transactions",
         limit: String(limit),
       });
+      if (connectionId) params.set("connectionId", connectionId);
       if (mode === "append" && nextCursorRef.current) {
         params.set("cursor", nextCursorRef.current);
       }
 
       try {
-        const res = await fetch(`/api/widgets/data?${params.toString()}`);
+        const res = await fetch(`${endpoint}?${params.toString()}`);
         const json = (await res.json()) as {
           error?: string;
           needsConnection?: boolean;
@@ -138,7 +164,7 @@ export function QontoTransactionsWidget() {
         loadingLock.current = false;
       }
     },
-    [height],
+    [height, connectionId, limitOverride, endpoint],
   );
 
   const didInitialLoad = useRef(false);

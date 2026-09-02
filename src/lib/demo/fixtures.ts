@@ -1,3 +1,8 @@
+import type {
+  RailwayDashboard,
+  ResendDashboard,
+  SupabaseDashboard,
+} from "@/lib/connectors/types";
 import type { Provider } from "@/lib/providers";
 
 /**
@@ -38,6 +43,19 @@ const OK_TRAIL = trail([
   "ok", "ok", "ok", "ok", "warn", "ok", "ok", "ok", "ok", "ok", "ok", "ok",
 ]);
 
+/** A gently varying 24h trail at 15-minute resolution, for the usage charts. */
+const demoSeries = (base: number, swing: number) =>
+  Array.from({ length: 96 }, (_, index) => {
+    const at = new Date(now - (95 - index) * 900_000);
+    return {
+      ts: at.toISOString(),
+      label: at.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" }),
+      value: Number(
+        (base + swing * (0.5 + 0.5 * Math.sin(index / 7)) * (index % 11 === 0 ? 1.4 : 1)).toFixed(4),
+      ),
+    };
+  });
+
 const railway = {
   items: [
     { id: "d1", name: "api", provider: "railway", status: "ok", detail: "Running", updatedAt: minutesAgo(18) },
@@ -77,12 +95,38 @@ const railway = {
     { id: "r3", serviceId: "d2", serviceName: "worker", projectName: "bussola", status: "ok", rawStatus: "SUCCESS", createdAt: hoursAgo(5), label: "perf: batch sync claims", commitHash: "9e4ab77", branch: "main" },
   ],
   resources: { cpuCores: 0.42, memoryGb: 1.18, sampledServices: 3, label: "Last hour" },
+  projects: [
+    { id: "p1", name: "bussola", serviceCount: 3, healthy: 2, failed: 1, status: "error", detail: "3 services · 1 failing", updatedAt: minutesAgo(3) },
+    { id: "p2", name: "landing", serviceCount: 1, healthy: 1, failed: 0, status: "ok", detail: "1 service", updatedAt: hoursAgo(30) },
+  ],
+  metrics: {
+    projectName: "bussola",
+    environmentName: "production",
+    hours: 24,
+    series: [
+      { key: "cpu", label: "CPU", unit: "vCPU", latest: 0.31, peak: 0.68, average: 0.34, points: demoSeries(0.3, 0.38) },
+      { key: "memory", label: "Memory", unit: "GB", latest: 1.21, peak: 1.44, average: 1.18, points: demoSeries(1.15, 0.3) },
+      { key: "egress", label: "Egress", unit: "GB", latest: 0.004, peak: 0.012, average: 0.005, points: demoSeries(0.004, 0.008) },
+      { key: "disk", label: "Disk", unit: "GB", latest: 2.4, peak: 2.4, average: 2.38, points: demoSeries(2.35, 0.06) },
+    ],
+  },
+  billing: {
+    workspaceName: "Malango Tech UG",
+    plan: "HOBBY",
+    currency: "usd",
+    estimatedBill: 42.18,
+    currentUsage: 27.4,
+    creditBalance: 0,
+    cycleStart: daysAgo(18),
+    cycleEnd: hoursAgo(-288),
+    nextInvoiceDate: hoursAgo(-288),
+  },
   usage: [
     { measurement: "CPU", label: "CPU", value: 3.4, display: "3.4 vCPU-h" },
     { measurement: "MEMORY", label: "Memory", value: 8.1, display: "8.1 GB-h" },
     { measurement: "EGRESS", label: "Egress", value: 2.2, display: "2.2 GB" },
   ],
-};
+} satisfies RailwayDashboard;
 
 const vercel = {
   items: [
@@ -124,13 +168,16 @@ const supabase = {
     { id: "auth", projectName: "bussola-prod", serviceName: "Auth", status: "ok", detail: "Healthy", healthy: true },
     { id: "storage", projectName: "bussola-prod", serviceName: "Storage", status: "ok", detail: "Healthy", healthy: true },
     { id: "realtime", projectName: "bussola-prod", serviceName: "Realtime", status: "ok", detail: "Healthy", healthy: true },
+    { id: "rest", projectName: "bussola-prod", serviceName: "PostgREST", status: "ok", detail: "ACTIVE_HEALTHY", healthy: true },
+    { id: "functions", projectName: "bussola-prod", serviceName: "Edge Functions", status: "ok", detail: "4 deployed", healthy: true },
   ],
   traffic: [
-    { label: "GET", value: 18400, display: "18.4k" },
-    { label: "POST", value: 5200, display: "5.2k" },
-    { label: "PATCH", value: 890, display: "890" },
+    { label: "PostgREST", value: 18400, display: "18.4k" },
+    { label: "Auth", value: 5200, display: "5.2k" },
+    { label: "Storage", value: 890, display: "890" },
+    { label: "Realtime", value: 320, display: "320" },
   ],
-  requestVolume: { total: 24490, days: 7, label: "Last 7 days" },
+  requestVolume: { total: 24810, days: 7, label: "Last 7 days" },
   advisors: {
     total: 2,
     errors: 0,
@@ -138,11 +185,16 @@ const supabase = {
     infos: 0,
     projectCount: 1,
     top: [
-      { title: "RLS disabled on public.waitlist", level: "warning", projectName: "bussola-prod" },
-      { title: "Function search_path is mutable", level: "warning", projectName: "bussola-prod" },
+      { title: "RLS disabled on public.waitlist", level: "WARN", projectName: "bussola-prod" },
+      { title: "Function search_path is mutable", level: "WARN", projectName: "bussola-prod" },
     ],
   },
-};
+  advisorIssues: [
+    { id: "a1", name: "rls_disabled_in_public", title: "RLS disabled on public.waitlist", level: "WARN", status: "warn", kind: "security", projectName: "bussola-prod", detail: "Row level security is not enabled on this table." },
+    { id: "a2", name: "function_search_path_mutable", title: "Function search_path is mutable", level: "WARN", status: "warn", kind: "security", projectName: "bussola-prod" },
+    { id: "a3", name: "unindexed_foreign_keys", title: "Unindexed foreign key on orders.customer_id", level: "INFO", status: "idle", kind: "performance", projectName: "bussola-prod" },
+  ],
+} satisfies SupabaseDashboard;
 
 const sentry = {
   organizationName: "bussola",
@@ -183,6 +235,31 @@ const lemonsqueezy = {
   ],
 };
 
+/** Fourteen days of sending, busiest midweek, with one bounced batch. */
+const resendMetricPoints = Array.from({ length: 14 }, (_, index) => {
+  const day = new Date(now - (13 - index) * 86_400_000);
+  const weekday = day.getUTCDay();
+  const sent = weekday === 0 || weekday === 6 ? 3 + (index % 2) : 9 + (index % 5);
+  const delivered = index === 9 ? sent - 1 : sent;
+  return {
+    period: day.toISOString().slice(0, 10),
+    label: day.toLocaleDateString(undefined, { day: "numeric", month: "short" }),
+    sent,
+    delivered,
+    deliveryRate: Math.round((delivered / sent) * 1000) / 10,
+    openRate: 48 + ((index * 7) % 22),
+    clickRate: 4 + ((index * 3) % 7),
+  };
+});
+
+const resendTotals = resendMetricPoints.reduce(
+  (acc, point) => ({
+    sent: acc.sent + point.sent,
+    delivered: acc.delivered + point.delivered,
+  }),
+  { sent: 0, delivered: 0 },
+);
+
 const resend = {
   domains: [
     { id: "rd1", name: "usebussola.com", status: "ok", rawStatus: "verified", region: "eu-west-1", createdAt: daysAgo(40) },
@@ -191,12 +268,46 @@ const resend = {
   verified: 1,
   total: 2,
   emails: [
-    { id: "e1", to: "ana@example.com", subject: "Your Bussola receipt", status: "delivered", sentAt: hoursAgo(1) },
-    { id: "e2", to: "leo@example.com", subject: "Payment failed — update your card", status: "delivered", sentAt: hoursAgo(9) },
-    { id: "e3", to: "kim@example.com", subject: "Welcome to Bussola", status: "opened", sentAt: daysAgo(1) },
+    { id: "e1", to: "ana@example.com", subject: "Your Bussola receipt", status: "delivered", tone: "ok", sentAt: hoursAgo(1) },
+    { id: "e2", to: "leo@example.com", subject: "Payment failed — update your card", status: "clicked", tone: "ok", sentAt: hoursAgo(9) },
+    { id: "e3", to: "kim@example.com", subject: "Welcome to Bussola", status: "opened", tone: "ok", sentAt: daysAgo(1) },
+    { id: "e4", to: "sam@example.com", subject: "Your weekly digest", status: "bounced", tone: "error", sentAt: daysAgo(2) },
+    { id: "e5", to: "noa@example.com", subject: "Your trial ends in 3 days", status: "queued", tone: "idle", sentAt: daysAgo(3) },
   ],
+  broadcasts: [
+    { id: "rb1", name: "Product update — March", status: "sent", tone: "ok", updatedAt: daysAgo(4) },
+    { id: "rb2", name: "Changelog #12", status: "scheduled", tone: "warn", updatedAt: daysAgo(1) },
+    { id: "rb3", name: "Beta announcement", status: "draft", tone: "idle", updatedAt: daysAgo(11) },
+  ],
+  metrics: {
+    days: 14,
+    points: resendMetricPoints,
+    totals: {
+      sent: resendTotals.sent,
+      delivered: resendTotals.delivered,
+      opened: 132,
+      uniqueOpened: 61,
+      clicked: 14,
+      uniqueClicked: 9,
+      failed: 0,
+      bounced: resendTotals.sent - resendTotals.delivered,
+      deliveryRate: Math.round((resendTotals.delivered / resendTotals.sent) * 1000) / 10,
+      openRate: 58.4,
+      clickRate: 6.2,
+    },
+    outcomes: [
+      { id: "clicked", name: "Clicked", value: 9 },
+      { id: "opened", name: "Opened", value: 52 },
+      { id: "delivered", name: "Delivered", value: resendTotals.delivered - 61 },
+      { id: "failed", name: "Failed", value: resendTotals.sent - resendTotals.delivered },
+    ],
+  },
   emailsUnavailable: false,
-};
+  broadcastsUnavailable: false,
+  metricsUnavailable: false,
+  // Pinned to the real shape, so a connector change that the widgets follow
+  // cannot leave the demo rendering fields nothing produces any more.
+} satisfies ResendDashboard;
 
 const qonto = {
   organizationName: "Malango Tech UG",

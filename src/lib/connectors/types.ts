@@ -167,6 +167,65 @@ export type RailwayUsageItem = {
   display: string;
 };
 
+/** One project as a row: what it holds and whether any of it is broken. */
+export type RailwayProjectSummary = {
+  id: string;
+  name: string;
+  serviceCount: number;
+  healthy: number;
+  failed: number;
+  status: TrackerPoint["status"];
+  detail: string;
+  updatedAt?: string;
+};
+
+export type RailwayMetricPoint = {
+  ts: string;
+  label: string;
+  value: number;
+};
+
+/**
+ * One measurement over time, for a project's production environment.
+ *
+ * Railway reports these per sample interval rather than cumulatively, so
+ * `NETWORK_TX_GB` is egress *during* each bucket — a rate, not a running total.
+ */
+export type RailwayMetricSeries = {
+  key: "cpu" | "memory" | "egress" | "disk";
+  label: string;
+  unit: string;
+  points: RailwayMetricPoint[];
+  latest: number | null;
+  peak: number;
+  average: number;
+};
+
+export type RailwayMetrics = {
+  projectName: string;
+  environmentName?: string;
+  hours: number;
+  series: RailwayMetricSeries[];
+};
+
+/**
+ * Spend for the current cycle. Railway exposes this only through a workspace,
+ * so a project-scoped token has none of it.
+ */
+export type RailwayBilling = {
+  workspaceName: string;
+  plan?: string;
+  currency: string;
+  /** Projected total for the cycle, in currency units. */
+  estimatedBill: number | null;
+  /** Usage charges accrued so far this cycle. */
+  currentUsage: number | null;
+  creditBalance: number | null;
+  cycleStart?: string;
+  cycleEnd?: string;
+  nextInvoiceDate?: string;
+};
+
 export type RailwayDashboard = {
   items: StatusItem[];
   trackers: Record<string, TrackerPoint[]>;
@@ -176,6 +235,10 @@ export type RailwayDashboard = {
   recentDeploys: RailwayDeployItem[];
   resources: RailwayResourceSnapshot;
   usage: RailwayUsageItem[];
+  projects: RailwayProjectSummary[];
+  /** Time series for the busiest project, or null when none reported. */
+  metrics: RailwayMetrics | null;
+  billing: RailwayBilling | null;
 };
 
 export type SupabaseServiceItem = {
@@ -202,6 +265,18 @@ export type SupabaseAdvisorsSummary = {
   top?: Array<{ title: string; level: string; projectName: string }>;
 };
 
+/** One advisor finding, as a row rather than a bare count. */
+export type SupabaseAdvisorIssue = {
+  id: string;
+  name: string;
+  title: string;
+  level: "ERROR" | "WARN" | "INFO";
+  status: TrackerPoint["status"];
+  kind: "security" | "performance";
+  projectName: string;
+  detail?: string;
+};
+
 export type SupabaseDashboard = {
   items: StatusItem[];
   healthy: number;
@@ -214,6 +289,7 @@ export type SupabaseDashboard = {
     label: string;
   };
   advisors: SupabaseAdvisorsSummary;
+  advisorIssues: SupabaseAdvisorIssue[];
 };
 
 export type NetlifyDeployItem = {
@@ -345,8 +421,66 @@ export type ResendEmailItem = {
   id: string;
   to: string;
   subject: string;
+  /** Resend's `last_event`, verbatim. */
   status: string;
+  tone: TrackerPoint["status"];
   sentAt: string;
+};
+
+export type ResendBroadcastItem = {
+  id: string;
+  name: string;
+  status: string;
+  tone: TrackerPoint["status"];
+  /**
+   * Resend has no `updated_at` on a broadcast, so this is the newest timestamp
+   * it does report — whichever of sent / scheduled / created came last.
+   */
+  updatedAt: string;
+};
+
+export type ResendMetricPoint = {
+  period: string;
+  label: string;
+  sent: number;
+  delivered: number;
+  deliveryRate: number;
+  openRate: number;
+  clickRate: number;
+};
+
+export type ResendMetricTotals = {
+  sent: number;
+  delivered: number;
+  opened: number;
+  uniqueOpened: number;
+  clicked: number;
+  uniqueClicked: number;
+  failed: number;
+  bounced: number;
+  deliveryRate: number;
+  openRate: number;
+  clickRate: number;
+};
+
+/**
+ * Where emails ended up, as slices that do not overlap.
+ *
+ * Resend's raw counts nest — a clicked email is also opened and delivered — so
+ * a pie of them would sum past the number sent. Each email is counted once, at
+ * the furthest step it reached.
+ */
+export type ResendOutcomeSlice = {
+  id: string;
+  name: string;
+  value: number;
+};
+
+export type ResendMetrics = {
+  days: number;
+  points: ResendMetricPoint[];
+  totals: ResendMetricTotals;
+  outcomes: ResendOutcomeSlice[];
 };
 
 export type ResendDashboard = {
@@ -354,11 +488,16 @@ export type ResendDashboard = {
   verified: number;
   total: number;
   emails: ResendEmailItem[];
+  broadcasts: ResendBroadcastItem[];
+  metrics: ResendMetrics | null;
   /**
-   * True when the key could not list sent emails. Resend gates that endpoint,
-   * so the rest of the dashboard still renders rather than failing whole.
+   * Which endpoints this key could not reach. Resend scopes keys per endpoint
+   * group, so a sending-only key still gets domains — every other section
+   * degrades on its own rather than failing the dashboard whole.
    */
   emailsUnavailable: boolean;
+  broadcastsUnavailable: boolean;
+  metricsUnavailable: boolean;
 };
 
 /* ─────────────────────────────── Vercel ─────────────────────────────────── */

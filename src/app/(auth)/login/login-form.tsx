@@ -29,7 +29,7 @@ export function LoginForm({ signupOpen }: { signupOpen: boolean }) {
       return;
     }
 
-    router.push(search.get("next") || "/dashboards");
+    router.push(safeNext(search.get("next")) || "/dashboards");
     router.refresh();
   }
 
@@ -71,4 +71,18 @@ export function LoginForm({ signupOpen }: { signupOpen: boolean }) {
       ) : null}
     </form>
   );
+}
+
+/**
+ * Only same-site paths are followed after signing in.
+ *
+ * `next` reaches here from the proxy's redirect and from invitation links, so
+ * it is attacker-controllable: an absolute URL would make the sign-in screen
+ * an open redirect at exactly the moment someone has just typed a password.
+ * Leading `//` is rejected too — browsers read it as protocol-relative.
+ */
+function safeNext(value: string | null): string | null {
+  if (!value) return null;
+  if (!value.startsWith("/") || value.startsWith("//")) return null;
+  return value;
 }

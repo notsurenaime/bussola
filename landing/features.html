@@ -4,237 +4,446 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Features — Bussola</title>
-    <meta name="description" content="The Bussola feature set: dashboard canvas, encrypted connections, demo mode, per-tenant caching, sharing, alerts, MCP server — plus the full widget catalog." />
+    <meta name="description" content="The dashboard canvas, tested connections, a sync worker that keeps widgets instant, sharing, alerts and an MCP server — plus all 52 widgets, filterable by source." />
+    <link rel="canonical" href="https://usebussola.com/features.html" />
     <link rel="icon" href="assets/favicon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="assets/bussola-mark.svg" />
+    <meta name="theme-color" content="#fdfcfa" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#050806" media="(prefers-color-scheme: dark)" />
+    <meta property="og:site_name" content="Bussola" />
+    <meta property="og:title" content="Features — Bussola" />
+    <meta property="og:description" content="The dashboard canvas, tested connections, a sync worker that keeps widgets instant, sharing, alerts and an MCP server — plus all 52 widgets, filterable by source." />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://usebussola.com/features.html" />
+    <meta property="og:image" content="https://usebussola.com/assets/og-card.jpg" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Features — Bussola" />
+    <meta name="twitter:description" content="The dashboard canvas, tested connections, a sync worker that keeps widgets instant, sharing, alerts and an MCP server — plus all 52 widgets, filterable by source." />
+    <meta name="twitter:image" content="https://usebussola.com/assets/og-card.jpg" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="Bussola — finally a beautiful dashboard. A laptop showing a Bussola finance canvas." />
+    <meta property="og:locale" content="en" />
+    <link rel="preload" href="assets/elms-sans-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin />
     <link rel="stylesheet" href="styles.css" />
+    <script>(function(){var d=document.documentElement;try{var t=localStorage.getItem("bussola-theme");if(t==="light"||t==="dark")d.setAttribute("data-theme",t)}catch(e){}try{if("IntersectionObserver" in window&&!matchMedia("(prefers-reduced-motion: reduce)").matches)d.className+=" js-anim"}catch(e){}})();</script>
   </head>
   <body>
+    <a class="skip-link" href="#main">Skip to content</a>
     <header class="site-header">
       <div class="site-header__inner">
-        <a class="brand" href="index.html"><img src="assets/bussola-mark.svg" alt="" /> <span>Bussola</span></a>
-        <nav class="site-nav" id="nav">
+        <a class="brand" href="index.html">
+          <img src="assets/bussola-mark.svg" alt="" width="25" height="25" />
+          <span>Bussola</span>
+        </a>
+        <nav class="site-nav" id="nav" aria-label="Main">
           <a href="features.html" aria-current="page">Features</a>
           <a href="connectors.html">Connectors</a>
           <a href="pricing.html">Pricing</a>
+          <a href="security.html">Security</a>
           <a href="open-source.html">Open source</a>
-          <a href="https://github.com/notsurenaime/bussola">GitHub</a>
+          <a href="https://github.com/notsurenaime/bussola" rel="noopener">GitHub</a>
         </nav>
-        <a class="btn btn--sm header-cta" href="https://usebussola.app">Open app</a>
-        <button class="nav-toggle" aria-label="Menu" aria-expanded="false" onclick="const n=document.getElementById('nav');const o=n.classList.toggle('is-open');this.setAttribute('aria-expanded',o)">☰</button>
+        <div class="header-tools">
+          <button class="icon-btn theme-toggle" type="button" aria-label="Switch colour theme">
+            <svg class="t-auto" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 3v18"/><path d="M12 3a9 9 0 0 1 0 18" fill="currentColor" stroke="none"/></svg>
+            <svg class="t-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
+            <svg class="t-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
+          </button>
+          <a class="btn btn--sm header-cta" href="https://usebussola.app">Open app</a>
+          <button class="icon-btn nav-toggle" type="button" aria-label="Menu" aria-expanded="false" aria-controls="nav">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+          </button>
+        </div>
       </div>
     </header>
 
-    <main>
+    <main id="main">
       <section class="section section--tight">
         <div class="wrap section__head">
           <p class="eyebrow">Features</p>
-          <h2>Built to be read at a glance</h2>
-          <p>Every widget is designed first, wired second. Here is what ships in the MVP.</p>
+          <h1 style="font-size:clamp(2.1rem,4.6vw,3rem)">Built to be read at a glance</h1>
+          <p>Every widget is designed first and wired second: one number, one shape, one honest label. Here is what ships today.</p>
+        </div>
+      </section>
+
+      <section class="section section--tight section--flush-top">
+        <div class="wrap">
+          <div class="stats reveal">
+            <div class="stat"><b>52</b><span>widgets, all included</span></div>
+            <div class="stat"><b>9</b><span>connectors shipping now</span></div>
+            <div class="stat"><b>1</b><span>local query per widget</span></div>
+            <div class="stat"><b>0</b><span>writes to your accounts</span></div>
+          </div>
         </div>
       </section>
 
       <section class="wrap">
-        <div class="feature-row">
+        <div class="feature-row reveal">
           <div>
-            <h3>Dashboard canvas</h3>
-            <p>A drag-and-resize grid built on react-grid-layout. Add a widget, drop it anywhere, and the layout saves itself.</p>
+            <span class="tag">Canvas</span>
+            <h2>A grid you arrange once</h2>
+            <p>Drag, drop and resize on a real grid. Widgets snap, the layout persists itself, and every canvas stays yours to rearrange whenever the question changes.</p>
             <ul>
-              <li>Multiple saved layouts per account</li>
-              <li>8 widgets per dashboard on Solo, ~12 on Team</li>
-              <li>Light and dark, with the Bussola palette</li>
+              <li>Multiple saved dashboards per account</li>
+              <li>Per-widget minimum sizes, so nothing renders unreadable</li>
+              <li>Star the canvas you open every morning</li>
+              <li>Light and dark, with the full Bussola palette</li>
             </ul>
           </div>
           <div class="feature-row__media">
-            <svg viewBox="0 0 240 150" width="100%" fill="none">
-              <rect x="6" y="6" width="108" height="66" rx="8" fill="var(--almond-100)" stroke="var(--line)"/>
-              <rect x="126" y="6" width="108" height="42" rx="8" fill="var(--surface)" stroke="var(--line)"/>
-              <rect x="126" y="60" width="108" height="84" rx="8" fill="var(--surface)" stroke="var(--line)"/>
-              <rect x="6" y="84" width="108" height="60" rx="8" fill="var(--surface)" stroke="var(--line)"/>
-              <path d="M20 52 L40 40 L60 46 L80 26 L100 32" stroke="var(--accent-ink)" stroke-width="3" stroke-linecap="round"/>
+            <svg viewBox="0 0 240 150" width="100%" fill="none" role="img" aria-label="A dashboard grid: one widget highlighted while being dragged into place">
+              <rect x="6" y="6" width="108" height="66" rx="10" fill="var(--accent-wash)" stroke="var(--accent-line)"/>
+              <path d="M20 52 L40 40 L60 46 L80 26 L100 32" stroke="var(--accent-ink)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+              <circle cx="100" cy="32" r="4" fill="var(--accent-ink)"/>
+              <rect x="126" y="6" width="108" height="42" rx="10" fill="var(--surface)" stroke="var(--line)"/>
+              <rect x="140" y="20" width="46" height="8" rx="4" fill="var(--line)"/>
+              <rect x="140" y="32" width="70" height="6" rx="3" fill="var(--line-soft)"/>
+              <rect x="126" y="60" width="108" height="84" rx="10" fill="var(--surface)" stroke="var(--line)"/>
+              <g fill="var(--line)">
+                <rect x="140" y="112" width="12" height="20" rx="3"/><rect x="158" y="100" width="12" height="32" rx="3"/>
+                <rect x="176" y="88" width="12" height="44" rx="3"/><rect x="194" y="104" width="12" height="28" rx="3"/>
+              </g>
+              <rect x="140" y="74" width="52" height="8" rx="4" fill="var(--line)"/>
+              <rect x="6" y="84" width="108" height="60" rx="10" fill="var(--surface)" stroke="var(--accent)" stroke-dasharray="5 4"/>
+              <rect x="22" y="102" width="76" height="8" rx="4" fill="var(--line)"/>
+              <rect x="22" y="118" width="50" height="8" rx="4" fill="var(--line-soft)"/>
             </svg>
           </div>
         </div>
 
-        <div class="feature-row">
+        <div class="feature-row reveal">
           <div>
-            <h3>Connections management</h3>
-            <p>Add a source, paste its API key, and Bussola runs a real request before saving. Secrets are encrypted at rest with AES-256-GCM.</p>
+            <span class="tag">Connections</span>
+            <h2>Tested before it is saved</h2>
+            <p>Add a source, paste its token, and Bussola makes a real request against the provider before writing anything. A wrong key fails in the form — not silently, three days later, inside a widget.</p>
             <ul>
-              <li>Per-user credentials, never shared across tenants</li>
-              <li>Connection test on add — no silent failures later</li>
+              <li>Secrets encrypted with AES-256-GCM at rest</li>
+              <li>Credentials scoped per user, never shared across tenants</li>
+              <li>Re-test any connection from the connections page</li>
               <li>Qonto accepts <code>login:secret</code> in one field</li>
             </ul>
           </div>
           <div class="feature-row__media">
-            <svg viewBox="0 0 240 150" width="100%" fill="none">
-              <rect x="24" y="30" width="192" height="30" rx="8" fill="var(--surface)" stroke="var(--line)"/>
-              <rect x="24" y="72" width="192" height="30" rx="8" fill="var(--surface)" stroke="var(--line)"/>
-              <circle cx="44" cy="45" r="6" fill="oklch(72% 0.16 150)"/>
-              <circle cx="44" cy="87" r="6" fill="oklch(72% 0.16 150)"/>
-              <rect x="150" y="39" width="52" height="12" rx="6" fill="var(--almond-100)"/>
-              <rect x="150" y="81" width="52" height="12" rx="6" fill="var(--almond-100)"/>
+            <svg viewBox="0 0 240 150" width="100%" fill="none" role="img" aria-label="Two connections listed as passing their live connection test, a third being added">
+              <rect x="20" y="22" width="200" height="32" rx="10" fill="var(--surface)" stroke="var(--line)"/>
+              <circle cx="42" cy="38" r="7" fill="var(--ok)"/><path d="M39 38l2.2 2.2L45 36.4" stroke="var(--surface)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+              <rect x="60" y="34" width="62" height="8" rx="4" fill="var(--line)"/>
+              <rect x="158" y="31" width="46" height="14" rx="7" fill="var(--accent-wash)" stroke="var(--accent-line)"/>
+              <rect x="20" y="62" width="200" height="32" rx="10" fill="var(--surface)" stroke="var(--line)"/>
+              <circle cx="42" cy="78" r="7" fill="var(--ok)"/><path d="M39 78l2.2 2.2L45 76.4" stroke="var(--surface)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+              <rect x="60" y="74" width="46" height="8" rx="4" fill="var(--line)"/>
+              <rect x="158" y="71" width="46" height="14" rx="7" fill="var(--accent-wash)" stroke="var(--accent-line)"/>
+              <rect x="20" y="102" width="200" height="32" rx="10" fill="var(--bg-alt)" stroke="var(--accent)" stroke-dasharray="5 4"/>
+              <rect x="36" y="114" width="112" height="8" rx="4" fill="var(--line)"/>
+              <circle cx="196" cy="118" r="7" stroke="var(--accent)" stroke-width="2.5" stroke-dasharray="22 12"/>
             </svg>
           </div>
         </div>
 
-        <div class="feature-row">
+        <div class="feature-row reveal">
           <div>
-            <h3>Demo data mode</h3>
-            <p>New accounts open on a fully populated dashboard, not an empty grid. Great for evaluating before you connect anything real.</p>
+            <span class="tag">Sync</span>
+            <h2>Widgets that never wait on an API</h2>
+            <p>A background worker refreshes each connection on its own schedule and writes a snapshot. Every widget read is then a single local query — so a dashboard opens at the same speed whether one person or ten are watching.</p>
+            <ul>
+              <li>Upstream traffic scales with connections, not viewers</li>
+              <li>Failing connections back off exponentially, at most hourly</li>
+              <li>Ten consecutive failures pause the sync and ask you to reconnect</li>
+              <li>Workers lease their work, so several can run without double-fetching</li>
+            </ul>
+          </div>
+          <div class="feature-row__media">
+            <svg viewBox="0 0 240 150" width="100%" fill="none" role="img" aria-label="Sources feeding a worker, which writes snapshots that dashboards read">
+              <g stroke="var(--line)" fill="var(--surface)">
+                <rect x="8" y="16" width="52" height="24" rx="7"/><rect x="8" y="63" width="52" height="24" rx="7"/><rect x="8" y="110" width="52" height="24" rx="7"/>
+              </g>
+              <path d="M60 28 C 84 28, 84 75, 104 75 M60 75 H104 M60 122 C 84 122, 84 75, 104 75"
+                stroke="var(--line)" stroke-width="1.6" fill="none"/>
+              <rect x="104" y="55" width="48" height="40" rx="10" fill="var(--accent-wash)" stroke="var(--accent-line)"/>
+              <path d="M128 66v10l6 4" stroke="var(--accent-ink)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+              <circle cx="128" cy="75" r="13" stroke="var(--accent-ink)" stroke-width="2" stroke-dasharray="60 22"/>
+              <path d="M152 75h28" stroke="var(--line)" stroke-width="1.6"/>
+              <rect x="180" y="46" width="52" height="58" rx="10" fill="var(--surface)" stroke="var(--line)"/>
+              <g fill="var(--accent-ink)" opacity=".85">
+                <rect x="190" y="58" width="32" height="6" rx="3"/><rect x="190" y="70" width="22" height="6" rx="3"/><rect x="190" y="82" width="28" height="6" rx="3"/>
+              </g>
+            </svg>
+          </div>
+        </div>
+
+        <div class="feature-row reveal">
+          <div>
+            <span class="tag">Onboarding</span>
+            <h2>No empty states, ever</h2>
+            <p>Until a source is connected, widgets render clearly-labelled sample data rather than blank boxes. You build the canvas you want first, then decide which tokens to paste.</p>
             <ul>
               <li>Realistic figures across every widget type</li>
-              <li>One switch back to your live connections</li>
+              <li>Labelled as sample data — never mistaken for live numbers</li>
+              <li>Swaps to your real data the moment a connection syncs</li>
             </ul>
           </div>
           <div class="feature-row__media">
-            <svg viewBox="0 0 240 150" width="100%" fill="none">
+            <svg viewBox="0 0 240 150" width="100%" fill="none" role="img" aria-label="Four widgets showing labelled sample figures">
               <g stroke="var(--line)" fill="var(--surface)">
-                <rect x="12" y="16" width="102" height="52" rx="8"/>
-                <rect x="126" y="16" width="102" height="52" rx="8"/>
-                <rect x="12" y="82" width="102" height="52" rx="8"/>
-                <rect x="126" y="82" width="102" height="52" rx="8"/>
+                <rect x="12" y="16" width="102" height="52" rx="10"/><rect x="126" y="16" width="102" height="52" rx="10"/>
+                <rect x="12" y="82" width="102" height="52" rx="10"/><rect x="126" y="82" width="102" height="52" rx="10"/>
               </g>
-              <text x="30" y="47" font-size="16" fill="var(--ink)" font-family="monospace">€5,804</text>
-              <text x="150" y="47" font-size="16" fill="var(--ink)" font-family="monospace">+2,029</text>
-              <rect x="24" y="104" width="70" height="10" rx="5" fill="var(--almond-200)"/>
-              <rect x="138" y="104" width="52" height="10" rx="5" fill="var(--almond-200)"/>
+              <text x="26" y="48" font-size="17" fill="var(--ink)" font-family="ui-monospace, monospace" font-weight="600">€5,804</text>
+              <text x="140" y="48" font-size="17" fill="var(--ink)" font-family="ui-monospace, monospace" font-weight="600">+2,029</text>
+              <text x="26" y="34" font-size="7" fill="var(--faint)" letter-spacing="1">SAMPLE</text>
+              <text x="140" y="34" font-size="7" fill="var(--faint)" letter-spacing="1">SAMPLE</text>
+              <path d="M26 122 L44 112 L62 116 L80 100 L98 106" stroke="var(--accent)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+              <g fill="var(--accent-wash)" stroke="var(--accent-line)">
+                <rect x="140" y="112" width="14" height="14" rx="3"/><rect x="158" y="104" width="14" height="22" rx="3"/><rect x="176" y="96" width="14" height="30" rx="3"/><rect x="194" y="108" width="14" height="18" rx="3"/>
+              </g>
             </svg>
           </div>
         </div>
 
-        <div class="feature-row">
+        <div class="feature-row reveal">
           <div>
-            <h3>Sharing &amp; alerts</h3>
-            <p>Send a read-only link to anyone. Get an email when something needs you — a failed deploy, a cash balance under your threshold.</p>
+            <span class="tag">Accounts</span>
+            <h2>More than one of anything</h2>
+            <p>A connection is not a provider slot. Two Stripe accounts, three Railway workspaces, a client&rsquo;s Qonto beside your own &mdash; each widget picks which one it reads, and can narrow to a single project or service.</p>
             <ul>
-              <li>Read-only dashboard links</li>
-              <li>Email alerts on every plan</li>
-              <li>Slack &amp; Discord webhooks on Team</li>
+              <li>Unlimited connections per source, on every plan</li>
+              <li>Per-widget source, so one canvas can hold two businesses</li>
+              <li>Filter a block to one project, service, site or account</li>
+              <li>Trim a chart to the last 7, 14, 30 or 90 days</li>
+              <li>Every option reads the snapshot you already have &mdash; no extra API call</li>
             </ul>
           </div>
           <div class="feature-row__media">
-            <svg viewBox="0 0 240 150" width="100%" fill="none">
-              <rect x="30" y="24" width="180" height="40" rx="10" fill="var(--surface)" stroke="var(--line)"/>
-              <circle cx="52" cy="44" r="7" fill="oklch(78% 0.14 75)"/>
-              <rect x="70" y="38" width="120" height="8" rx="4" fill="var(--almond-100)"/>
-              <rect x="30" y="84" width="180" height="40" rx="10" fill="var(--surface)" stroke="var(--line)"/>
-              <circle cx="52" cy="104" r="7" fill="oklch(66% 0.17 25)"/>
-              <rect x="70" y="98" width="90" height="8" rx="4" fill="var(--almond-100)"/>
+            <svg viewBox="0 0 240 150" width="100%" fill="none" role="img" aria-label="Two accounts of the same source feeding two separate widgets on one canvas">
+              <rect x="6" y="14" width="86" height="46" rx="10" fill="var(--surface)" stroke="var(--line)"/>
+              <circle cx="26" cy="37" r="7" fill="var(--accent-line)"/>
+              <rect x="42" y="29" width="38" height="7" rx="3.5" fill="var(--line)"/>
+              <rect x="42" y="41" width="26" height="5" rx="2.5" fill="var(--line-soft)"/>
+              <rect x="6" y="90" width="86" height="46" rx="10" fill="var(--surface)" stroke="var(--line)"/>
+              <circle cx="26" cy="113" r="7" fill="var(--accent-line)"/>
+              <rect x="42" y="105" width="38" height="7" rx="3.5" fill="var(--line)"/>
+              <rect x="42" y="117" width="30" height="5" rx="2.5" fill="var(--line-soft)"/>
+              <path d="M92 37 C 118 37, 118 45, 142 45" stroke="var(--accent-line)" stroke-width="1.8" stroke-linecap="round"/>
+              <path d="M92 113 C 118 113, 118 105, 142 105" stroke="var(--accent-line)" stroke-width="1.8" stroke-linecap="round"/>
+              <rect x="142" y="20" width="92" height="50" rx="10" fill="var(--accent-wash)" stroke="var(--accent-line)"/>
+              <rect x="156" y="34" width="34" height="6" rx="3" fill="var(--accent-line)"/>
+              <text x="156" y="60" font-family="system-ui, sans-serif" font-size="17" font-weight="600" fill="var(--accent-ink)">&#8364;4,200</text>
+              <rect x="142" y="80" width="92" height="50" rx="10" fill="var(--surface)" stroke="var(--line)"/>
+              <rect x="156" y="94" width="42" height="6" rx="3" fill="var(--line)"/>
+              <text x="156" y="120" font-family="system-ui, sans-serif" font-size="17" font-weight="600" fill="var(--ink)">&#8364;180</text>
             </svg>
           </div>
         </div>
 
-        <div class="feature-row" id="mcp">
+        <div class="feature-row reveal">
           <div>
-            <h3>MCP server</h3>
-            <p>Point an agent at Bussola. It can read data from every connector and manage your dashboards, widgets and connection toggles.</p>
+            <span class="tag">Sharing</span>
+            <h2>Send a link, not a screenshot</h2>
+            <p>Give a client or a co-founder a read-only view of one canvas. Get an email when something actually needs you — a failed deploy, a balance under your threshold.</p>
             <ul>
-              <li>Read access across all connectors</li>
-              <li>Write access to Bussola's own resources only</li>
-              <li>API keys are never editable over MCP — web UI only</li>
-              <li>Team-wide MCP config on the Team plan</li>
+              <li>Read-only dashboard links, revocable, with an optional expiry</li>
+              <li>Only a hash of the link is stored &mdash; a leaked backup hands out nothing</li>
+              <li>White-label sharing on Team, for client reporting</li>
+              <li>Email alerts from Solo up; Slack and Discord webhooks on Team</li>
+              <li>Alerts fire on the change, not once per sync &mdash; and a recovery is never held back</li>
             </ul>
           </div>
           <div class="feature-row__media">
-            <svg viewBox="0 0 240 150" width="100%" fill="none">
-              <circle cx="120" cy="75" r="20" fill="var(--almond-100)" stroke="var(--accent-ink)"/>
+            <svg viewBox="0 0 240 150" width="100%" fill="none" role="img" aria-label="Two alerts: a warning and an error notification">
+              <rect x="26" y="26" width="188" height="40" rx="12" fill="var(--surface)" stroke="var(--line)"/>
+              <circle cx="50" cy="46" r="8" fill="var(--warn)"/><path d="M50 42v4.5" stroke="var(--surface)" stroke-width="2" stroke-linecap="round"/><circle cx="50" cy="50" r="1" fill="var(--surface)"/>
+              <rect x="68" y="38" width="118" height="7" rx="3.5" fill="var(--line)"/>
+              <rect x="68" y="50" width="72" height="6" rx="3" fill="var(--line-soft)"/>
+              <rect x="26" y="84" width="188" height="40" rx="12" fill="var(--surface)" stroke="var(--line)"/>
+              <circle cx="50" cy="104" r="8" fill="var(--bad)"/><path d="M47 101l6 6M53 101l-6 6" stroke="var(--surface)" stroke-width="2" stroke-linecap="round"/>
+              <rect x="68" y="96" width="94" height="7" rx="3.5" fill="var(--line)"/>
+              <rect x="68" y="108" width="56" height="6" rx="3" fill="var(--line-soft)"/>
+            </svg>
+          </div>
+        </div>
+
+        <div class="feature-row reveal" id="mcp">
+          <div>
+            <span class="tag">Agents</span>
+            <h2>An MCP server with a short leash</h2>
+            <p>Point an assistant at Bussola and it can read every connector and rearrange your dashboards. What it cannot do is written into the server, not into a prompt.</p>
+            <ul>
+              <li>Read data across all connectors</li>
+              <li>Create dashboards, add, move and remove widgets</li>
+              <li>Never edits credentials — the web UI is the only place</li>
+              <li>Never writes to a third-party system</li>
+              <li>Read-only tokens are refused every write, at the server</li>
+              <li>Plan limits apply to an agent exactly as they do to you</li>
+            </ul>
+            <p class="mt-md"><a class="arrow-link" href="open-source.html#mcp">What the MCP server can and cannot do <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a></p>
+          </div>
+          <div class="feature-row__media">
+            <svg viewBox="0 0 240 150" width="100%" fill="none" role="img" aria-label="An agent connected to Bussola at the centre, with read access to four sources">
+              <circle cx="120" cy="75" r="24" fill="var(--accent-wash)" stroke="var(--accent-line)"/>
+              <path d="M120 63v24M108 75h24" stroke="var(--accent-ink)" stroke-width="2.2" stroke-linecap="round"/>
               <g stroke="var(--line)" fill="var(--surface)">
-                <rect x="20" y="24" width="52" height="26" rx="6"/>
-                <rect x="20" y="100" width="52" height="26" rx="6"/>
-                <rect x="168" y="24" width="52" height="26" rx="6"/>
-                <rect x="168" y="100" width="52" height="26" rx="6"/>
+                <rect x="16" y="24" width="56" height="26" rx="8"/><rect x="16" y="100" width="56" height="26" rx="8"/>
+                <rect x="168" y="24" width="56" height="26" rx="8"/><rect x="168" y="100" width="56" height="26" rx="8"/>
               </g>
-              <path d="M72 37 H100 M72 113 H100 M140 37 H168 M140 113 H168" stroke="var(--accent-ink)" stroke-width="2"/>
+              <path d="M72 37 H96 V63 M72 113 H96 V87 M144 63 V37 H168 M144 87 V113 H168"
+                stroke="var(--accent-ink)" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity=".7"/>
+              <g fill="var(--line)">
+                <rect x="28" y="33" width="30" height="6" rx="3"/><rect x="28" y="109" width="30" height="6" rx="3"/>
+                <rect x="180" y="33" width="30" height="6" rx="3"/><rect x="180" y="109" width="30" height="6" rx="3"/>
+              </g>
             </svg>
           </div>
         </div>
       </section>
 
-      <section class="section section--alt">
-        <div class="wrap section__head section__head--center">
+      <!-- ======================= widget catalog ======================= -->
+      <section class="section section--alt" id="catalog">
+        <div class="wrap wrap--wide section__head section__head--center reveal">
           <p class="eyebrow">Widget catalog</p>
-          <h2>What each connector renders</h2>
-          <p>Trackers, KPI blocks and status lists — 26 widgets across four connectors at MVP.</p>
+          <h2>All 52 widgets</h2>
+          <p>Every widget is on every plan. Filter by source to see what connecting one actually gets you.</p>
         </div>
-        <div class="wrap table-scroll">
-          <table>
-            <thead>
-              <tr><th>Widget</th><th>Source</th><th>Shows</th></tr>
-            </thead>
-            <tbody>
-              <tr><td>Service Status</td><td class="src">Railway</td><td>Latest deploy status per service</td></tr>
-              <tr><td>Deploy Health</td><td class="src">Railway</td><td>Live status + failed deploys since</td></tr>
-              <tr><td>Fleet Health</td><td class="src">Railway</td><td>Healthy / total services</td></tr>
-              <tr><td>CPU &amp; Memory</td><td class="src">Railway</td><td>Average resources, last hour</td></tr>
-              <tr><td>Usage This Cycle</td><td class="src">Railway</td><td>Estimated billing-cycle usage</td></tr>
-              <tr><td>Recent Deploys</td><td class="src">Railway</td><td>Deployment feed</td></tr>
-              <tr><td>Deploy Health</td><td class="src">Netlify</td><td>Recent deploy trail</td></tr>
-              <tr><td>Sites Board</td><td class="src">Netlify</td><td>Site publish status</td></tr>
-              <tr><td>Sites Health</td><td class="src">Netlify</td><td>Ready / total sites</td></tr>
-              <tr><td>Recent Deploys</td><td class="src">Netlify</td><td>Deployment feed</td></tr>
-              <tr><td>Build Minutes</td><td class="src">Netlify</td><td>Build minutes this period</td></tr>
-              <tr><td>Form Submissions</td><td class="src">Netlify</td><td>Netlify Forms submission counts</td></tr>
-              <tr><td>Project Health</td><td class="src">Supabase</td><td>Healthy / total projects</td></tr>
-              <tr><td>Projects Board</td><td class="src">Supabase</td><td>Project status list</td></tr>
-              <tr><td>Service Health</td><td class="src">Supabase</td><td>DB / Auth / Storage / Realtime / Functions</td></tr>
-              <tr><td>API Traffic</td><td class="src">Supabase</td><td>Request mix, 7 days</td></tr>
-              <tr><td>Request Volume</td><td class="src">Supabase</td><td>Total API requests, 7 days</td></tr>
-              <tr><td>Security Advisors</td><td class="src">Supabase</td><td>Open security findings</td></tr>
-              <tr><td>Cash Balance</td><td class="src">Qonto</td><td>Total cash across accounts</td></tr>
-              <tr><td>Available Liquidity</td><td class="src">Qonto</td><td>Spendable balance after pending</td></tr>
-              <tr><td>30-Day Net Cashflow</td><td class="src">Qonto</td><td>In − out over the last 30 days</td></tr>
-              <tr><td>In vs Out</td><td class="src">Qonto</td><td>30-day inflow / outflow bars</td></tr>
-              <tr><td>Accounts Overview</td><td class="src">Qonto</td><td>Cash split by account</td></tr>
-              <tr><td>Account History</td><td class="src">Qonto</td><td>30-day cash trail</td></tr>
-              <tr><td>Recent Transactions</td><td class="src">Qonto</td><td>Latest bank movements</td></tr>
-              <tr><td>Status Board</td><td class="src">Cross-source</td><td>One status list across connectors</td></tr>
-            </tbody>
-          </table>
+        <div class="wrap wrap--wide">
+          <div class="filters reveal" data-filters role="group" aria-label="Filter widgets by source">
+            <button class="filter" type="button" data-source="all" aria-pressed="true">All <span class="n">52</span></button>
+            <button class="filter" type="button" data-source="railway" aria-pressed="false"><span class="bmark"><img class="on-light" src="assets/brands/railway/on-light.svg" alt="" width="22" height="22" loading="lazy" /><img class="on-dark" src="assets/brands/railway/on-dark.svg" alt="" width="22" height="22" loading="lazy" /></span> Railway <span class="n">12</span></button>
+            <button class="filter" type="button" data-source="netlify" aria-pressed="false"><span class="bmark"><img class="on-light" src="assets/brands/netlify/on-light.svg" alt="" width="22" height="22" loading="lazy" /><img class="on-dark" src="assets/brands/netlify/on-dark.svg" alt="" width="22" height="22" loading="lazy" /></span> Netlify <span class="n">6</span></button>
+            <button class="filter" type="button" data-source="supabase" aria-pressed="false"><span class="bmark"><img class="on-light" src="assets/brands/supabase/on-light.svg" alt="" width="22" height="22" loading="lazy" /><img class="on-dark" src="assets/brands/supabase/on-dark.svg" alt="" width="22" height="22" loading="lazy" /></span> Supabase <span class="n">7</span></button>
+            <button class="filter" type="button" data-source="qonto" aria-pressed="false"><span class="bmark"><img class="on-light" src="assets/brands/qonto/on-light.jpeg" alt="" width="22" height="22" loading="lazy" /><img class="on-dark" src="assets/brands/qonto/on-dark.jpeg" alt="" width="22" height="22" loading="lazy" /></span> Qonto <span class="n">7</span></button>
+            <button class="filter" type="button" data-source="multi" aria-pressed="false"><span class="bmark bmark--glyph"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6a2 2 0 0 1 2-2h4v6H4V6zm10-2h4a2 2 0 0 1 2 2v4h-6V4zM4 14h6v6H6a2 2 0 0 1-2-2v-4zm10 0h6v4a2 2 0 0 1-2 2h-4v-6z"/></svg></span> Cross-source <span class="n">1</span></button>
+            <button class="filter" type="button" data-source="stripe" aria-pressed="false"><span class="bmark"><img class="on-light" src="assets/brands/stripe/on-light.jpeg" alt="" width="22" height="22" loading="lazy" /><img class="on-dark" src="assets/brands/stripe/on-dark.jpeg" alt="" width="22" height="22" loading="lazy" /></span> Stripe <span class="n">3</span></button>
+            <button class="filter" type="button" data-source="lemonsqueezy" aria-pressed="false"><span class="bmark bmark--glyph" style="--glyph:#FFC233"><svg viewBox="0 0 24 24" role="img" aria-hidden="true"><path d="M12.6 2c-.5 0-.9.4-1 .9l-.4 3.6a7.9 7.9 0 0 0-6.8 7.8A7.7 7.7 0 0 0 12 22a7.7 7.7 0 0 0 7.6-7.7c0-3.3-2.1-6.2-5.1-7.4l.4-3.4a1 1 0 0 0-1-1.1h-1.3zM12 8.7a5.6 5.6 0 1 1 0 11.2 5.6 5.6 0 0 1 0-11.2z"/></svg></span> Lemon Squeezy <span class="n">3</span></button>
+            <button class="filter" type="button" data-source="sentry" aria-pressed="false"><span class="bmark bmark--glyph" style="--glyph:#362D59;--glyph-dark:#9A8FD8"><svg viewBox="0 0 24 24" role="img" aria-hidden="true"><path d="M12 2.2a1.9 1.9 0 0 0-1.65.95L8.1 7.06a13.6 13.6 0 0 1 7.05 10.5h-2.1A11.5 11.5 0 0 0 7.05 8.9l-2 3.47a7.6 7.6 0 0 1 3.6 5.19H5.03a.42.42 0 0 1-.36-.63l1.28-2.2a5.1 5.1 0 0 0-1.6-.9l-1.3 2.24A2.2 2.2 0 0 0 4.95 19.4h5.86a9.4 9.4 0 0 0-4.2-7.9l1-1.72a11.4 11.4 0 0 1 5.1 9.62h4.4a2.2 2.2 0 0 0 1.9-3.3L13.65 3.15A1.9 1.9 0 0 0 12 2.2z"/></svg></span> Sentry <span class="n">3</span></button>
+            <button class="filter" type="button" data-source="resend" aria-pressed="false"><span class="bmark bmark--glyph" style="--glyph:#000000;--glyph-dark:#FFFBFF"><svg viewBox="0 0 24 24" role="img" aria-hidden="true"><path d="M4 3h7.6c3.2 0 5.4 1.9 5.4 4.9 0 2.2-1.2 3.8-3.2 4.5l3.9 8.6h-4.2l-3.4-7.9H7.9V21H4V3zm3.9 3.2v3.9h3.3c1.3 0 2.1-.7 2.1-1.9s-.8-2-2.1-2H7.9z"/></svg></span> Resend <span class="n">7</span></button>
+            <button class="filter" type="button" data-source="vercel" aria-pressed="false"><span class="bmark"><img class="on-light" src="assets/brands/vercel/on-light.svg" alt="" width="22" height="22" loading="lazy" /><img class="on-dark" src="assets/brands/vercel/on-dark.svg" alt="" width="22" height="22" loading="lazy" /></span> Vercel <span class="n">3</span></button>
+          </div>
+          <p class="lede" style="font-size:.92rem;margin-bottom:1rem">
+            Showing <span data-catalog-count>52</span> of 52 widgets.
+          </p>
+          <div class="wcat" data-catalog>
+            <div class="wcat__item" data-item-source="railway"><span class="bmark"><img class="on-light" src="assets/brands/railway/on-light.svg" alt="" width="22" height="22" loading="lazy" /><img class="on-dark" src="assets/brands/railway/on-dark.svg" alt="" width="22" height="22" loading="lazy" /></span><b>Service Status</b><small>Latest deploy status for every Railway service</small></div>
+            <div class="wcat__item" data-item-source="railway"><span class="bmark"><img class="on-light" src="assets/brands/railway/on-light.svg" alt="" width="22" height="22" loading="lazy" /><img class="on-dark" src="assets/brands/railway/on-dark.svg" alt="" width="22" height="22" loading="lazy" /></span><b>Deploy Health</b><small>Live deploy status and how many newer deploys failed</small></div>
+            <div class="wcat__item" data-item-source="railway"><span class="bmark"><img class="on-light" src="assets/brands/railway/on-light.svg" alt="" width="22" height="22" loading="lazy" /><img class="on-dark" src="assets/brands/railway/on-dark.svg" alt="" width="22" height="22" loading="lazy" /></span><b>Fleet Health</b><small>How many Railway services are running healthy</small></div>
+            <div class="wcat__item" data-item-source="railway"><span class="bmark"><img class="on-light" src="assets/brands/railway/on-light.svg" alt="" width="22" height="22" loading="lazy" /><img class="on-dark" src="assets/brands/railway/on-dark.svg" alt="" width="22" height="22" loading="lazy" /></span><b>CPU & Memory</b><small>Average CPU and memory over the last hour</small></div>
+            <div class="wcat__item" data-item-source="railway"><span class="bmark"><img class="on-light" src="assets/brands/railway/on-light.svg" alt="" width="22" height="22" loading="lazy" /><img class="on-dark" src="assets/brands/railway/on-dark.svg" alt="" width="22" height="22" loading="lazy" /></span><b>Usage This Cycle</b><small>Estimated Railway usage for the current billing cycle</small></div>
+            <div class="wcat__item" data-item-source="railway"><span class="bmark"><img class="on-light" src="assets/brands/railway/on-light.svg" alt="" width="22" height="22" loading="lazy" /><img class="on-dark" src="assets/brands/railway/on-dark.svg" alt="" width="22" height="22" loading="lazy" /></span><b>Recent Deploys</b><small>Latest deployments across Railway services</small></div>
+            <div class="wcat__item" data-item-source="railway"><span class="bmark"><img class="on-light" src="assets/brands/railway/on-light.svg" alt="" width="22" height="22" loading="lazy" /><img class="on-dark" src="assets/brands/railway/on-dark.svg" alt="" width="22" height="22" loading="lazy" /></span><b>Projects</b><small>Every Railway project, its services and whether any are failing</small></div>
+            <div class="wcat__item" data-item-source="railway"><span class="bmark"><img class="on-light" src="assets/brands/railway/on-light.svg" alt="" width="22" height="22" loading="lazy" /><img class="on-dark" src="assets/brands/railway/on-dark.svg" alt="" width="22" height="22" loading="lazy" /></span><b>Usage & Bill</b><small>Cycle-to-date spend, projected bill and the billing period</small></div>
+            <div class="wcat__item" data-item-source="railway"><span class="bmark"><img class="on-light" src="assets/brands/railway/on-light.svg" alt="" width="22" height="22" loading="lazy" /><img class="on-dark" src="assets/brands/railway/on-dark.svg" alt="" width="22" height="22" loading="lazy" /></span><b>CPU Usage</b><small>vCPU used across a project over the last 24 hours</small></div>
+            <div class="wcat__item" data-item-source="railway"><span class="bmark"><img class="on-light" src="assets/brands/railway/on-light.svg" alt="" width="22" height="22" loading="lazy" /><img class="on-dark" src="assets/brands/railway/on-dark.svg" alt="" width="22" height="22" loading="lazy" /></span><b>Memory Usage</b><small>Memory used across a project over the last 24 hours</small></div>
+            <div class="wcat__item" data-item-source="railway"><span class="bmark"><img class="on-light" src="assets/brands/railway/on-light.svg" alt="" width="22" height="22" loading="lazy" /><img class="on-dark" src="assets/brands/railway/on-dark.svg" alt="" width="22" height="22" loading="lazy" /></span><b>Network Egress</b><small>Outbound traffic per interval over the last 24 hours</small></div>
+            <div class="wcat__item" data-item-source="railway"><span class="bmark"><img class="on-light" src="assets/brands/railway/on-light.svg" alt="" width="22" height="22" loading="lazy" /><img class="on-dark" src="assets/brands/railway/on-dark.svg" alt="" width="22" height="22" loading="lazy" /></span><b>Disk Usage</b><small>Volume storage used across a project over the last 24 hours</small></div>
+            <div class="wcat__item" data-item-source="netlify"><span class="bmark"><img class="on-light" src="assets/brands/netlify/on-light.svg" alt="" width="22" height="22" loading="lazy" /><img class="on-dark" src="assets/brands/netlify/on-dark.svg" alt="" width="22" height="22" loading="lazy" /></span><b>Deploy Health</b><small>Recent deploy trail for a Netlify site</small></div>
+            <div class="wcat__item" data-item-source="netlify"><span class="bmark"><img class="on-light" src="assets/brands/netlify/on-light.svg" alt="" width="22" height="22" loading="lazy" /><img class="on-dark" src="assets/brands/netlify/on-dark.svg" alt="" width="22" height="22" loading="lazy" /></span><b>Sites Board</b><small>Publish status for every Netlify site</small></div>
+            <div class="wcat__item" data-item-source="netlify"><span class="bmark"><img class="on-light" src="assets/brands/netlify/on-light.svg" alt="" width="22" height="22" loading="lazy" /><img class="on-dark" src="assets/brands/netlify/on-dark.svg" alt="" width="22" height="22" loading="lazy" /></span><b>Sites Health</b><small>Ready vs total Netlify sites</small></div>
+            <div class="wcat__item" data-item-source="netlify"><span class="bmark"><img class="on-light" src="assets/brands/netlify/on-light.svg" alt="" width="22" height="22" loading="lazy" /><img class="on-dark" src="assets/brands/netlify/on-dark.svg" alt="" width="22" height="22" loading="lazy" /></span><b>Recent Deploys</b><small>Latest deployments across Netlify sites</small></div>
+            <div class="wcat__item" data-item-source="netlify"><span class="bmark"><img class="on-light" src="assets/brands/netlify/on-light.svg" alt="" width="22" height="22" loading="lazy" /><img class="on-dark" src="assets/brands/netlify/on-dark.svg" alt="" width="22" height="22" loading="lazy" /></span><b>Build Minutes</b><small>Build minutes used in the current billing period</small></div>
+            <div class="wcat__item" data-item-source="netlify"><span class="bmark"><img class="on-light" src="assets/brands/netlify/on-light.svg" alt="" width="22" height="22" loading="lazy" /><img class="on-dark" src="assets/brands/netlify/on-dark.svg" alt="" width="22" height="22" loading="lazy" /></span><b>Form Submissions</b><small>Netlify Forms submission counts by form</small></div>
+            <div class="wcat__item" data-item-source="supabase"><span class="bmark"><img class="on-light" src="assets/brands/supabase/on-light.svg" alt="" width="22" height="22" loading="lazy" /><img class="on-dark" src="assets/brands/supabase/on-dark.svg" alt="" width="22" height="22" loading="lazy" /></span><b>Project Health</b><small>Healthy vs total Supabase projects</small></div>
+            <div class="wcat__item" data-item-source="supabase"><span class="bmark"><img class="on-light" src="assets/brands/supabase/on-light.svg" alt="" width="22" height="22" loading="lazy" /><img class="on-dark" src="assets/brands/supabase/on-dark.svg" alt="" width="22" height="22" loading="lazy" /></span><b>Projects Board</b><small>Status and region for every Supabase project</small></div>
+            <div class="wcat__item" data-item-source="supabase"><span class="bmark"><img class="on-light" src="assets/brands/supabase/on-light.svg" alt="" width="22" height="22" loading="lazy" /><img class="on-dark" src="assets/brands/supabase/on-dark.svg" alt="" width="22" height="22" loading="lazy" /></span><b>Service Health</b><small>Database, Auth, Storage, Realtime, Functions health</small></div>
+            <div class="wcat__item" data-item-source="supabase"><span class="bmark"><img class="on-light" src="assets/brands/supabase/on-light.svg" alt="" width="22" height="22" loading="lazy" /><img class="on-dark" src="assets/brands/supabase/on-dark.svg" alt="" width="22" height="22" loading="lazy" /></span><b>API Traffic</b><small>REST / Auth / Storage / Realtime requests over 7 days</small></div>
+            <div class="wcat__item" data-item-source="supabase"><span class="bmark"><img class="on-light" src="assets/brands/supabase/on-light.svg" alt="" width="22" height="22" loading="lazy" /><img class="on-dark" src="assets/brands/supabase/on-dark.svg" alt="" width="22" height="22" loading="lazy" /></span><b>Request Volume</b><small>Total API requests across projects (7 days)</small></div>
+            <div class="wcat__item" data-item-source="supabase"><span class="bmark"><img class="on-light" src="assets/brands/supabase/on-light.svg" alt="" width="22" height="22" loading="lazy" /><img class="on-dark" src="assets/brands/supabase/on-dark.svg" alt="" width="22" height="22" loading="lazy" /></span><b>Security Advisors</b><small>Open security findings from Supabase advisors</small></div>
+            <div class="wcat__item" data-item-source="supabase"><span class="bmark"><img class="on-light" src="assets/brands/supabase/on-light.svg" alt="" width="22" height="22" loading="lazy" /><img class="on-dark" src="assets/brands/supabase/on-dark.svg" alt="" width="22" height="22" loading="lazy" /></span><b>Advisor Issues</b><small>Security and performance findings, worst first</small></div>
+            <div class="wcat__item" data-item-source="qonto"><span class="bmark"><img class="on-light" src="assets/brands/qonto/on-light.jpeg" alt="" width="22" height="22" loading="lazy" /><img class="on-dark" src="assets/brands/qonto/on-dark.jpeg" alt="" width="22" height="22" loading="lazy" /></span><b>Cash Balance</b><small>Total cash across all Qonto accounts</small></div>
+            <div class="wcat__item" data-item-source="qonto"><span class="bmark"><img class="on-light" src="assets/brands/qonto/on-light.jpeg" alt="" width="22" height="22" loading="lazy" /><img class="on-dark" src="assets/brands/qonto/on-dark.jpeg" alt="" width="22" height="22" loading="lazy" /></span><b>Available Liquidity</b><small>Spendable balance after pending payments</small></div>
+            <div class="wcat__item" data-item-source="qonto"><span class="bmark"><img class="on-light" src="assets/brands/qonto/on-light.jpeg" alt="" width="22" height="22" loading="lazy" /><img class="on-dark" src="assets/brands/qonto/on-dark.jpeg" alt="" width="22" height="22" loading="lazy" /></span><b>30-Day Net Cashflow</b><small>Money in minus money out over the last 30 days</small></div>
+            <div class="wcat__item" data-item-source="qonto"><span class="bmark"><img class="on-light" src="assets/brands/qonto/on-light.jpeg" alt="" width="22" height="22" loading="lazy" /><img class="on-dark" src="assets/brands/qonto/on-dark.jpeg" alt="" width="22" height="22" loading="lazy" /></span><b>In vs Out</b><small>Inflow and outflow comparison for the last 30 days</small></div>
+            <div class="wcat__item" data-item-source="qonto"><span class="bmark"><img class="on-light" src="assets/brands/qonto/on-light.jpeg" alt="" width="22" height="22" loading="lazy" /><img class="on-dark" src="assets/brands/qonto/on-dark.jpeg" alt="" width="22" height="22" loading="lazy" /></span><b>Accounts Overview</b><small>Pie split of cash across Qonto accounts</small></div>
+            <div class="wcat__item" data-item-source="qonto"><span class="bmark"><img class="on-light" src="assets/brands/qonto/on-light.jpeg" alt="" width="22" height="22" loading="lazy" /><img class="on-dark" src="assets/brands/qonto/on-dark.jpeg" alt="" width="22" height="22" loading="lazy" /></span><b>Account History</b><small>30-day cash balance trail from settled transactions</small></div>
+            <div class="wcat__item" data-item-source="qonto"><span class="bmark"><img class="on-light" src="assets/brands/qonto/on-light.jpeg" alt="" width="22" height="22" loading="lazy" /><img class="on-dark" src="assets/brands/qonto/on-dark.jpeg" alt="" width="22" height="22" loading="lazy" /></span><b>Recent Transactions</b><small>Latest bank movements across accounts</small></div>
+            <div class="wcat__item" data-item-source="multi"><span class="bmark bmark--glyph"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6a2 2 0 0 1 2-2h4v6H4V6zm10-2h4a2 2 0 0 1 2 2v4h-6V4zM4 14h6v6H6a2 2 0 0 1-2-2v-4zm10 0h6v4a2 2 0 0 1-2 2h-4v-6z"/></svg></span><b>Status Board</b><small>Cross-source status for Railway, Netlify, Supabase</small></div>
+            <div class="wcat__item" data-item-source="stripe"><span class="bmark"><img class="on-light" src="assets/brands/stripe/on-light.jpeg" alt="" width="22" height="22" loading="lazy" /><img class="on-dark" src="assets/brands/stripe/on-dark.jpeg" alt="" width="22" height="22" loading="lazy" /></span><b>MRR</b><small>Monthly recurring revenue across active Stripe subscriptions</small></div>
+            <div class="wcat__item" data-item-source="stripe"><span class="bmark"><img class="on-light" src="assets/brands/stripe/on-light.jpeg" alt="" width="22" height="22" loading="lazy" /><img class="on-dark" src="assets/brands/stripe/on-dark.jpeg" alt="" width="22" height="22" loading="lazy" /></span><b>Revenue (30d)</b><small>Gross Stripe volume over the last 30 days</small></div>
+            <div class="wcat__item" data-item-source="stripe"><span class="bmark"><img class="on-light" src="assets/brands/stripe/on-light.jpeg" alt="" width="22" height="22" loading="lazy" /><img class="on-dark" src="assets/brands/stripe/on-dark.jpeg" alt="" width="22" height="22" loading="lazy" /></span><b>Recent Payments</b><small>Latest Stripe charges and their outcome</small></div>
+            <div class="wcat__item" data-item-source="lemonsqueezy"><span class="bmark bmark--glyph" style="--glyph:#FFC233"><svg viewBox="0 0 24 24" role="img" aria-hidden="true"><path d="M12.6 2c-.5 0-.9.4-1 .9l-.4 3.6a7.9 7.9 0 0 0-6.8 7.8A7.7 7.7 0 0 0 12 22a7.7 7.7 0 0 0 7.6-7.7c0-3.3-2.1-6.2-5.1-7.4l.4-3.4a1 1 0 0 0-1-1.1h-1.3zM12 8.7a5.6 5.6 0 1 1 0 11.2 5.6 5.6 0 0 1 0-11.2z"/></svg></span><b>MRR</b><small>Recurring revenue across active Lemon Squeezy subscriptions</small></div>
+            <div class="wcat__item" data-item-source="lemonsqueezy"><span class="bmark bmark--glyph" style="--glyph:#FFC233"><svg viewBox="0 0 24 24" role="img" aria-hidden="true"><path d="M12.6 2c-.5 0-.9.4-1 .9l-.4 3.6a7.9 7.9 0 0 0-6.8 7.8A7.7 7.7 0 0 0 12 22a7.7 7.7 0 0 0 7.6-7.7c0-3.3-2.1-6.2-5.1-7.4l.4-3.4a1 1 0 0 0-1-1.1h-1.3zM12 8.7a5.6 5.6 0 1 1 0 11.2 5.6 5.6 0 0 1 0-11.2z"/></svg></span><b>Revenue (30d)</b><small>Lemon Squeezy store revenue over the last 30 days</small></div>
+            <div class="wcat__item" data-item-source="lemonsqueezy"><span class="bmark bmark--glyph" style="--glyph:#FFC233"><svg viewBox="0 0 24 24" role="img" aria-hidden="true"><path d="M12.6 2c-.5 0-.9.4-1 .9l-.4 3.6a7.9 7.9 0 0 0-6.8 7.8A7.7 7.7 0 0 0 12 22a7.7 7.7 0 0 0 7.6-7.7c0-3.3-2.1-6.2-5.1-7.4l.4-3.4a1 1 0 0 0-1-1.1h-1.3zM12 8.7a5.6 5.6 0 1 1 0 11.2 5.6 5.6 0 0 1 0-11.2z"/></svg></span><b>Recent Orders</b><small>Latest Lemon Squeezy orders</small></div>
+            <div class="wcat__item" data-item-source="sentry"><span class="bmark bmark--glyph" style="--glyph:#362D59;--glyph-dark:#9A8FD8"><svg viewBox="0 0 24 24" role="img" aria-hidden="true"><path d="M12 2.2a1.9 1.9 0 0 0-1.65.95L8.1 7.06a13.6 13.6 0 0 1 7.05 10.5h-2.1A11.5 11.5 0 0 0 7.05 8.9l-2 3.47a7.6 7.6 0 0 1 3.6 5.19H5.03a.42.42 0 0 1-.36-.63l1.28-2.2a5.1 5.1 0 0 0-1.6-.9l-1.3 2.24A2.2 2.2 0 0 0 4.95 19.4h5.86a9.4 9.4 0 0 0-4.2-7.9l1-1.72a11.4 11.4 0 0 1 5.1 9.62h4.4a2.2 2.2 0 0 0 1.9-3.3L13.65 3.15A1.9 1.9 0 0 0 12 2.2z"/></svg></span><b>Unresolved Issues</b><small>Open Sentry issues and events in the last 24 hours</small></div>
+            <div class="wcat__item" data-item-source="sentry"><span class="bmark bmark--glyph" style="--glyph:#362D59;--glyph-dark:#9A8FD8"><svg viewBox="0 0 24 24" role="img" aria-hidden="true"><path d="M12 2.2a1.9 1.9 0 0 0-1.65.95L8.1 7.06a13.6 13.6 0 0 1 7.05 10.5h-2.1A11.5 11.5 0 0 0 7.05 8.9l-2 3.47a7.6 7.6 0 0 1 3.6 5.19H5.03a.42.42 0 0 1-.36-.63l1.28-2.2a5.1 5.1 0 0 0-1.6-.9l-1.3 2.24A2.2 2.2 0 0 0 4.95 19.4h5.86a9.4 9.4 0 0 0-4.2-7.9l1-1.72a11.4 11.4 0 0 1 5.1 9.62h4.4a2.2 2.2 0 0 0 1.9-3.3L13.65 3.15A1.9 1.9 0 0 0 12 2.2z"/></svg></span><b>Recent Errors</b><small>Newest unresolved Sentry issues</small></div>
+            <div class="wcat__item" data-item-source="sentry"><span class="bmark bmark--glyph" style="--glyph:#362D59;--glyph-dark:#9A8FD8"><svg viewBox="0 0 24 24" role="img" aria-hidden="true"><path d="M12 2.2a1.9 1.9 0 0 0-1.65.95L8.1 7.06a13.6 13.6 0 0 1 7.05 10.5h-2.1A11.5 11.5 0 0 0 7.05 8.9l-2 3.47a7.6 7.6 0 0 1 3.6 5.19H5.03a.42.42 0 0 1-.36-.63l1.28-2.2a5.1 5.1 0 0 0-1.6-.9l-1.3 2.24A2.2 2.2 0 0 0 4.95 19.4h5.86a9.4 9.4 0 0 0-4.2-7.9l1-1.72a11.4 11.4 0 0 1 5.1 9.62h4.4a2.2 2.2 0 0 0 1.9-3.3L13.65 3.15A1.9 1.9 0 0 0 12 2.2z"/></svg></span><b>Projects Board</b><small>Sentry projects and whether they are reporting</small></div>
+            <div class="wcat__item" data-item-source="resend"><span class="bmark bmark--glyph" style="--glyph:#000000;--glyph-dark:#FFFBFF"><svg viewBox="0 0 24 24" role="img" aria-hidden="true"><path d="M4 3h7.6c3.2 0 5.4 1.9 5.4 4.9 0 2.2-1.2 3.8-3.2 4.5l3.9 8.6h-4.2l-3.4-7.9H7.9V21H4V3zm3.9 3.2v3.9h3.3c1.3 0 2.1-.7 2.1-1.9s-.8-2-2.1-2H7.9z"/></svg></span><b>Sending Domains</b><small>Resend domain verification status</small></div>
+            <div class="wcat__item" data-item-source="resend"><span class="bmark bmark--glyph" style="--glyph:#000000;--glyph-dark:#FFFBFF"><svg viewBox="0 0 24 24" role="img" aria-hidden="true"><path d="M4 3h7.6c3.2 0 5.4 1.9 5.4 4.9 0 2.2-1.2 3.8-3.2 4.5l3.9 8.6h-4.2l-3.4-7.9H7.9V21H4V3zm3.9 3.2v3.9h3.3c1.3 0 2.1-.7 2.1-1.9s-.8-2-2.1-2H7.9z"/></svg></span><b>Recent Emails</b><small>Latest emails sent through Resend and how each landed</small></div>
+            <div class="wcat__item" data-item-source="resend"><span class="bmark bmark--glyph" style="--glyph:#000000;--glyph-dark:#FFFBFF"><svg viewBox="0 0 24 24" role="img" aria-hidden="true"><path d="M4 3h7.6c3.2 0 5.4 1.9 5.4 4.9 0 2.2-1.2 3.8-3.2 4.5l3.9 8.6h-4.2l-3.4-7.9H7.9V21H4V3zm3.9 3.2v3.9h3.3c1.3 0 2.1-.7 2.1-1.9s-.8-2-2.1-2H7.9z"/></svg></span><b>Broadcasts</b><small>Broadcast campaigns and where each one stands</small></div>
+            <div class="wcat__item" data-item-source="resend"><span class="bmark bmark--glyph" style="--glyph:#000000;--glyph-dark:#FFFBFF"><svg viewBox="0 0 24 24" role="img" aria-hidden="true"><path d="M4 3h7.6c3.2 0 5.4 1.9 5.4 4.9 0 2.2-1.2 3.8-3.2 4.5l3.9 8.6h-4.2l-3.4-7.9H7.9V21H4V3zm3.9 3.2v3.9h3.3c1.3 0 2.1-.7 2.1-1.9s-.8-2-2.1-2H7.9z"/></svg></span><b>Emails & Deliverability</b><small>Daily send volume against the share that was delivered</small></div>
+            <div class="wcat__item" data-item-source="resend"><span class="bmark bmark--glyph" style="--glyph:#000000;--glyph-dark:#FFFBFF"><svg viewBox="0 0 24 24" role="img" aria-hidden="true"><path d="M4 3h7.6c3.2 0 5.4 1.9 5.4 4.9 0 2.2-1.2 3.8-3.2 4.5l3.9 8.6h-4.2l-3.4-7.9H7.9V21H4V3zm3.9 3.2v3.9h3.3c1.3 0 2.1-.7 2.1-1.9s-.8-2-2.1-2H7.9z"/></svg></span><b>Open Rate</b><small>Share of delivered emails opened, day by day</small></div>
+            <div class="wcat__item" data-item-source="resend"><span class="bmark bmark--glyph" style="--glyph:#000000;--glyph-dark:#FFFBFF"><svg viewBox="0 0 24 24" role="img" aria-hidden="true"><path d="M4 3h7.6c3.2 0 5.4 1.9 5.4 4.9 0 2.2-1.2 3.8-3.2 4.5l3.9 8.6h-4.2l-3.4-7.9H7.9V21H4V3zm3.9 3.2v3.9h3.3c1.3 0 2.1-.7 2.1-1.9s-.8-2-2.1-2H7.9z"/></svg></span><b>Click Rate</b><small>Share of delivered emails clicked, day by day</small></div>
+            <div class="wcat__item" data-item-source="resend"><span class="bmark bmark--glyph" style="--glyph:#000000;--glyph-dark:#FFFBFF"><svg viewBox="0 0 24 24" role="img" aria-hidden="true"><path d="M4 3h7.6c3.2 0 5.4 1.9 5.4 4.9 0 2.2-1.2 3.8-3.2 4.5l3.9 8.6h-4.2l-3.4-7.9H7.9V21H4V3zm3.9 3.2v3.9h3.3c1.3 0 2.1-.7 2.1-1.9s-.8-2-2.1-2H7.9z"/></svg></span><b>Email Outcomes</b><small>Where emails ended up — each counted at its furthest step</small></div>
+            <div class="wcat__item" data-item-source="vercel"><span class="bmark"><img class="on-light" src="assets/brands/vercel/on-light.svg" alt="" width="22" height="22" loading="lazy" /><img class="on-dark" src="assets/brands/vercel/on-dark.svg" alt="" width="22" height="22" loading="lazy" /></span><b>Deploy Health</b><small>Recent Vercel deploy trail per project</small></div>
+            <div class="wcat__item" data-item-source="vercel"><span class="bmark"><img class="on-light" src="assets/brands/vercel/on-light.svg" alt="" width="22" height="22" loading="lazy" /><img class="on-dark" src="assets/brands/vercel/on-dark.svg" alt="" width="22" height="22" loading="lazy" /></span><b>Projects Board</b><small>Latest deploy state for every Vercel project</small></div>
+            <div class="wcat__item" data-item-source="vercel"><span class="bmark"><img class="on-light" src="assets/brands/vercel/on-light.svg" alt="" width="22" height="22" loading="lazy" /><img class="on-dark" src="assets/brands/vercel/on-dark.svg" alt="" width="22" height="22" loading="lazy" /></span><b>Recent Deploys</b><small>Vercel deployment feed</small></div>
+          </div>
+          <p class="wcat-empty" data-catalog-empty hidden>No widgets for that source yet.</p>
         </div>
       </section>
 
       <section class="section">
         <div class="wrap">
-          <div class="cta">
-            <h2>See it with demo data</h2>
-            <p>Open the app and browse a populated dashboard before connecting a single token.</p>
+          <div class="cta reveal">
+            <h2>See it with sample data</h2>
+            <p>Open the app and build a canvas before connecting a single token. Nothing to install, no card to look around.</p>
             <div class="btn-row btn-row--center">
-              <a class="btn" href="https://usebussola.app">Open app</a>
-              <a class="btn btn--ghost" href="pricing.html">Compare plans</a>
+              <a class="btn btn--lg" href="https://usebussola.app">Open the app <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
+              <a class="btn btn--ghost btn--lg" href="pricing.html">Compare plans</a>
             </div>
           </div>
         </div>
       </section>
+
     </main>
 
     <footer class="site-footer">
       <div class="site-footer__inner">
         <div class="site-footer__brand">
-          <a class="brand" href="index.html"><img src="assets/bussola-mark.svg" alt="" /> <span>Bussola</span></a>
-          <p>Local-first, plug-and-play dashboard for infrastructure and finances.</p>
+          <a class="brand" href="index.html"><img src="assets/bussola-mark.svg" alt="" width="25" height="25" /> <span>Bussola</span></a>
+          <p>One dashboard for the numbers you check every day — deploys, errors, revenue and cash. Open source, self-hostable.</p>
         </div>
-        <div><h4>Product</h4><ul>
-          <li><a href="features.html">Features</a></li>
-          <li><a href="connectors.html">Connectors</a></li>
-          <li><a href="pricing.html">Pricing</a></li>
-          <li><a href="https://usebussola.app">Open app</a></li>
-        </ul></div>
-        <div><h4>Project</h4><ul>
-          <li><a href="open-source.html">Open source</a></li>
-          <li><a href="https://github.com/notsurenaime/bussola">GitHub</a></li>
-          <li><a href="open-source.html#mcp">MCP server</a></li>
-        </ul></div>
-        <div><h4>Legal</h4><ul>
-          <li><a href="/privacy">Privacy</a></li>
-          <li><a href="/terms">Terms</a></li>
-          <li><a href="/imprint">Imprint</a></li>
-        </ul></div>
+        <div>
+          <h2 class="footer-h">Product</h2>
+          <ul>
+            <li><a href="features.html">Features</a></li>
+            <li><a href="connectors.html">Connectors</a></li>
+            <li><a href="pricing.html">Pricing</a></li>
+            <li><a href="features.html#catalog">Widget catalog</a></li>
+          </ul>
+        </div>
+        <div>
+          <h2 class="footer-h">Project</h2>
+          <ul>
+            <li><a href="open-source.html">Open source</a></li>
+            <li><a href="open-source.html#quickstart">Self-host guide</a></li>
+            <li><a href="open-source.html#mcp">MCP server</a></li>
+            <li><a href="https://github.com/notsurenaime/bussola" rel="noopener">GitHub</a></li>
+          </ul>
+        </div>
+        <div>
+          <h2 class="footer-h">Trust</h2>
+          <ul>
+            <li><a href="security.html">Security</a></li>
+            <li><a href="privacy.html">Privacy</a></li>
+            <li><a href="terms.html">Terms</a></li>
+            <li><a href="imprint.html">Imprint</a></li>
+          </ul>
+        </div>
+        <div>
+          <h2 class="footer-h">Get started</h2>
+          <ul>
+            <li><a href="https://usebussola.app">Open the app</a></li>
+            <li><a href="https://github.com/notsurenaime/bussola/issues" rel="noopener">Request a connector</a></li>
+            <li><a href="mailto:hello@usebussola.com">hello@usebussola.com</a></li>
+          </ul>
+        </div>
         <div class="site-footer__legal">
-          <span>© <span id="year">2026</span> Malango Tech UG</span>
+          <span>© <span data-year>2026</span> Malango Tech UG (haftungsbeschränkt)</span>
+          <span class="sep">·</span>
+          <span>MIT-licensed. Built in Europe.</span>
+          <span class="spacer"></span>
           <span>Made for solo founders and small dev teams</span>
         </div>
       </div>
     </footer>
-    <script>document.getElementById("year").textContent = new Date().getFullYear();</script>
+    <script src="site.js" defer></script>
   </body>
 </html>

@@ -1,4 +1,5 @@
 import { jsonError, jsonOk } from "@/lib/api";
+import { drainDeliveries } from "@/lib/alerts/outbox";
 import { runDueSyncs } from "@/lib/sync/runner";
 
 export const runtime = "nodejs";
@@ -30,10 +31,22 @@ export async function POST(request: Request) {
   }
 
   const report = await runDueSyncs();
+
+  /*
+   * Drain queued alert notifications too.
+   *
+   * A serverless deployment has no long-running scheduler, so this request is
+   * the only thing that ever runs. Draining after the syncs — not inside them
+   * — keeps a slow webhook off a connection's critical path while still
+   * getting the message out on the same tick.
+   */
+  const drained = await drainDeliveries();
+
   return jsonOk({
     claimed: report.claimed,
     succeeded: report.succeeded,
     failed: report.failed,
     disabled: report.disabled,
+    deliveries: drained,
   });
 }

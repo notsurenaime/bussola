@@ -14,15 +14,21 @@ import {
   ArrowLeftIcon,
   FloppyDiskIcon,
   PencilSimpleIcon,
+  ShareNetworkIcon,
   StarIcon,
 } from "@phosphor-icons/react";
 import { EmptyState, PageHeader } from "@/components/layout/page";
 import { Button } from "@/components/ui/button";
 import { AddWidgetSheet } from "@/components/dashboard/add-widget-sheet";
+import { ShareDialog } from "@/components/dashboard/share-dialog";
 import { WidgetFrame } from "@/components/dashboard/widget-frame";
+import { WidgetSettingsDialog } from "@/components/dashboard/widget-settings-dialog";
 import { useCurrentDashboard } from "@/components/layout/current-dashboard-context";
 import { starDashboardAction } from "@/app/(app)/dashboards/actions";
+import type { WidgetConfig } from "@/lib/widgets/config";
 import { getWidgetDefinition, type WidgetType } from "@/lib/widgets/registry";
+import { refreshAllWidgets } from "@/lib/widgets/widget-data-store";
+import type { Provider } from "@/lib/providers";
 import { cn } from "@/lib/utils";
 import "react-grid-layout/css/styles.css";
 
@@ -30,8 +36,16 @@ export type CanvasWidget = {
   id: string;
   widgetType: string;
   title?: string | null;
-  config: Record<string, unknown>;
+  connectionId: string | null;
+  config: WidgetConfig;
   layout: { i: string; x: number; y: number; w: number; h: number };
+};
+
+/** Just enough of a connection to name it in a picker. */
+export type ConnectionOption = {
+  id: string;
+  provider: Provider;
+  label: string;
 };
 
 type DashboardCanvasProps = {
@@ -39,6 +53,8 @@ type DashboardCanvasProps = {
   name: string;
   initialWidgets: CanvasWidget[];
   initialStarred: boolean;
+  /** Whether this plan may create read-only links at all. */
+  canShare: boolean;
 };
 
 export function DashboardCanvas({
@@ -46,6 +62,7 @@ export function DashboardCanvas({
   name,
   initialWidgets,
   initialStarred,
+  canShare,
 }: DashboardCanvasProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -61,6 +78,83 @@ export function DashboardCanvas({
   );
   const [starred, setStarred] = useState(initialStarred);
   const [starring, setStarring] = useState(false);
+  const [connections, setConnections] = useState<ConnectionOption[]>([]);
+  const [settingsFor, setSettingsFor] = useState<string | null>(null);
+  const [shareOpen, setShareOpen] = useState(false);
+
+  /*
+   * The source picker needs to know what exists, and only the settings dialog
+   * uses it — but loading it there would refetch on every open. One fetch per
+   * canvas, reused by every widget's dialog.
+   */
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      try {
+        const res = await fetch("/api/connections");
+        if (!res.ok) return;
+        const json = (await res.json()) as { connections?: ConnectionOption[] };
+        if (!cancelled) setConnections(json.connections ?? []);
+      } catch {
+        // A canvas that cannot list connections still renders every widget;
+        // only the source picker degrades, so this is not worth a toast.
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  /** How a widget's source should be labelled, when it is worth labelling. */
+  const sourceLabelFor = useCallback(
+    (widget: CanvasWidget): string | null => {
+      const def = getWidgetDefinition(widget.widgetType);
+      if (!def || def.provider === "multi") return null;
+
+      const forProvider = connections.filter((c) => c.provider === def.provider);
+      // With one connection there is nothing to disambiguate.
+      if (forProvider.length < 2) return null;
+
+      const pinned = widget.connectionId
+        ? forProvider.find((c) => c.id === widget.connectionId)
+        : forProvider[0];
+      return pinned?.label ?? null;
+    },
+    [connections],
+  );
+
+  async function saveWidgetSettings(
+    widgetId: string,
+    patch: {
+      title: string | null;
+      connectionId: string | null;
+      config: WidgetConfig;
+    },
+  ): Promise<boolean> {
+    const res = await fetch(`/api/dashboards/${dashboardId}/widgets`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ widgetId, ...patch }),
+    });
+    const data = (await res.json()) as {
+      widget?: CanvasWidget;
+      error?: string;
+    };
+    if (!res.ok || !data.widget) {
+      toast.error(data.error || "Could not save widget settings");
+      return false;
+    }
+
+    setWidgets((prev) =>
+      prev.map((w) =>
+        w.id === widgetId ? { ...data.widget!, layout: w.layout } : w,
+      ),
+    );
+    // A repointed widget must not keep showing the old account's numbers
+    // until the next poll comes round.
+    refreshAllWidgets();
+    return true;
+  }
 
   async function toggleStarred() {
     const next = !starred;
@@ -167,6 +261,10 @@ export function DashboardCanvas({
     setWidgets((prev) => prev.filter((w) => w.id !== id));
   }
 
+  const settingsWidget = settingsFor
+    ? widgets.find((w) => w.id === settingsFor) ?? null
+    : null;
+
   const widgetCount = widgets.length;
   const description = editMode
     ? "Drag and resize blocks — changes save automatically."
@@ -197,6 +295,15 @@ export function DashboardCanvas({
                 onOpenChange={setAddWidgetOpen}
                 onAdd={addWidget}
               />
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                aria-label="Share dashboard"
+                onClick={() => setShareOpen(true)}
+              >
+                <ShareNetworkIcon className="size-4" />
+              </Button>
               <Button
                 type="button"
                 variant="outline"
@@ -304,8 +411,12 @@ export function DashboardCanvas({
                     id={widget.id}
                     type={widget.widgetType as WidgetType}
                     title={widget.title}
+                    connectionId={widget.connectionId}
+                    config={widget.config}
+                    sourceLabel={sourceLabelFor(widget)}
                     editMode={editMode}
                     onRemove={removeWidget}
+                    onConfigure={setSettingsFor}
                   />
                 </div>
               ))}
@@ -313,6 +424,30 @@ export function DashboardCanvas({
           ) : null}
         </div>
       )}
+
+      {settingsWidget ? (
+        <WidgetSettingsDialog
+          widget={{
+            id: settingsWidget.id,
+            widgetType: settingsWidget.widgetType as WidgetType,
+            title: settingsWidget.title ?? null,
+            connectionId: settingsWidget.connectionId,
+            config: settingsWidget.config,
+          }}
+          connections={connections}
+          onClose={() => setSettingsFor(null)}
+          onSave={(patch) => saveWidgetSettings(settingsWidget.id, patch)}
+        />
+      ) : null}
+
+      {shareOpen ? (
+        <ShareDialog
+          dashboardId={dashboardId}
+          dashboardName={name}
+          canShare={canShare}
+          onClose={() => setShareOpen(false)}
+        />
+      ) : null}
     </div>
   );
 }

@@ -6,6 +6,11 @@ import type {
   RailwayDeployHealth,
   RailwayDeployItem,
   RailwayFleetHealth,
+  RailwayBilling,
+  RailwayMetricPoint,
+  RailwayMetrics,
+  RailwayMetricSeries,
+  RailwayProjectSummary,
   RailwayResourceSnapshot,
   RailwayUsageItem,
   StatusItem,
@@ -20,6 +25,9 @@ const DEPLOY_TRAIL_LEN = 24;
 const RECENT_DEPLOYS = 25;
 const FAILED_ATTEMPTS_SHOWN = 3;
 const METRICS_LOOKBACK_MS = 60 * 60 * 1000;
+/** Window and bucket size for the usage charts: a day at 15-minute resolution. */
+const SERIES_HOURS = 24;
+const SERIES_SAMPLE_SECONDS = 900;
 
 type AuthMode = "account" | "project";
 
@@ -41,30 +49,61 @@ async function railwayGraphql<T>(
 
   const json = await fetchJson<{
     data?: T;
-    errors?: Array<{ message: string }>;
+    errors?: Array<{ message: string; path?: Array<string | number> }>;
   }>(
     ENDPOINT,
     { method: "POST", headers, body: JSON.stringify({ query, variables }) },
     { label: "Railway" },
   );
 
-  if (json.errors?.length) {
-    throw new Error(json.errors[0]?.message || "Railway GraphQL error");
+  /*
+   * GraphQL reports per-field failures alongside the data that did resolve, and
+   * Railway uses that: a token that cannot see one project in a workspace still
+   * returns every other project, with a "Not Authorized" entry for the one it
+   * cannot. Treating any error as fatal threw all of it away and failed the
+   * whole dashboard over a single inaccessible field.
+   *
+   * So errors are only fatal when nothing came back with them.
+   */
+  if (!json.data) {
+    const first = json.errors?.[0];
+    const where = first?.path?.length ? ` (at ${first.path.join(".")})` : "";
+    throw new Error(
+      first?.message ? `${first.message}${where}` : "Empty Railway response",
+    );
   }
 
-  if (!json.data) {
-    throw new Error("Empty Railway response");
+  if (json.errors?.length) {
+    const paths = json.errors
+      .map((e) => (e.path?.length ? e.path.join(".") : "?"))
+      .join(", ");
+    console.warn(
+      `[railway] partial response (${paths}): ${json.errors[0]?.message}`,
+    );
   }
 
   return json.data;
 }
 
-async function resolveRailwayAuth(token: string): Promise<{
+type RailwayAuth = {
   mode: AuthMode;
   projectId?: string;
   environmentId?: string;
+  /** Set for a workspace API token, which scopes every project query. */
+  workspaceId?: string;
   label: string;
-}> {
+};
+
+/**
+ * Work out which of Railway's three token kinds this is.
+ *
+ * Each has its own identity query, and only one of them answers for any given
+ * token: `projectToken` for a project token, `apiToken` for a workspace token,
+ * `me` for a personal one. A workspace token belongs to no user, so asking `me`
+ * about it returns "Not Authorized" — which used to look identical to a revoked
+ * token and failed the whole connection.
+ */
+async function resolveRailwayAuth(token: string): Promise<RailwayAuth> {
   try {
     const projectAuth = await railwayGraphql<{
       projectToken: { projectId: string; environmentId: string };
@@ -93,6 +132,25 @@ async function resolveRailwayAuth(token: string): Promise<{
     };
   } catch {
     // Fall through to Bearer account token.
+  }
+
+  // Workspace API token: no user behind it, but it names the workspaces it can
+  // reach, which is what scopes every project query that follows.
+  try {
+    const api = await railwayGraphql<{
+      apiToken: { workspaces?: Array<{ id?: string; name?: string }> } | null;
+    }>(token, `query { apiToken { workspaces { id name } } }`, "account");
+
+    const workspace = api.apiToken?.workspaces?.[0];
+    if (workspace?.id) {
+      return {
+        mode: "account",
+        workspaceId: workspace.id,
+        label: workspace.name || "Railway workspace",
+      };
+    }
+  } catch {
+    // Not a workspace token; try a personal one.
   }
 
   const account = await railwayGraphql<{
@@ -128,6 +186,7 @@ const RAILWAY_STATUS: Record<string, StatusSpec> = {
   INITIALIZING: { tone: "warn", label: "Starting", stage: "Starting", active: "unknown", inFlight: true },
   QUEUED: { tone: "warn", label: "Queued", stage: "Queued", active: "unknown", inFlight: true },
   WAITING: { tone: "warn", label: "Waiting", stage: "Waiting", active: "unknown", inFlight: true },
+  NEEDS_APPROVAL: { tone: "warn", label: "Needs approval", stage: "Awaiting approval", active: "unknown", inFlight: true },
   SLEEPING: { tone: "idle", label: "Sleeping", stage: "Sleeping", active: "sleeping" },
   REMOVED: { tone: "idle", label: "Removed", stage: "Removed", active: "unknown" },
   REMOVING: { tone: "idle", label: "Removed", stage: "Removed", active: "unknown" },
@@ -542,6 +601,269 @@ async function fetchEnvironmentMetrics(
   }
 }
 
+/** Which Railway measurement backs each chart, and how to read its numbers. */
+const SERIES_SPECS: Array<{
+  key: RailwayMetricSeries["key"];
+  measurement: string;
+  label: string;
+  unit: string;
+}> = [
+  { key: "cpu", measurement: "CPU_USAGE", label: "CPU", unit: "vCPU" },
+  { key: "memory", measurement: "MEMORY_USAGE_GB", label: "Memory", unit: "GB" },
+  // TX is what leaves the network — RX would be ingress.
+  { key: "egress", measurement: "NETWORK_TX_GB", label: "Egress", unit: "GB" },
+  { key: "disk", measurement: "DISK_USAGE_GB", label: "Disk", unit: "GB" },
+];
+
+/**
+ * Full time series for one environment, for the usage charts.
+ *
+ * `fetchEnvironmentMetrics` asks the same endpoint but keeps only the latest
+ * value per series; these charts need the whole trail, so the sample rate is
+ * widened to keep a day inside ~100 points instead of the ~1400 a 60s rate
+ * would return.
+ */
+async function fetchEnvironmentSeries(
+  token: string,
+  mode: AuthMode,
+  environmentId: string,
+): Promise<RailwayMetricSeries[]> {
+  const startDate = new Date(Date.now() - SERIES_HOURS * 3_600_000).toISOString();
+
+  const data = await railwayGraphql<{
+    metrics: Array<{
+      measurement: string;
+      values?: Array<{ ts: number | string; value: number | null }>;
+    }>;
+  }>(
+    token,
+    `query (
+      $environmentId: String!
+      $startDate: DateTime!
+      $measurements: [MetricMeasurement!]!
+      $sampleRateSeconds: Int
+    ) {
+      metrics(
+        environmentId: $environmentId
+        startDate: $startDate
+        measurements: $measurements
+        sampleRateSeconds: $sampleRateSeconds
+      ) {
+        measurement
+        values { ts value }
+      }
+    }`,
+    mode,
+    {
+      environmentId,
+      startDate,
+      measurements: SERIES_SPECS.map((s) => s.measurement),
+      sampleRateSeconds: SERIES_SAMPLE_SECONDS,
+    },
+  );
+
+  const byMeasurement = new Map(
+    (data.metrics || []).map((series) => [series.measurement, series]),
+  );
+
+  const out: RailwayMetricSeries[] = [];
+  for (const spec of SERIES_SPECS) {
+    const raw = byMeasurement.get(spec.measurement);
+    const points: RailwayMetricPoint[] = (raw?.values || [])
+      .map((v) => {
+        // `ts` comes back as epoch seconds on some series and ISO on others.
+        const date =
+          typeof v.ts === "number"
+            ? new Date(v.ts * 1000)
+            : new Date(v.ts);
+        return { date, value: v.value };
+      })
+      .filter(
+        (p): p is { date: Date; value: number } =>
+          !Number.isNaN(p.date.getTime()) &&
+          typeof p.value === "number" &&
+          Number.isFinite(p.value),
+      )
+      .map((p) => ({
+        ts: p.date.toISOString(),
+        label: p.date.toLocaleTimeString(undefined, {
+          hour: "2-digit",
+          minute: "2-digit",
+        }),
+        value: p.value,
+      }));
+
+    if (points.length === 0) continue;
+
+    const values = points.map((p) => p.value);
+    out.push({
+      key: spec.key,
+      label: spec.label,
+      unit: spec.unit,
+      points,
+      latest: values[values.length - 1] ?? null,
+      peak: Math.max(...values),
+      average: values.reduce((sum, v) => sum + v, 0) / values.length,
+    });
+  }
+
+  return out;
+}
+
+/** `estimatedUsage` requires an explicit measurement list; there is no default. */
+const USAGE_MEASUREMENTS = [
+  "CPU_USAGE",
+  "MEMORY_USAGE_GB",
+  "NETWORK_TX_GB",
+  "DISK_USAGE_GB",
+];
+
+/**
+ * Current spend, projected bill and the cycle it belongs to.
+ *
+ * Only reachable through a workspace: there is no top-level billing query. A
+ * project-scoped token cannot see `me` at all, so this returns null for one
+ * rather than failing the dashboard.
+ */
+const CUSTOMER_FIELDS = `
+  currentUsage
+  creditBalance
+  billingPeriod { start end }
+  subscriptions {
+    nextInvoiceCurrentTotal
+    nextInvoiceDate
+  }
+`;
+
+type RailwayCustomer = {
+  currentUsage?: number | null;
+  creditBalance?: number | null;
+  billingPeriod?: { start?: string; end?: string } | null;
+  subscriptions?: Array<{
+    nextInvoiceCurrentTotal?: number | null;
+    nextInvoiceDate?: string | null;
+  }> | null;
+};
+
+function toBilling(
+  workspaceName: string,
+  plan: string | undefined,
+  customer: RailwayCustomer,
+): RailwayBilling {
+  const subscription = customer.subscriptions?.[0];
+  const cents = subscription?.nextInvoiceCurrentTotal;
+  return {
+    workspaceName,
+    plan,
+    currency: "usd",
+    // Reported in cents; every other figure here is already in dollars.
+    estimatedBill: typeof cents === "number" ? cents / 100 : null,
+    currentUsage:
+      typeof customer.currentUsage === "number" ? customer.currentUsage : null,
+    creditBalance:
+      typeof customer.creditBalance === "number" ? customer.creditBalance : null,
+    cycleStart: customer.billingPeriod?.start || undefined,
+    cycleEnd: customer.billingPeriod?.end || undefined,
+    nextInvoiceDate: subscription?.nextInvoiceDate || undefined,
+  };
+}
+
+async function fetchBilling(
+  token: string,
+  mode: AuthMode,
+  workspaceId?: string,
+): Promise<RailwayBilling | null> {
+  if (mode !== "account") return null;
+
+  // A workspace token cannot walk `me.workspaces`, but can read the one
+  // workspace it belongs to.
+  if (workspaceId) {
+    try {
+      const data = await railwayGraphql<{
+        workspace: {
+          name?: string;
+          plan?: string;
+          customer?: RailwayCustomer | null;
+        } | null;
+      }>(
+        token,
+        `query ($workspaceId: String!) {
+          workspace(workspaceId: $workspaceId) {
+            name
+            plan
+            customer { ${CUSTOMER_FIELDS} }
+          }
+        }`,
+        mode,
+        { workspaceId },
+      );
+      const workspace = data.workspace;
+      if (!workspace?.customer) return null;
+      return toBilling(
+        workspace.name || "Workspace",
+        workspace.plan,
+        workspace.customer,
+      );
+    } catch {
+      return null;
+    }
+  }
+
+  try {
+    const data = await railwayGraphql<{
+      me: {
+        workspaces?: Array<{
+          name?: string;
+          plan?: string;
+          customer?: {
+            currentUsage?: number | null;
+            creditBalance?: number | null;
+            billingPeriod?: { start?: string; end?: string } | null;
+            subscriptions?: Array<{
+              nextInvoiceCurrentTotal?: number | null;
+              nextInvoiceDate?: string | null;
+            }> | null;
+          } | null;
+        }>;
+      };
+    }>(
+      token,
+      `query {
+        me {
+          workspaces {
+            name
+            plan
+            customer {
+              currentUsage
+              creditBalance
+              billingPeriod { start end }
+              subscriptions {
+                nextInvoiceCurrentTotal
+                nextInvoiceDate
+              }
+            }
+          }
+        }
+      }`,
+      mode,
+    );
+
+    // Pick the workspace that actually has billing attached; a member with no
+    // billing visibility gets nulls rather than an error.
+    const workspace = (data.me.workspaces || []).find((w) => w.customer);
+    if (!workspace?.customer) return null;
+
+    return toBilling(
+      workspace.name || "Workspace",
+      workspace.plan,
+      workspace.customer,
+    );
+  } catch {
+    // Billing visibility depends on workspace role; the rest still renders.
+    return null;
+  }
+}
+
 /** One estimated-usage measurement → its display label and formatted value. */
 function usageRow(measurement: string, value: number): { label: string; display: string } {
   const m = measurement.toUpperCase();
@@ -587,20 +909,22 @@ async function fetchEstimatedUsage(
       }>(
         token,
         projectId
-          ? `query ($projectId: String) {
-              estimatedUsage(projectId: $projectId) {
+          ? `query ($projectId: String, $measurements: [MetricMeasurement!]!) {
+              estimatedUsage(projectId: $projectId, measurements: $measurements) {
                 measurement
                 estimatedValue
               }
             }`
-          : `query {
-              estimatedUsage {
+          : `query ($measurements: [MetricMeasurement!]!) {
+              estimatedUsage(measurements: $measurements) {
                 measurement
                 estimatedValue
               }
             }`,
         mode,
-        projectId ? { projectId } : undefined,
+        projectId
+          ? { projectId, measurements: USAGE_MEASUREMENTS }
+          : { measurements: USAGE_MEASUREMENTS },
       );
       for (const row of data.estimatedUsage || []) {
         const prev = aggregates.get(row.measurement) || 0;
@@ -688,8 +1012,8 @@ const PROJECT_QUERY = `query ($id: String!) {
   }
 }`;
 
-const ACCOUNT_PROJECTS_QUERY = `query {
-  projects {
+const ACCOUNT_PROJECTS_QUERY = `query ($workspaceId: String) {
+  projects(workspaceId: $workspaceId) {
     edges {
       node {
         id
@@ -777,7 +1101,9 @@ export async function fetchRailwayDashboard(
   } else {
     const data = await railwayGraphql<{
       projects: { edges: Array<{ node: ProjectNode }> };
-    }>(token, ACCOUNT_PROJECTS_QUERY, "account");
+    }>(token, ACCOUNT_PROJECTS_QUERY, "account", {
+      workspaceId: auth.workspaceId ?? null,
+    });
     projects = data.projects.edges.map((e) => e.node);
   }
 
@@ -787,10 +1113,22 @@ export async function fetchRailwayDashboard(
   const recentDeploys: RailwayDeployItem[] = [];
   const serviceNameById = new Map<string, { name: string; projectName: string }>();
   const environmentIds = new Set<string>();
+  const projectSummaries: RailwayProjectSummary[] = [];
+  /** The project the usage charts describe: whichever runs the most services. */
+  let primaryEnv: {
+    id: string;
+    projectName: string;
+    envName?: string;
+    serviceCount: number;
+  } | null = null;
 
   for (const project of projects) {
     const environmentId = pickEnvironmentId(project, auth.environmentId);
     if (environmentId) environmentIds.add(environmentId);
+    let projectHealthy = 0;
+    let projectFailed = 0;
+    let projectServices = 0;
+    let projectUpdatedAt: string | undefined;
 
     // Prefer project-wide deploy list when possible.
     const projectDeploys = await fetchDeployments(token, auth.mode, {
@@ -814,6 +1152,15 @@ export async function fetchRailwayDashboard(
 
       const latest = instance?.latestDeployment;
       const status = statusColor(latest?.status || "UNKNOWN");
+      projectServices += 1;
+      if (status === "ok") projectHealthy += 1;
+      if (status === "error" || status === "warn") projectFailed += 1;
+      if (
+        latest?.createdAt &&
+        (!projectUpdatedAt || latest.createdAt > projectUpdatedAt)
+      ) {
+        projectUpdatedAt = latest.createdAt;
+      }
       const instanceEnv = instance?.environmentId || environmentId;
       if (instanceEnv) environmentIds.add(instanceEnv);
 
@@ -908,7 +1255,48 @@ export async function fetchRailwayDashboard(
         stage: deployStage(d.status, d.meta),
       });
     }
+
+    // A project is only as healthy as its worst service — one crashed service
+    // is the thing worth seeing from a list of projects.
+    const projectStatus: TrackerPoint["status"] =
+      projectServices === 0
+        ? "idle"
+        : projectFailed > 0
+          ? "error"
+          : projectHealthy === projectServices
+            ? "ok"
+            : "warn";
+
+    projectSummaries.push({
+      id: project.id,
+      name: project.name,
+      serviceCount: projectServices,
+      healthy: projectHealthy,
+      failed: projectFailed,
+      status: projectStatus,
+      detail:
+        projectServices === 0
+          ? "No services"
+          : `${projectServices} service${projectServices === 1 ? "" : "s"}` +
+            (projectFailed > 0 ? ` · ${projectFailed} failing` : ""),
+      updatedAt: projectUpdatedAt,
+    });
+
+    if (environmentId && projectServices > 0) {
+      if (!primaryEnv || projectServices > (primaryEnv.serviceCount ?? 0)) {
+        primaryEnv = {
+          id: environmentId,
+          projectName: project.name,
+          envName: project.environments?.edges.find(
+            (e) => e.node.id === environmentId,
+          )?.node.name,
+          serviceCount: projectServices,
+        };
+      }
+    }
   }
+
+  projectSummaries.sort((a, b) => b.serviceCount - a.serviceCount);
 
   recentDeploys.sort(
     (a, b) =>
@@ -949,11 +1337,30 @@ export async function fetchRailwayDashboard(
         : "No metrics in the last hour",
   };
 
+  const billing = await fetchBilling(token, auth.mode, auth.workspaceId);
+
   const usage = await fetchEstimatedUsage(
     token,
     auth.mode,
     projects.map((p) => p.id),
   );
+
+  let metrics: RailwayMetrics | null = null;
+  if (primaryEnv) {
+    try {
+      const series = await fetchEnvironmentSeries(token, auth.mode, primaryEnv.id);
+      if (series.length > 0) {
+        metrics = {
+          projectName: primaryEnv.projectName,
+          environmentName: primaryEnv.envName,
+          hours: SERIES_HOURS,
+          series,
+        };
+      }
+    } catch {
+      // Charts degrade to their empty state; the rest of the dashboard stands.
+    }
+  }
 
   return {
     items,
@@ -963,5 +1370,8 @@ export async function fetchRailwayDashboard(
     recentDeploys: recentDeploys.slice(0, RECENT_DEPLOYS),
     resources,
     usage,
+    projects: projectSummaries,
+    metrics,
+    billing,
   };
 }

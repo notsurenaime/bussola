@@ -42,10 +42,23 @@ describe("routes that authenticate themselves", () => {
     "/api/status",
     "/api/internal/sync",
     "/api/billing/webhook",
+    // Bearer token in the Authorization header.
+    "/api/mcp",
+    // Token in the path; the route resolves it on every request.
+    "/share/shr_abc123",
+    "/api/share/shr_abc123/data",
+    // Better Auth verifies the invitation id before it grants anything.
+    "/invite/inv_abc123",
   ])("lets %s through without a session cookie", (path) => {
     const response = proxy(request(path));
     expect(response.status).not.toBe(401);
     expect(location(response)).toBeNull();
+  });
+
+  it("still gates the dashboard a share link points at", () => {
+    // The share page is public; the real canvas behind it is not.
+    const response = proxy(request("/dashboards/dash_abc123"));
+    expect(location(response)).toContain("/login");
   });
 });
 

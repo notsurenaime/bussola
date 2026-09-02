@@ -5,6 +5,7 @@ import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { createId } from "@/lib/id";
 import type { Provider } from "@/lib/providers";
+import { PAYLOAD_VERSION, PAYLOAD_VERSION_KEY } from "@/lib/sync/config";
 
 /**
  * The sync worker, against a real Postgres with the real migrations.
@@ -105,7 +106,12 @@ describe("claiming", () => {
       .from(schema.connectionSnapshots)
       .where(eq(schema.connectionSnapshots.connectionId, id))
       .limit(1);
-    expect(JSON.parse(snapshot.payloadJson)).toEqual({ items: [{ id: "a" }] });
+    // Stored payloads carry the connector's shape version, so a reader can
+    // tell a snapshot written before a field existed from an empty one.
+    expect(JSON.parse(snapshot.payloadJson)).toEqual({
+      items: [{ id: "a" }],
+      [PAYLOAD_VERSION_KEY]: PAYLOAD_VERSION.railway,
+    });
     expect(snapshot.organizationId).toBe(organizationId);
   });
 
@@ -233,7 +239,10 @@ describe("syncNow", () => {
       .from(schema.connectionSnapshots)
       .where(eq(schema.connectionSnapshots.connectionId, id))
       .limit(1);
-    expect(JSON.parse(snapshot.payloadJson)).toEqual({ fresh: true });
+    expect(JSON.parse(snapshot.payloadJson)).toEqual({
+      fresh: true,
+      [PAYLOAD_VERSION_KEY]: PAYLOAD_VERSION.railway,
+    });
   });
 
   it("returns null for a connection that does not exist", async () => {

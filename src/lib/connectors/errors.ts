@@ -21,8 +21,13 @@ export function toUserFacingError(
   if (
     lower.includes("401") ||
     lower.includes("unauthorized") ||
+    // Railway phrases it "Not Authorized", which the check above misses.
+    lower.includes("not authorized") ||
     lower.includes("authentication")
   ) {
+    if (provider === "railway") {
+      return "Railway rejected this token. Create a new account token (Account → Tokens) and reconnect.";
+    }
     if (provider === "supabase") {
       return "Supabase rejected this token. Create a new personal access token and reconnect.";
     }

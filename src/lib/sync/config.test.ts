@@ -30,8 +30,18 @@ describe("nextDelaySeconds", () => {
   });
 
   it("gives the bank API a slower cadence than the deploy platforms", () => {
+    // Railway is deliberately not the yardstick here any more — see below.
     expect(SYNC_INTERVAL_SECONDS.qonto).toBeGreaterThan(
-      SYNC_INTERVAL_SECONDS.railway,
+      Math.min(SYNC_INTERVAL_SECONDS.netlify, SYNC_INTERVAL_SECONDS.vercel),
+    );
+  });
+
+  it("keeps Railway well off the fast lane", () => {
+    // One Railway snapshot costs ~25 upstream calls, so polling it as often as
+    // Netlify or Vercel would run an account past its hourly rate limit and
+    // fail the whole snapshot with a 429.
+    expect(SYNC_INTERVAL_SECONDS.railway).toBeGreaterThanOrEqual(
+      3 * Math.min(SYNC_INTERVAL_SECONDS.netlify, SYNC_INTERVAL_SECONDS.vercel),
     );
   });
 });
