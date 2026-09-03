@@ -3,6 +3,9 @@ import { NextResponse, type NextRequest } from "next/server";
 
 const PUBLIC_PATHS = new Set(["/login", "/signup"]);
 
+/** Paths under these prefixes carry their own credential and need no session. */
+const PUBLIC_PREFIXES = ["/invite/"];
+
 /**
  * A cheap, edge-safe gate: it only checks that a session cookie is present, so
  * it never touches the database. Whether that cookie is *valid* is decided by
@@ -14,11 +17,16 @@ export function proxy(request: NextRequest) {
 
   // Routes that authenticate themselves and must stay reachable without a
   // session cookie: Better Auth's own endpoints, the pre-login status probe,
-  // the cron entry point (shared secret), and Stripe's webhook (signature).
-  // None of these ever has a user behind it.
+  // the cron entry point (shared secret), Stripe's webhook (signature), the
+  // MCP server (bearer token), and share links (the token in the path).
+  // None of these has a session behind it, and each checks its own credential
+  // on every request rather than relying on having been routed here.
   if (
     pathname.startsWith("/api/auth") ||
     pathname.startsWith("/api/internal/") ||
+    pathname.startsWith("/api/share/") ||
+    pathname.startsWith("/share/") ||
+    pathname === "/api/mcp" ||
     pathname === "/api/billing/webhook" ||
     pathname === "/api/status"
   ) {
@@ -26,7 +34,9 @@ export function proxy(request: NextRequest) {
   }
 
   const hasSession = Boolean(getSessionCookie(request));
-  const isPublic = PUBLIC_PATHS.has(pathname);
+  const isPublic =
+    PUBLIC_PATHS.has(pathname) ||
+    PUBLIC_PREFIXES.some((prefix) => pathname.startsWith(prefix));
 
   if (!hasSession && !isPublic) {
     if (pathname.startsWith("/api/")) {

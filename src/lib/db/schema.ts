@@ -11,6 +11,18 @@ import {
 import type { PlanId } from "@/lib/billing/plans";
 import type { ConnectionStatus, Provider } from "@/lib/providers";
 
+/** Where an alert can be delivered. Which of these a plan allows is in `lib/billing/plans`. */
+export type NotificationChannelKind = "email" | "slack" | "discord";
+
+export type AlertComparator = "above" | "below" | "equals" | "not_equals";
+
+export type AlertState = "ok" | "breached";
+
+export type ApiTokenScope = "read" | "write";
+
+/** Where a queued notification is in its life. */
+export type AlertDeliveryStatus = "pending" | "sent" | "failed";
+
 /* ───────────────────────── Identity (owned by Better Auth) ─────────────────
  *
  * These seven tables match the shape Better Auth expects for email/password
@@ -172,6 +184,20 @@ export const dashboardWidgets = pgTable(
       .references(() => dashboards.id, { onDelete: "cascade" }),
     widgetType: text("widget_type").notNull(),
     title: text("title"),
+    /**
+     * Which connection feeds this widget.
+     *
+     * Null means "whichever connection this organization has for the widget's
+     * provider", which is what every widget created before multi-connection
+     * support meant. Set explicitly, it pins the widget to one account — the
+     * difference between a canvas that breaks when a second Stripe account is
+     * added and one that does not. `set null` rather than cascade: deleting a
+     * connection should drop the widget back to the default, not silently
+     * delete a block off someone's dashboard.
+     */
+    connectionId: text("connection_id").references(() => connections.id, {
+      onDelete: "set null",
+    }),
     configJson: text("config_json").notNull().default("{}"),
     layoutX: integer("layout_x").notNull().default(0),
     layoutY: integer("layout_y").notNull().default(0),
@@ -187,6 +213,7 @@ export const dashboardWidgets = pgTable(
   (table) => [
     index("widgets_dashboard_idx").on(table.dashboardId),
     index("widgets_org_idx").on(table.organizationId),
+    index("widgets_connection_idx").on(table.connectionId),
   ],
 );
 
@@ -366,6 +393,245 @@ export const billingEvents = pgTable("billing_events", {
     .notNull()
     .defaultNow(),
 });
+
+/* ────────────────────────────── Sharing ────────────────────────────────────
+ *
+ * A read-only view of one dashboard, reachable without an account.
+ * ------------------------------------------------------------------------- */
+
+/**
+ * A revocable, read-only link to one dashboard.
+ *
+ * Only the SHA-256 of the token is stored. The plaintext is shown once, at
+ * creation, and is unrecoverable afterwards — a leaked database backup then
+ * hands out no working links, which is the whole point of a link that needs no
+ * password. Revoking is a timestamp rather than a delete so the view counter
+ * and the audit trail survive.
+ */
+export const dashboardShares = pgTable(
+  "dashboard_shares",
+  {
+    id: text("id").primaryKey(),
+    organizationId: orgRef(),
+    dashboardId: text("dashboard_id")
+      .notNull()
+      .references(() => dashboards.id, { onDelete: "cascade" }),
+    /** SHA-256 of the token. Never the token itself. */
+    tokenHash: text("token_hash").notNull().unique(),
+    /** First characters of the token, so a link is recognisable in a list. */
+    tokenPrefix: text("token_prefix").notNull(),
+    label: text("label"),
+    /** Hide Bussola's own branding from the shared page. Team and above. */
+    whiteLabel: boolean("white_label").notNull().default(false),
+    expiresAt: timestamp("expires_at", { withTimezone: true }),
+    revokedAt: timestamp("revoked_at", { withTimezone: true }),
+    viewCount: integer("view_count").notNull().default(0),
+    lastViewedAt: timestamp("last_viewed_at", { withTimezone: true }),
+    createdBy: text("created_by").references(() => user.id, {
+      onDelete: "set null",
+    }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    index("shares_dashboard_idx").on(table.dashboardId),
+    index("shares_org_idx").on(table.organizationId),
+  ],
+);
+
+/* ─────────────────────────────── Alerting ──────────────────────────────────
+ *
+ * Where a notification goes, when to send one, and what was sent.
+ * ------------------------------------------------------------------------- */
+
+export const notificationChannels = pgTable(
+  "notification_channels",
+  {
+    id: text("id").primaryKey(),
+    organizationId: orgRef(),
+    kind: text("kind").$type<NotificationChannelKind>().notNull(),
+    label: text("label").notNull(),
+    /**
+     * Where to deliver. AES-256-GCM, same vault as connector credentials: a
+     * Slack or Discord webhook URL is a bearer credential — anyone holding it
+     * can post into the channel — so it is not stored in the clear.
+     */
+    targetEncrypted: text("target_encrypted").notNull(),
+    enabled: boolean("enabled").notNull().default(true),
+    lastError: text("last_error"),
+    lastDeliveredAt: timestamp("last_delivered_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [index("channels_org_idx").on(table.organizationId)],
+);
+
+/**
+ * One condition on one metric of one connection.
+ *
+ * `lastState` is what makes this an alert rather than a cron job: a rule fires
+ * on the transition into breach and again on the return to normal, not on
+ * every tick where the condition still holds. `mutedUntil` is the escape hatch
+ * for a breach someone already knows about.
+ */
+export const alertRules = pgTable(
+  "alert_rules",
+  {
+    id: text("id").primaryKey(),
+    organizationId: orgRef(),
+    connectionId: text("connection_id")
+      .notNull()
+      .references(() => connections.id, { onDelete: "cascade" }),
+    /** A key from `lib/alerts/metrics`, e.g. "railway.failedDeploys". */
+    metric: text("metric").notNull(),
+    comparator: text("comparator").$type<AlertComparator>().notNull(),
+    threshold: text("threshold").notNull(),
+    /** Channel ids, as JSON. Empty means the in-app feed only. */
+    channelIdsJson: text("channel_ids_json").notNull().default("[]"),
+    enabled: boolean("enabled").notNull().default(true),
+    /** Suppress re-notification while a breach persists. */
+    cooldownMinutes: integer("cooldown_minutes").notNull().default(60),
+    /** "ok" | "breached", or null before the first evaluation. */
+    lastState: text("last_state").$type<AlertState>(),
+    lastValue: text("last_value"),
+    lastEvaluatedAt: timestamp("last_evaluated_at", { withTimezone: true }),
+    lastNotifiedAt: timestamp("last_notified_at", { withTimezone: true }),
+    mutedUntil: timestamp("muted_until", { withTimezone: true }),
+    createdBy: text("created_by").references(() => user.id, {
+      onDelete: "set null",
+    }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    index("alert_rules_org_idx").on(table.organizationId),
+    index("alert_rules_connection_idx").on(table.connectionId),
+  ],
+);
+
+/**
+ * What actually happened, kept whether or not a channel accepted it.
+ *
+ * This is the in-app alert feed and the answer to "did it even try to tell
+ * me?" — a rule that fired but whose Slack webhook 404s must not look like a
+ * rule that never fired.
+ */
+export const alertEvents = pgTable(
+  "alert_events",
+  {
+    id: text("id").primaryKey(),
+    organizationId: orgRef(),
+    ruleId: text("rule_id")
+      .notNull()
+      .references(() => alertRules.id, { onDelete: "cascade" }),
+    state: text("state").$type<AlertState>().notNull(),
+    value: text("value").notNull(),
+    message: text("message").notNull(),
+    /** Per-channel delivery outcomes, as JSON. */
+    deliveriesJson: text("deliveries_json").notNull().default("[]"),
+    acknowledgedAt: timestamp("acknowledged_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    index("alert_events_org_idx").on(table.organizationId, table.createdAt),
+    index("alert_events_rule_idx").on(table.ruleId),
+  ],
+);
+
+/**
+ * The outbox for alert notifications.
+ *
+ * Delivery used to happen inline inside the sync worker, which meant a Slack
+ * webhook that hung for its full ten-second timeout delayed the connection's
+ * sync and held its lease. Evaluation is cheap and stays inline — it needs the
+ * snapshot that was just written — but sending is network work with someone
+ * else's latency in it, so it is queued here and drained on its own.
+ *
+ * A row per (event, channel). Attempts are retried with backoff and eventually
+ * abandoned, and the row is kept either way: "we tried four times and Slack
+ * kept saying 404" is the answer someone actually needs.
+ */
+export const alertDeliveries = pgTable(
+  "alert_deliveries",
+  {
+    id: text("id").primaryKey(),
+    organizationId: orgRef(),
+    eventId: text("event_id")
+      .notNull()
+      .references(() => alertEvents.id, { onDelete: "cascade" }),
+    channelId: text("channel_id")
+      .notNull()
+      .references(() => notificationChannels.id, { onDelete: "cascade" }),
+    /** Rendered at queue time, so a later channel edit cannot rewrite history. */
+    payloadJson: text("payload_json").notNull(),
+    status: text("status")
+      .$type<AlertDeliveryStatus>()
+      .notNull()
+      .default("pending"),
+    attempts: integer("attempts").notNull().default(0),
+    nextAttemptAt: timestamp("next_attempt_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    deliveredAt: timestamp("delivered_at", { withTimezone: true }),
+    lastError: text("last_error"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    index("alert_deliveries_due_idx").on(table.status, table.nextAttemptAt),
+    index("alert_deliveries_event_idx").on(table.eventId),
+    index("alert_deliveries_org_idx").on(table.organizationId),
+  ],
+);
+
+/* ──────────────────────────────── API tokens ───────────────────────────────
+ *
+ * What an MCP client authenticates with.
+ * ------------------------------------------------------------------------- */
+
+/**
+ * A bearer token for the MCP server.
+ *
+ * Hashed like a share token, and scoped: `read` can never mutate, and no scope
+ * reaches credentials at all — the MCP server has no tool that returns one.
+ * `userId` records who minted it so revoking someone's access is one query,
+ * but the token acts for the organization, not the person.
+ */
+export const apiTokens = pgTable(
+  "api_tokens",
+  {
+    id: text("id").primaryKey(),
+    organizationId: orgRef(),
+    userId: text("user_id").references(() => user.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    tokenHash: text("token_hash").notNull().unique(),
+    tokenPrefix: text("token_prefix").notNull(),
+    /** "read" or "write". Write implies read. */
+    scope: text("scope").$type<ApiTokenScope>().notNull().default("read"),
+    expiresAt: timestamp("expires_at", { withTimezone: true }),
+    revokedAt: timestamp("revoked_at", { withTimezone: true }),
+    lastUsedAt: timestamp("last_used_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    index("api_tokens_org_idx").on(table.organizationId),
+    index("api_tokens_user_idx").on(table.userId),
+  ],
+);
 
 export const organizationRelations = relations(organization, ({ many }) => ({
   members: many(member),

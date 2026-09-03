@@ -8,7 +8,7 @@ import {
   useState,
 } from "react";
 
-export type SettingsTab = "general" | "account" | "billing";
+export type SettingsTab = "general" | "account" | "members" | "mcp" | "billing";
 
 type SettingsModalContextValue = {
   open: boolean;

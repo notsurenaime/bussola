@@ -10,12 +10,15 @@ import {
   type ActivityPanelEvent,
 } from "@/components/dashboard/widgets/activity-panel";
 import { BarChart } from "@/components/dashboard/widgets/bar-chart";
+import { ColumnChart } from "@/components/dashboard/widgets/column-chart";
 import { DonutChart } from "@/components/dashboard/widgets/donut-chart";
+import { DualLineChart } from "@/components/dashboard/widgets/dual-line-chart";
 import { LineChart } from "@/components/dashboard/widgets/line-chart";
 import { DataTable } from "@/components/dashboard/widgets/data-table";
 import {
   StatusDot,
   StatusList,
+  statusLabel,
   type StatusRow,
 } from "@/components/dashboard/widgets/status-list";
 import {
@@ -30,16 +33,21 @@ import {
   deployBadgeVariant,
   formatCores,
   formatGb,
+  formatRate,
   paymentBadgeVariant,
+  relativeAge,
   shortAge,
   shortId,
+  toneBadgeVariant,
 } from "@/lib/widgets/widget-format";
 import { formatMoney, formatSignedMoney } from "@/lib/format/money";
 import type {
   PaymentItem,
   RailwayDeployAttempt,
+  ResendBroadcastItem,
   ResendDomainItem,
   ResendEmailItem,
+  ResendMetrics,
   RevenueSummary,
   SentryIssueItem,
   MoneyPoint,
@@ -52,11 +60,16 @@ import type {
   NetlifyDeployItem,
   NetlifyFormItem,
   RailwayDeployHealth,
+  RailwayBilling,
   RailwayDeployItem,
   RailwayFleetHealth,
+  RailwayMetrics,
+  RailwayMetricSeries,
+  RailwayProjectSummary,
   RailwayResourceSnapshot,
   RailwayUsageItem,
   StatusItem,
+  SupabaseAdvisorIssue,
   SupabaseAdvisorsSummary,
   SupabaseServiceItem,
   SupabaseTrafficBucket,
@@ -64,21 +77,47 @@ import type {
 } from "@/lib/connectors/types";
 import type { WidgetType } from "@/lib/widgets/registry";
 import { getWidgetDefinition } from "@/lib/widgets/registry";
+import { applyWidgetConfig, type WidgetConfig } from "@/lib/widgets/config";
 import { useWidgetData } from "@/lib/widgets/widget-data-store";
 
 type WidgetRendererProps = {
   type: WidgetType;
+  /** Which connection feeds this widget. Absent means the provider's default. */
+  connectionId?: string | null;
+  config?: WidgetConfig;
 };
 
-export function WidgetRenderer({ type }: WidgetRendererProps) {
+const NO_CONFIG: WidgetConfig = {};
+
+export function WidgetRenderer({
+  type,
+  connectionId,
+  config = NO_CONFIG,
+}: WidgetRendererProps) {
   if (type === "qonto-transactions") {
-    return <QontoTransactionsWidget />;
+    return (
+      <QontoTransactionsWidget
+        // Keyed on the connection so switching account starts a fresh widget
+        // rather than appending a new account's pages onto the old cursor.
+        key={connectionId ?? "default"}
+        connectionId={connectionId}
+        limit={config.limit}
+      />
+    );
   }
-  return <LiveWidget type={type} />;
+  return <LiveWidget type={type} connectionId={connectionId} config={config} />;
 }
 
-function LiveWidget({ type }: { type: Exclude<WidgetType, "qonto-transactions"> }) {
-  const { data, error, loading } = useWidgetData(type);
+function LiveWidget({
+  type,
+  connectionId,
+  config,
+}: {
+  type: Exclude<WidgetType, "qonto-transactions">;
+  connectionId?: string | null;
+  config: WidgetConfig;
+}) {
+  const { data, error, loading } = useWidgetData(type, connectionId);
 
   if (loading) {
     return (
@@ -121,13 +160,17 @@ function LiveWidget({ type }: { type: Exclude<WidgetType, "qonto-transactions"> 
     );
   }
 
+  // Scope, limit and range narrow the snapshot every widget of this source
+  // shares, so this runs per widget rather than in the store.
+  const view = applyWidgetConfig(type, config, data);
+
   return (
     <>
       {isDemo ? (
         <DemoNotice provider={String(data.provider ?? getWidgetDefinition(type)?.provider ?? "")} />
       ) : null}
       {sync?.stale ? <StaleNotice fetchedAt={sync.fetchedAt} /> : null}
-      <div className="flex min-h-0 flex-1 flex-col">{renderWidget(type, data)}</div>
+      <div className="flex min-h-0 flex-1 flex-col">{renderWidget(type, view)}</div>
     </>
   );
 }
@@ -163,6 +206,95 @@ function eventFromAttempt(
     tone,
     meta: shortId(attempt.id),
   };
+}
+
+/**
+ * A Resend section that did not come back.
+ *
+ * Deliberately does not assert why. A restricted key is the common cause, but
+ * the same flag is raised by an endpoint the account does not have and by an
+ * upstream error, and telling someone with a full-access key that their key is
+ * the problem sends them to fix something that is not broken. The server log
+ * carries the actual status.
+ */
+function ResendUnavailable({ what }: { what: string }) {
+  return (
+    <WidgetMessage
+      title={`Resend didn’t return ${what}. A restricted API key is the usual cause — check the connection if it persists.`}
+      action={{ href: "/connections", label: "Check connection" }}
+    />
+  );
+}
+
+/** Every Resend chart reads the same metrics call, so they share an empty state. */
+function ResendMetricsMissing({ missing }: { missing: boolean }) {
+  if (missing) return <ResendUnavailable what="email metrics" />;
+  return <NoData label="No email metrics for this period yet." />;
+}
+
+/** Which series each usage chart reads, and how to phrase its numbers. */
+const RAILWAY_SERIES_FOR: Record<
+  "railway-cpu" | "railway-memory" | "railway-egress" | "railway-disk",
+  { key: RailwayMetricSeries["key"]; empty: string }
+> = {
+  "railway-cpu": { key: "cpu", empty: "No CPU metrics reported." },
+  "railway-memory": { key: "memory", empty: "No memory metrics reported." },
+  "railway-egress": { key: "egress", empty: "No egress metrics reported." },
+  "railway-disk": {
+    key: "disk",
+    // Disk is volume-backed, so a project with no volume reports a real zero.
+    empty: "No disk metrics — this project has no volumes attached.",
+  },
+};
+
+function formatRailwayValue(value: number, unit: string): string {
+  if (unit === "GB" && value > 0 && value < 0.1) {
+    return `${(value * 1024).toFixed(value * 1024 < 10 ? 2 : 1)} MB`;
+  }
+  if (unit === "vCPU") return `${value.toFixed(value >= 1 ? 2 : 3)} vCPU`;
+  return `${value.toFixed(value >= 10 ? 1 : 2)} ${unit}`;
+}
+
+function renderRailwaySeries(
+  type: "railway-cpu" | "railway-memory" | "railway-egress" | "railway-disk",
+  data: Record<string, unknown>,
+) {
+  const spec = RAILWAY_SERIES_FOR[type];
+  const metrics = data.metrics as RailwayMetrics | null;
+  const series = metrics?.series.find((s) => s.key === spec.key);
+
+  if (!metrics || !series || series.points.length === 0) {
+    return <NoData label={spec.empty} />;
+  }
+
+  const scope = metrics.environmentName
+    ? `${metrics.projectName} · ${metrics.environmentName}`
+    : metrics.projectName;
+
+  return (
+    <div className="flex h-full min-h-0 flex-col gap-2">
+      <div className="flex items-baseline justify-between gap-2">
+        <p className="truncate text-xs text-muted-foreground">{scope}</p>
+        <p className="shrink-0 text-xs tabular-nums text-muted-foreground">
+          peak {formatRailwayValue(series.peak, series.unit)}
+        </p>
+      </div>
+      <p className="text-2xl font-semibold tracking-tight tabular-nums text-foreground">
+        {series.latest !== null
+          ? formatRailwayValue(series.latest, series.unit)
+          : "—"}
+      </p>
+      <div className="min-h-0 flex-1">
+        <LineChart
+          points={series.points.map((point) => ({
+            label: point.label,
+            value: point.value,
+            display: formatRailwayValue(point.value, series.unit),
+          }))}
+        />
+      </div>
+    </div>
+  );
 }
 
 function renderWidget(
@@ -927,25 +1059,43 @@ function renderWidget(
         return <NoData label="No sending domains configured." />;
       }
       return (
-        <StatusList
-          items={domains.map((domain) => ({
-            id: domain.id,
-            name: domain.name,
-            status: domain.status,
-            detail: domain.rawStatus,
-            provider: "resend",
-          }))}
+        <DataTable
+          data={domains}
+          rowKey={(domain) => domain.id}
+          columns={[
+            {
+              header: "Domain",
+              render: (domain) => (
+                <div className="flex min-w-0 items-center gap-2">
+                  <StatusDot status={domain.status} />
+                  <span className="truncate font-medium">{domain.name}</span>
+                </div>
+              ),
+            },
+            {
+              header: "Status",
+              render: (domain) => (
+                <Badge variant={toneBadgeVariant(domain.status)}>
+                  {domain.rawStatus}
+                </Badge>
+              ),
+            },
+            {
+              header: "Created",
+              align: "right",
+              render: (domain) => (
+                <span className="whitespace-nowrap text-xs text-muted-foreground">
+                  {relativeAge(domain.createdAt) ?? "—"}
+                </span>
+              ),
+            },
+          ]}
         />
       );
     }
     case "resend-emails": {
       if (data.emailsUnavailable) {
-        return (
-          <WidgetMessage
-            title="This Resend key cannot list sent emails. Use a key with full access to see them here."
-            action={{ href: "/connections", label: "Update key" }}
-          />
-        );
+        return <ResendUnavailable what="sent emails" />;
       }
       const emails = (data.emails as ResendEmailItem[]) || [];
       if (emails.length === 0) {
@@ -969,12 +1119,130 @@ function renderWidget(
             },
             {
               header: "Status",
+              render: (email) => (
+                <Badge variant={toneBadgeVariant(email.tone)}>
+                  {email.status}
+                </Badge>
+              ),
+            },
+            {
+              header: "Sent",
               align: "right",
               render: (email) => (
-                <Badge variant="secondary">{email.status}</Badge>
+                <span className="whitespace-nowrap text-xs text-muted-foreground">
+                  {relativeAge(email.sentAt) ?? "—"}
+                </span>
               ),
             },
           ]}
+        />
+      );
+    }
+    case "resend-broadcasts": {
+      if (data.broadcastsUnavailable) {
+        return <ResendUnavailable what="broadcasts" />;
+      }
+      const broadcasts = (data.broadcasts as ResendBroadcastItem[]) || [];
+      if (broadcasts.length === 0) {
+        return <NoData label="No broadcasts yet." />;
+      }
+      return (
+        <DataTable
+          data={broadcasts}
+          rowKey={(broadcast) => broadcast.id}
+          columns={[
+            {
+              header: "Broadcast",
+              render: (broadcast) => (
+                <span className="truncate font-medium">{broadcast.name}</span>
+              ),
+            },
+            {
+              header: "Status",
+              render: (broadcast) => (
+                <Badge variant={toneBadgeVariant(broadcast.tone)}>
+                  {broadcast.status}
+                </Badge>
+              ),
+            },
+            {
+              header: "Updated",
+              align: "right",
+              render: (broadcast) => (
+                <span className="whitespace-nowrap text-xs text-muted-foreground">
+                  {relativeAge(broadcast.updatedAt) ?? "—"}
+                </span>
+              ),
+            },
+          ]}
+        />
+      );
+    }
+    case "resend-delivery": {
+      const metrics = data.metrics as ResendMetrics | null;
+      if (data.metricsUnavailable || !metrics) {
+        return <ResendMetricsMissing missing={Boolean(data.metricsUnavailable)} />;
+      }
+      return (
+        <DualLineChart
+          countLabel="Emails"
+          rateLabel="Deliverability"
+          points={metrics.points.map((point) => ({
+            label: point.label,
+            count: point.sent,
+            rate: point.deliveryRate,
+            countDisplay: `${point.sent} sent · ${point.delivered} delivered`,
+            rateDisplay: `${formatRate(point.deliveryRate)} delivered`,
+          }))}
+        />
+      );
+    }
+    case "resend-open-rate":
+    case "resend-click-rate": {
+      const metrics = data.metrics as ResendMetrics | null;
+      if (data.metricsUnavailable || !metrics) {
+        return <ResendMetricsMissing missing={Boolean(data.metricsUnavailable)} />;
+      }
+      const opens = type === "resend-open-rate";
+      return (
+        <ColumnChart
+          domainMax={100}
+          headline={{
+            label: `Last ${metrics.days} days`,
+            value: formatRate(
+              opens ? metrics.totals.openRate : metrics.totals.clickRate,
+            ),
+          }}
+          points={metrics.points.map((point) => ({
+            label: point.label,
+            value: opens ? point.openRate : point.clickRate,
+            display: formatRate(opens ? point.openRate : point.clickRate),
+            hint: `${point.delivered} delivered`,
+          }))}
+        />
+      );
+    }
+    case "resend-outcomes": {
+      const metrics = data.metrics as ResendMetrics | null;
+      if (data.metricsUnavailable || !metrics) {
+        return <ResendMetricsMissing missing={Boolean(data.metricsUnavailable)} />;
+      }
+      const total = metrics.outcomes.reduce(
+        (sum, slice) => sum + slice.value,
+        0,
+      );
+      if (total === 0) {
+        return <NoData label="No emails sent in this period." />;
+      }
+      return (
+        <DonutChart
+          items={metrics.outcomes.map((slice) => ({
+            id: slice.id,
+            name: slice.name,
+            value: slice.value,
+            display: `${slice.value} email${slice.value === 1 ? "" : "s"}`,
+            sharePct: (slice.value / total) * 100,
+          }))}
         />
       );
     }
@@ -1047,6 +1315,115 @@ function renderWidget(
         />
       );
     }
+    case "railway-projects": {
+      const projects = (data.projects as RailwayProjectSummary[]) || [];
+      if (projects.length === 0) {
+        return <NoData label="No Railway projects found." />;
+      }
+      return (
+        <DataTable
+          data={projects}
+          rowKey={(project) => project.id}
+          columns={[
+            {
+              header: "Project",
+              render: (project) => (
+                <div className="flex min-w-0 items-center gap-2">
+                  <StatusDot status={project.status} />
+                  <span className="truncate font-medium">{project.name}</span>
+                </div>
+              ),
+            },
+            {
+              header: "Services",
+              render: (project) => (
+                <span className="whitespace-nowrap text-xs text-muted-foreground">
+                  {project.detail}
+                </span>
+              ),
+            },
+            {
+              header: "Status",
+              align: "right",
+              render: (project) => (
+                <Badge variant={toneBadgeVariant(project.status)}>
+                  {statusLabel(project.status)}
+                </Badge>
+              ),
+            },
+          ]}
+        />
+      );
+    }
+    case "railway-billing": {
+      const billing = data.billing as RailwayBilling | null;
+      if (!billing) {
+        return (
+          <WidgetMessage title="Railway didn’t return billing. It is workspace-scoped, so a project token cannot read it." />
+        );
+      }
+      const currency = billing.currency.toUpperCase();
+      const cycle =
+        billing.cycleStart && billing.cycleEnd
+          ? `${format(new Date(billing.cycleStart), "d MMM")} – ${format(new Date(billing.cycleEnd), "d MMM")}`
+          : undefined;
+      return (
+        <StatCard
+          label="Estimated bill"
+          value={
+            billing.estimatedBill !== null
+              ? formatMoney(billing.estimatedBill, currency)
+              : "—"
+          }
+          hint={
+            billing.currentUsage !== null
+              ? `${formatMoney(billing.currentUsage, currency)} used so far`
+              : billing.workspaceName
+          }
+          trend={cycle}
+          trendTone="neutral"
+        />
+      );
+    }
+    case "railway-cpu":
+    case "railway-memory":
+    case "railway-egress":
+    case "railway-disk":
+      return renderRailwaySeries(type, data);
+    case "supabase-advisor-issues": {
+      const issues = (data.advisorIssues as SupabaseAdvisorIssue[]) || [];
+      if (issues.length === 0) {
+        return <NoData label="No advisor findings — nothing to fix." />;
+      }
+      return (
+        <DataTable
+          data={issues}
+          rowKey={(issue) => issue.id}
+          columns={[
+            {
+              header: "Finding",
+              render: (issue) => (
+                <div className="flex min-w-0 flex-col gap-0.5">
+                  <span className="truncate font-medium">{issue.title}</span>
+                  <span className="truncate text-xs text-muted-foreground">
+                    {issue.projectName} · {issue.kind}
+                  </span>
+                </div>
+              ),
+            },
+            {
+              header: "Level",
+              align: "right",
+              render: (issue) => (
+                <Badge variant={toneBadgeVariant(issue.status)}>
+                  {issue.level}
+                </Badge>
+              ),
+            },
+          ]}
+        />
+      );
+    }
     case "status-board": {
       const items =
         (data.items as Array<{
@@ -1062,8 +1439,15 @@ function renderWidget(
       return <StatusList items={items} showSourceIcon />;
     }
     default: {
+      // The assignment still enforces exhaustiveness at compile time: a new
+      // WidgetType with no case above fails to typecheck here. At runtime this
+      // is reached only by a widget left on a dashboard after its type was
+      // retired, so say so plainly rather than leaving a blank card.
       const _exhaustive: never = type;
-      return <p>Unknown widget {_exhaustive}</p>;
+      void _exhaustive;
+      return (
+        <WidgetMessage title="This widget is no longer available. Remove it from the dashboard in edit mode." />
+      );
     }
   }
 }

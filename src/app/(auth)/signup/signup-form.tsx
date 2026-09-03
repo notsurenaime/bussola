@@ -10,7 +10,14 @@ import { Label } from "@/components/ui/label";
 
 const MIN_PASSWORD_LENGTH = 8;
 
-export function SignupForm({ selfHosted }: { selfHosted: boolean }) {
+export function SignupForm({
+  selfHosted,
+  next,
+}: {
+  selfHosted: boolean;
+  /** Where to land after signing up. Already validated as a same-site path. */
+  next?: string | null;
+}) {
   const router = useRouter();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -45,7 +52,7 @@ export function SignupForm({ selfHosted }: { selfHosted: boolean }) {
       return;
     }
 
-    router.push("/dashboards");
+    router.push(next || "/dashboards");
     router.refresh();
   }
 

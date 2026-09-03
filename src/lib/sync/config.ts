@@ -13,7 +13,14 @@ export const DASHBOARD_KIND = "dashboard";
  */
 export const SYNC_INTERVAL_SECONDS: Record<Provider, number> = {
   // Deploy platforms: people watch these while shipping, so keep them brisk.
-  railway: 60,
+  //
+  // Railway is the exception. Its dashboard fans out to roughly 25 calls — a
+  // project query, a deploy list per service, metrics per environment, billing
+  // and estimated usage — so a 60s interval put an account with a handful of
+  // services near 1,500 requests an hour, past the 1,000/h Hobby ceiling. The
+  // 429s that follow fail the whole snapshot, which reads as a broken
+  // connection rather than a rate limit.
+  railway: 180,
   netlify: 60,
   vercel: 60,
   supabase: 120,
@@ -35,6 +42,44 @@ export const SYNC_INTERVAL_SECONDS: Record<Provider, number> = {
   attio: 300,
   webtraffic: 300,
 };
+
+/**
+ * Shape version of each provider's stored payload.
+ *
+ * A snapshot outlives the code that wrote it. When a connector starts
+ * returning new sections, every stored payload is suddenly missing them, and
+ * widgets reading those keys render "nothing here yet" — which is
+ * indistinguishable from an account that genuinely has nothing. Stamping the
+ * shape lets a stale snapshot be recognised and refetched on first read
+ * instead of being served until the next scheduled tick.
+ *
+ * Bump a provider's number whenever its dashboard gains or renames a field
+ * that a widget reads.
+ */
+export const PAYLOAD_VERSION: Record<Provider, number> = {
+  // 2: adds projects, usage time series and billing.
+  railway: 2,
+  netlify: 1,
+  vercel: 1,
+  // 2: adds the advisor issue list, plus per-service health that actually works.
+  supabase: 2,
+  sentry: 1,
+  stripe: 1,
+  lemonsqueezy: 1,
+  // 2: adds metrics, broadcasts, audience, and per-email/broadcast tone.
+  resend: 2,
+  qonto: 1,
+  github: 1,
+  gitlab: 1,
+  linear: 1,
+  notion: 1,
+  polar: 1,
+  attio: 1,
+  webtraffic: 1,
+};
+
+/** Where the shape stamp lives inside a stored payload. */
+export const PAYLOAD_VERSION_KEY = "_v";
 
 /** Ceiling for exponential backoff on a failing connection. */
 export const MAX_BACKOFF_SECONDS = 60 * 60;

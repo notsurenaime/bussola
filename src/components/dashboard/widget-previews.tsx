@@ -317,6 +317,55 @@ function lineChartPreview() {
   );
 }
 
+/** Mirrors `ColumnChart`: a run of vertical columns. */
+function columnChartPreview() {
+  const heights = [18, 30, 24, 38, 22, 34, 44, 28];
+  return (
+    <g>
+      {heights.map((h, i) => (
+        <rect
+          key={i}
+          x={12 + i * 17}
+          width="11"
+          y={58 - h}
+          height={h}
+          rx="2"
+          className="fill-primary/70"
+        />
+      ))}
+    </g>
+  );
+}
+
+/** Mirrors `DualLineChart`: a filled volume trail under a flatter rate line. */
+function dualLineChartPreview() {
+  return (
+    <g>
+      <polyline
+        points="12,50 36,38 58,44 82,26 108,32 140,20 140,58 12,58"
+        className="fill-primary/15"
+        stroke="none"
+      />
+      <polyline
+        points="12,50 36,38 58,44 82,26 108,32 140,20"
+        fill="none"
+        className="stroke-primary"
+        strokeWidth="2"
+        strokeLinejoin="round"
+        strokeLinecap="round"
+      />
+      <polyline
+        points="12,22 36,20 58,24 82,18 108,21 140,16"
+        fill="none"
+        className="stroke-success"
+        strokeWidth="2"
+        strokeLinejoin="round"
+        strokeLinecap="round"
+      />
+    </g>
+  );
+}
+
 /* ───────────────────────── per-widget mock values ────────────────────── */
 
 function previewContent(type: WidgetType) {
@@ -336,7 +385,6 @@ function previewContent(type: WidgetType) {
     case "netlify-sites":
     case "vercel-projects":
     case "sentry-projects":
-    case "resend-domains":
       return statusListPreview([
         { tone: "success", width: 88 },
         { tone: "warning", width: 74 },
@@ -432,6 +480,28 @@ function previewContent(type: WidgetType) {
     case "resend-emails":
     case "qonto-transactions":
       return dataTablePreview(["success", "neutral", "neutral"]);
+
+    case "resend-domains":
+    case "resend-broadcasts":
+      return dataTablePreview(["success", "warning", "neutral"]);
+    case "resend-delivery":
+      return dualLineChartPreview();
+    case "resend-open-rate":
+    case "resend-click-rate":
+      return columnChartPreview();
+    case "resend-outcomes":
+      return donutChartPreview();
+
+    case "railway-projects":
+    case "supabase-advisor-issues":
+      return dataTablePreview(["success", "warning", "neutral"]);
+    case "railway-billing":
+      return statCardPreview({ label: "estimated bill", value: "$42.18" });
+    case "railway-cpu":
+    case "railway-memory":
+    case "railway-egress":
+    case "railway-disk":
+      return lineChartPreview();
 
     case "qonto-accounts":
       return donutChartPreview();

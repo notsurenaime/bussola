@@ -1,3 +1,4 @@
+import { drainDeliveries } from "@/lib/alerts/outbox";
 import { TICK_INTERVAL_SECONDS } from "./config";
 import { pruneHistory } from "./retention";
 import { runDueSyncs } from "./runner";
@@ -35,6 +36,21 @@ export function startScheduler(
     try {
       const report = await runDueSyncs();
       if (report.claimed > 0) onReport(report);
+
+      /*
+       * Alert notifications, after the syncs that may have queued them.
+       *
+       * Drained on the same tick rather than a timer of its own so there is
+       * one loop to reason about — but *after* `runDueSyncs`, never inside it,
+       * which is the whole point: a webhook that hangs for its full timeout
+       * now delays the next tick's start, not a connection's schedule.
+       */
+      const drained = await drainDeliveries();
+      if (drained.attempted > 0) {
+        console.log(
+          `[alerts] sent=${drained.sent} retrying=${drained.failed} abandoned=${drained.abandoned}`,
+        );
+      }
 
       if (Date.now() - lastPrune > PRUNE_INTERVAL_MS) {
         lastPrune = Date.now();

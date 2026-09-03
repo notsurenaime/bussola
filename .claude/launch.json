@@ -10,6 +10,18 @@
       ],
       "port": 3000,
       "autoPort": true
+    },
+    {
+      "name": "landing",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": [
+        "--yes",
+        "serve",
+        "-l",
+        "4321",
+        "landing"
+      ],
+      "port": 4321
     }
   ]
 }

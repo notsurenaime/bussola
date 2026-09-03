@@ -5,7 +5,9 @@ import { toast } from "sonner";
 import {
   CreditCardIcon,
   GearSixIcon,
+  PlugIcon,
   UserCircleIcon,
+  UsersThreeIcon,
   XIcon,
 } from "@phosphor-icons/react";
 import { authClient } from "@/lib/auth/client";
@@ -22,6 +24,8 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { BillingSection } from "@/components/settings/billing-section";
+import { MembersSection } from "@/components/settings/members-section";
+import { McpSection } from "@/components/settings/mcp-section";
 import {
   type SettingsTab,
   useSettingsModal,
@@ -35,12 +39,16 @@ const NAV: Array<{
 }> = [
   { tab: "general", label: "General", icon: GearSixIcon },
   { tab: "account", label: "Account", icon: UserCircleIcon },
+  { tab: "members", label: "Members", icon: UsersThreeIcon },
+  { tab: "mcp", label: "MCP", icon: PlugIcon },
   { tab: "billing", label: "Billing", icon: CreditCardIcon },
 ];
 
 const TAB_LABEL: Record<SettingsTab, string> = {
   general: "General",
   account: "Account",
+  members: "Members",
+  mcp: "MCP",
   billing: "Billing",
 };
 
@@ -97,6 +105,8 @@ export function SettingsModal() {
           <div className="min-w-0 flex-1 overflow-y-auto px-6 py-6">
             {tab === "general" ? <GeneralTab /> : null}
             {tab === "account" ? <AccountTab /> : null}
+            {tab === "members" ? <MembersSection /> : null}
+            {tab === "mcp" ? <McpSection /> : null}
             {tab === "billing" ? <BillingSection /> : null}
           </div>
         </div>

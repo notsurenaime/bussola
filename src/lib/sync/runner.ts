@@ -1,6 +1,7 @@
 import { and, asc, eq, inArray, lte, sql } from "drizzle-orm";
 import { getDb } from "@/lib/db";
 import { connectionSnapshots, connections } from "@/lib/db/schema";
+import { evaluateAlertsForConnection } from "@/lib/alerts/runner";
 import { parseCredentials } from "@/lib/connectors";
 import { toUserFacingError } from "@/lib/connectors/errors";
 import { createId } from "@/lib/id";
@@ -10,6 +11,8 @@ import {
   CLAIM_LEASE_SECONDS,
   DASHBOARD_KIND,
   MAX_CONSECUTIVE_FAILURES,
+  PAYLOAD_VERSION,
+  PAYLOAD_VERSION_KEY,
   nextDelaySeconds,
 } from "./config";
 import { fetchDashboardSnapshot, isSyncable } from "./providers";
@@ -149,6 +152,17 @@ async function recordFailure(
   return { message, disabled };
 }
 
+/**
+ * Record which connector shape produced this payload, so a reader can tell a
+ * snapshot written before a field existed from one where the field is empty.
+ */
+function stampVersion(payload: unknown, provider: Provider): unknown {
+  if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
+    return payload;
+  }
+  return { ...payload, [PAYLOAD_VERSION_KEY]: PAYLOAD_VERSION[provider] };
+}
+
 /** Fetch and store one connection's snapshot, recording the outcome. */
 export async function syncConnection(connection: {
   id: string;
@@ -170,7 +184,10 @@ export async function syncConnection(connection: {
 
   try {
     const credentials = parseCredentials(connection.credentialsEncrypted);
-    const payload = await fetchDashboardSnapshot(provider, credentials);
+    const payload = stampVersion(
+      await fetchDashboardSnapshot(provider, credentials),
+      provider,
+    );
     await storeSnapshot({
       organizationId: connection.organizationId,
       connectionId: id,
@@ -183,9 +200,31 @@ export async function syncConnection(connection: {
       payload,
     });
     await recordSuccess(id, provider);
+
+    /*
+     * Alerts are evaluated here rather than on a timer of their own: a metric
+     * can only change when a snapshot does, so this is both the earliest a
+     * rule could fire and the only moment there is anything new to read.
+     *
+     * It never throws — `evaluateAlertsForConnection` swallows and logs — so a
+     * broken rule or a dead webhook cannot turn a successful sync into a
+     * failed one, which would then back the connection off and eventually
+     * disable it.
+     */
+    await evaluateAlertsForConnection({
+      connectionId: id,
+      organizationId: connection.organizationId,
+    });
+
     return { connectionId: id, provider, ok: true };
   } catch (error) {
     const { message, disabled } = await recordFailure(id, provider, error);
+    // The user-facing message is stored on the connection, but without this the
+    // only trace of *why* a sync failed is a "failed=1" count in the tick log.
+    console.warn(
+      `[sync] ${provider} failed${disabled ? " (now disabled)" : ""}: ${message}`,
+      error instanceof Error ? error.message : error,
+    );
     return { connectionId: id, provider, ok: false, error: message, disabled };
   }
 }

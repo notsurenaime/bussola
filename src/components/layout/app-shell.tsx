@@ -1,14 +1,18 @@
 "use client";
 
-import { useCallback, useSyncExternalStore } from "react";
+import { useCallback, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
+  ArrowElbowDownRightIcon,
+  BellRingingIcon,
   PlugsConnectedIcon,
   SidebarSimpleIcon,
   SquaresFourIcon,
   StarIcon,
 } from "@phosphor-icons/react";
+import { toast } from "sonner";
+import { starDashboardAction } from "@/app/(app)/dashboards/actions";
 import { BussolaMark } from "@/components/brand/bussola-mark";
 import {
   CurrentDashboardProvider,
@@ -32,6 +36,7 @@ import { cn } from "@/lib/utils";
 const NAV = [
   { href: "/dashboards", label: "Dashboards", icon: SquaresFourIcon },
   { href: "/connections", label: "Connections", icon: PlugsConnectedIcon },
+  { href: "/alerts", label: "Alerts", icon: BellRingingIcon },
 ] as const;
 
 type StarredDashboard = { id: string; name: string };
@@ -79,10 +84,13 @@ export function AppShell({
   children,
   setupState,
   starredDashboards,
+  unacknowledgedAlerts,
 }: {
   children: React.ReactNode;
   setupState: SetupState;
   starredDashboards: StarredDashboard[];
+  /** Breaches nobody has looked at yet — the number on the Alerts item. */
+  unacknowledgedAlerts: number;
 }) {
   return (
     <CurrentDashboardProvider>
@@ -90,6 +98,7 @@ export function AppShell({
         <AppShellBody
           setupState={setupState}
           starredDashboards={starredDashboards}
+          unacknowledgedAlerts={unacknowledgedAlerts}
         >
           {children}
         </AppShellBody>
@@ -102,10 +111,12 @@ function AppShellBody({
   children,
   setupState,
   starredDashboards,
+  unacknowledgedAlerts,
 }: {
   children: React.ReactNode;
   setupState: SetupState;
   starredDashboards: StarredDashboard[];
+  unacknowledgedAlerts: number;
 }) {
   const pathname = usePathname();
   const { current } = useCurrentDashboard();
@@ -203,14 +214,39 @@ function AppShellBody({
                   ? "bg-sidebar-accent text-sidebar-accent-foreground"
                   : "text-muted-foreground hover:bg-sidebar-accent/70 hover:text-foreground",
               );
+              /*
+               * Unacknowledged breaches, on the item they belong to.
+               *
+               * A dot rather than the count when collapsed: two characters do
+               * not fit in a 40px rail, and the point of the badge there is
+               * "something is waiting", not how much.
+               */
+              const badge =
+                item.href === "/alerts" && unacknowledgedAlerts > 0
+                  ? unacknowledgedAlerts
+                  : 0;
+
               const content = (
                 <>
-                  <Icon
-                    className="size-4 shrink-0"
-                    weight={active ? "duotone" : "regular"}
-                  />
+                  <span className="relative flex shrink-0">
+                    <Icon
+                      className="size-4 shrink-0"
+                      weight={active ? "duotone" : "regular"}
+                    />
+                    {badge && collapsed ? (
+                      <span
+                        className="absolute -top-0.5 -right-0.5 size-1.5 rounded-full bg-destructive"
+                        aria-hidden
+                      />
+                    ) : null}
+                  </span>
                   {!collapsed ? (
                     <span className="truncate">{item.label}</span>
+                  ) : null}
+                  {badge && !collapsed ? (
+                    <span className="ml-auto shrink-0 rounded-full bg-destructive px-1.5 py-0.5 text-[10px] leading-none font-medium text-destructive-foreground tabular-nums">
+                      {badge > 99 ? "99+" : badge}
+                    </span>
                   ) : null}
                 </>
               );
@@ -220,7 +256,11 @@ function AppShellBody({
                   key={item.href}
                   href={item.href}
                   className={className}
-                  aria-label={item.label}
+                  aria-label={
+                    badge
+                      ? `${item.label}, ${badge} unacknowledged`
+                      : item.label
+                  }
                 >
                   {content}
                 </Link>
@@ -253,25 +293,27 @@ function AppShellBody({
                           pathname === `/dashboards/${dashboard.id}`;
                         return (
                           <li key={dashboard.id}>
-                            <Link
-                              href={`/dashboards/${dashboard.id}`}
+                            <div
                               className={cn(
-                                "flex items-center gap-2 rounded-md py-1.5 pr-3 pl-8 text-sm transition-colors",
+                                "group/subtab flex items-center gap-1.5 rounded-md py-1.5 pr-1.5 pl-10 text-sm transition-colors",
                                 subActive
                                   ? "bg-sidebar-accent text-sidebar-accent-foreground"
                                   : "text-muted-foreground hover:bg-sidebar-accent/70 hover:text-foreground",
                               )}
                             >
-                              {dashboard.starred ? (
-                                <StarIcon
-                                  weight="fill"
-                                  className="size-3 shrink-0 text-almond-cream-400"
-                                />
-                              ) : null}
-                              <span className="truncate">
+                              <ArrowElbowDownRightIcon className="size-3 shrink-0" />
+                              <Link
+                                href={`/dashboards/${dashboard.id}`}
+                                className="min-w-0 flex-1 truncate"
+                              >
                                 {dashboard.name}
-                              </span>
-                            </Link>
+                              </Link>
+                              <DashboardStarButton
+                                id={dashboard.id}
+                                name={dashboard.name}
+                                starred={dashboard.starred}
+                              />
+                            </div>
                           </li>
                         );
                       })}
@@ -295,5 +337,58 @@ function AppShellBody({
       <SettingsModal />
       <GettingStarted state={setupState} />
     </>
+  );
+}
+
+function DashboardStarButton({
+  id,
+  name,
+  starred,
+}: {
+  id: string;
+  name: string;
+  starred: boolean;
+}) {
+  const router = useRouter();
+  const [optimisticStarred, setOptimisticStarred] = useState(starred);
+  const [pending, setPending] = useState(false);
+
+  async function toggleStar(event: React.MouseEvent) {
+    event.preventDefault();
+    const next = !optimisticStarred;
+    setOptimisticStarred(next);
+    setPending(true);
+    const result = await starDashboardAction(id, next);
+    setPending(false);
+    if (!result.ok) {
+      setOptimisticStarred(!next);
+      toast.error(result.error);
+      return;
+    }
+    router.refresh();
+  }
+
+  return (
+    <button
+      type="button"
+      aria-label={optimisticStarred ? `Unstar ${name}` : `Star ${name}`}
+      aria-pressed={optimisticStarred}
+      disabled={pending}
+      onClick={toggleStar}
+      className={cn(
+        "shrink-0 rounded p-1 transition-colors hover:bg-sidebar-accent",
+        optimisticStarred
+          ? "opacity-100"
+          : "opacity-0 focus-visible:opacity-100 group-hover/subtab:opacity-100",
+      )}
+    >
+      <StarIcon
+        className={cn(
+          "size-3.5",
+          optimisticStarred && "text-almond-cream-400",
+        )}
+        weight={optimisticStarred ? "fill" : "regular"}
+      />
+    </button>
   );
 }

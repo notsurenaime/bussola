@@ -61,6 +61,23 @@ function secret(): string {
   return generated;
 }
 
+/**
+ * Where an invitation link points.
+ *
+ * `BETTER_AUTH_URL` is required in cloud and is the right answer there. A
+ * self-hosted install may have neither it nor any way to know its own public
+ * hostname from inside a request-less callback, so it falls back to localhost
+ * — wrong for a server on a domain, but a wrong link someone can see and fix
+ * beats a crash inside the invite flow.
+ */
+function inviteBaseUrl(): string {
+  return (
+    process.env.BETTER_AUTH_URL ||
+    process.env.BUSSOLA_PUBLIC_URL ||
+    "http://localhost:3000"
+  ).replace(/\/+$/, "");
+}
+
 /** A URL-safe organization slug derived from the account's email. */
 function slugFor(email: string): string {
   const base =
@@ -165,6 +182,43 @@ async function build() {
 
     plugins: [
       organization({
+        /**
+         * How an invitation actually reaches somebody.
+         *
+         * Without this, Better Auth creates the row and returns — the invite
+         * exists but nobody is ever told about it, which is indistinguishable
+         * from the feature not working. Delivery failures are logged rather
+         * than thrown: the invitation is valid either way, and the inviter can
+         * always copy the link from the members list.
+         */
+        async sendInvitationEmail(data: {
+          id: string;
+          email: string;
+          organization: { name: string };
+          inviter: { user: { name: string; email: string } };
+        }) {
+          const { sendEmail } = await import("@/lib/notify/email");
+          const url = `${inviteBaseUrl()}/invite/${data.id}`;
+          const inviterName =
+            data.inviter.user.name || data.inviter.user.email;
+
+          const result = await sendEmail({
+            to: data.email,
+            subject: `${inviterName} invited you to ${data.organization.name} on Bussola`,
+            text: [
+              `${inviterName} has invited you to join ${data.organization.name} on Bussola.`,
+              "",
+              `Accept the invitation: ${url}`,
+              "",
+              "If you were not expecting this, you can ignore this email.",
+            ].join("\n"),
+          });
+
+          if (!result.ok) {
+            console.warn(`[auth] invitation email not sent: ${result.error}`);
+          }
+        },
+
         /**
          * Seats are what the Team plan sells, so an invitation that would take
          * an organization past its allowance is refused before it is sent —

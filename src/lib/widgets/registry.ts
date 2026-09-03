@@ -7,6 +7,12 @@ export type WidgetType =
   | "railway-resources"
   | "railway-usage"
   | "railway-deploys"
+  | "railway-projects"
+  | "railway-billing"
+  | "railway-cpu"
+  | "railway-memory"
+  | "railway-egress"
+  | "railway-disk"
   | "netlify-tracker"
   | "netlify-sites"
   | "netlify-health"
@@ -19,6 +25,7 @@ export type WidgetType =
   | "supabase-traffic"
   | "supabase-requests"
   | "supabase-advisors"
+  | "supabase-advisor-issues"
   | "qonto-balance"
   | "qonto-transactions"
   | "qonto-cashflow"
@@ -37,6 +44,11 @@ export type WidgetType =
   | "sentry-projects"
   | "resend-domains"
   | "resend-emails"
+  | "resend-broadcasts"
+  | "resend-delivery"
+  | "resend-open-rate"
+  | "resend-click-rate"
+  | "resend-outcomes"
   | "vercel-tracker"
   | "vercel-projects"
   | "vercel-deploys"
@@ -47,6 +59,12 @@ export type WidgetDefinition = {
   name: string;
   description: string;
   provider: Provider | "multi";
+  /**
+   * Where this data lives in the source's own product — opened from a link in
+   * the widget header. Cross-source widgets have no single origin page, so it
+   * stays optional.
+   */
+  sourceUrl?: string;
   defaultW: number;
   defaultH: number;
   minW: number;
@@ -59,6 +77,7 @@ export const WIDGET_REGISTRY: WidgetDefinition[] = [
     name: "Service Status",
     description: "Latest deploy status for every Railway service",
     provider: "railway",
+    sourceUrl: "https://railway.com/dashboard",
     defaultW: 5,
     defaultH: 4,
     minW: 3,
@@ -69,6 +88,7 @@ export const WIDGET_REGISTRY: WidgetDefinition[] = [
     name: "Deploy Health",
     description: "Live deploy status and how many newer deploys failed",
     provider: "railway",
+    sourceUrl: "https://railway.com/dashboard",
     defaultW: 4,
     defaultH: 3,
     minW: 3,
@@ -79,6 +99,7 @@ export const WIDGET_REGISTRY: WidgetDefinition[] = [
     name: "Fleet Health",
     description: "How many Railway services are running healthy",
     provider: "railway",
+    sourceUrl: "https://railway.com/dashboard",
     defaultW: 3,
     defaultH: 2,
     minW: 2,
@@ -89,6 +110,7 @@ export const WIDGET_REGISTRY: WidgetDefinition[] = [
     name: "CPU & Memory",
     description: "Average CPU and memory over the last hour",
     provider: "railway",
+    sourceUrl: "https://railway.com/dashboard",
     defaultW: 4,
     defaultH: 3,
     minW: 3,
@@ -99,6 +121,7 @@ export const WIDGET_REGISTRY: WidgetDefinition[] = [
     name: "Usage This Cycle",
     description: "Estimated Railway usage for the current billing cycle",
     provider: "railway",
+    sourceUrl: "https://railway.com/account/usage",
     defaultW: 4,
     defaultH: 3,
     minW: 3,
@@ -109,16 +132,84 @@ export const WIDGET_REGISTRY: WidgetDefinition[] = [
     name: "Recent Deploys",
     description: "Latest deployments across Railway services",
     provider: "railway",
+    sourceUrl: "https://railway.com/dashboard",
     defaultW: 6,
     defaultH: 4,
     minW: 4,
     minH: 3,
   },
   {
+    type: "railway-projects",
+    name: "Projects",
+    description: "Every Railway project, its services and whether any are failing",
+    provider: "railway",
+    sourceUrl: "https://railway.com/dashboard",
+    defaultW: 5,
+    defaultH: 4,
+    minW: 3,
+    minH: 3,
+  },
+  {
+    type: "railway-billing",
+    name: "Usage & Bill",
+    description: "Cycle-to-date spend, projected bill and the billing period",
+    provider: "railway",
+    sourceUrl: "https://railway.com/account/usage",
+    defaultW: 4,
+    defaultH: 3,
+    minW: 3,
+    minH: 2,
+  },
+  {
+    type: "railway-cpu",
+    name: "CPU Usage",
+    description: "vCPU used across a project over the last 24 hours",
+    provider: "railway",
+    sourceUrl: "https://railway.com/dashboard",
+    defaultW: 5,
+    defaultH: 3,
+    minW: 3,
+    minH: 2,
+  },
+  {
+    type: "railway-memory",
+    name: "Memory Usage",
+    description: "Memory used across a project over the last 24 hours",
+    provider: "railway",
+    sourceUrl: "https://railway.com/dashboard",
+    defaultW: 5,
+    defaultH: 3,
+    minW: 3,
+    minH: 2,
+  },
+  {
+    type: "railway-egress",
+    name: "Network Egress",
+    description: "Outbound traffic per interval over the last 24 hours",
+    provider: "railway",
+    sourceUrl: "https://railway.com/dashboard",
+    defaultW: 5,
+    defaultH: 3,
+    minW: 3,
+    minH: 2,
+  },
+  {
+    type: "railway-disk",
+    name: "Disk Usage",
+    description: "Volume storage used across a project over the last 24 hours",
+    provider: "railway",
+    sourceUrl: "https://railway.com/dashboard",
+    defaultW: 5,
+    defaultH: 3,
+    minW: 3,
+    minH: 2,
+  },
+  {
     type: "netlify-tracker",
     name: "Deploy Health",
     description: "Recent deploy trail for a Netlify site",
     provider: "netlify",
+    sourceUrl: "https://app.netlify.com/",
     defaultW: 6,
     defaultH: 3,
     minW: 3,
@@ -129,6 +220,7 @@ export const WIDGET_REGISTRY: WidgetDefinition[] = [
     name: "Sites Board",
     description: "Publish status for every Netlify site",
     provider: "netlify",
+    sourceUrl: "https://app.netlify.com/",
     defaultW: 5,
     defaultH: 4,
     minW: 3,
@@ -139,6 +231,7 @@ export const WIDGET_REGISTRY: WidgetDefinition[] = [
     name: "Sites Health",
     description: "Ready vs total Netlify sites",
     provider: "netlify",
+    sourceUrl: "https://app.netlify.com/",
     defaultW: 3,
     defaultH: 2,
     minW: 2,
@@ -149,6 +242,7 @@ export const WIDGET_REGISTRY: WidgetDefinition[] = [
     name: "Recent Deploys",
     description: "Latest deployments across Netlify sites",
     provider: "netlify",
+    sourceUrl: "https://app.netlify.com/",
     defaultW: 6,
     defaultH: 4,
     minW: 4,
@@ -159,6 +253,7 @@ export const WIDGET_REGISTRY: WidgetDefinition[] = [
     name: "Build Minutes",
     description: "Build minutes used in the current billing period",
     provider: "netlify",
+    sourceUrl: "https://app.netlify.com/",
     defaultW: 3,
     defaultH: 2,
     minW: 2,
@@ -169,6 +264,7 @@ export const WIDGET_REGISTRY: WidgetDefinition[] = [
     name: "Form Submissions",
     description: "Netlify Forms submission counts by form",
     provider: "netlify",
+    sourceUrl: "https://app.netlify.com/",
     defaultW: 4,
     defaultH: 3,
     minW: 3,
@@ -179,6 +275,7 @@ export const WIDGET_REGISTRY: WidgetDefinition[] = [
     name: "Project Health",
     description: "Healthy vs total Supabase projects",
     provider: "supabase",
+    sourceUrl: "https://supabase.com/dashboard/projects",
     defaultW: 3,
     defaultH: 2,
     minW: 2,
@@ -189,6 +286,7 @@ export const WIDGET_REGISTRY: WidgetDefinition[] = [
     name: "Projects Board",
     description: "Status and region for every Supabase project",
     provider: "supabase",
+    sourceUrl: "https://supabase.com/dashboard/projects",
     defaultW: 5,
     defaultH: 4,
     minW: 3,
@@ -199,6 +297,7 @@ export const WIDGET_REGISTRY: WidgetDefinition[] = [
     name: "Service Health",
     description: "Database, Auth, Storage, Realtime, Functions health",
     provider: "supabase",
+    sourceUrl: "https://supabase.com/dashboard/project/_",
     defaultW: 5,
     defaultH: 4,
     minW: 3,
@@ -209,6 +308,7 @@ export const WIDGET_REGISTRY: WidgetDefinition[] = [
     name: "API Traffic",
     description: "REST / Auth / Storage / Realtime requests over 7 days",
     provider: "supabase",
+    sourceUrl: "https://supabase.com/dashboard/project/_/reports/api-overview",
     defaultW: 4,
     defaultH: 3,
     minW: 3,
@@ -219,6 +319,7 @@ export const WIDGET_REGISTRY: WidgetDefinition[] = [
     name: "Request Volume",
     description: "Total API requests across projects (7 days)",
     provider: "supabase",
+    sourceUrl: "https://supabase.com/dashboard/project/_/reports/api-overview",
     defaultW: 3,
     defaultH: 2,
     minW: 2,
@@ -229,16 +330,29 @@ export const WIDGET_REGISTRY: WidgetDefinition[] = [
     name: "Security Advisors",
     description: "Open security findings from Supabase advisors",
     provider: "supabase",
+    sourceUrl: "https://supabase.com/dashboard/project/_/advisors/security",
     defaultW: 4,
     defaultH: 3,
     minW: 3,
     minH: 2,
   },
   {
+    type: "supabase-advisor-issues",
+    name: "Advisor Issues",
+    description: "Security and performance findings, worst first",
+    provider: "supabase",
+    sourceUrl: "https://supabase.com/dashboard/project/_/advisors/security",
+    defaultW: 6,
+    defaultH: 4,
+    minW: 4,
+    minH: 3,
+  },
+  {
     type: "qonto-balance",
     name: "Cash Balance",
     description: "Total cash across all Qonto accounts",
     provider: "qonto",
+    sourceUrl: "https://app.qonto.com/",
     defaultW: 3,
     defaultH: 2,
     minW: 2,
@@ -249,6 +363,7 @@ export const WIDGET_REGISTRY: WidgetDefinition[] = [
     name: "Available Liquidity",
     description: "Spendable balance after pending payments",
     provider: "qonto",
+    sourceUrl: "https://app.qonto.com/",
     defaultW: 3,
     defaultH: 2,
     minW: 2,
@@ -259,6 +374,7 @@ export const WIDGET_REGISTRY: WidgetDefinition[] = [
     name: "30-Day Net Cashflow",
     description: "Money in minus money out over the last 30 days",
     provider: "qonto",
+    sourceUrl: "https://app.qonto.com/",
     defaultW: 3,
     defaultH: 2,
     minW: 2,
@@ -269,6 +385,7 @@ export const WIDGET_REGISTRY: WidgetDefinition[] = [
     name: "In vs Out",
     description: "Inflow and outflow comparison for the last 30 days",
     provider: "qonto",
+    sourceUrl: "https://app.qonto.com/",
     defaultW: 4,
     defaultH: 3,
     minW: 3,
@@ -279,6 +396,7 @@ export const WIDGET_REGISTRY: WidgetDefinition[] = [
     name: "Accounts Overview",
     description: "Pie split of cash across Qonto accounts",
     provider: "qonto",
+    sourceUrl: "https://app.qonto.com/",
     defaultW: 4,
     defaultH: 3,
     minW: 3,
@@ -289,6 +407,7 @@ export const WIDGET_REGISTRY: WidgetDefinition[] = [
     name: "Account History",
     description: "30-day cash balance trail from settled transactions",
     provider: "qonto",
+    sourceUrl: "https://app.qonto.com/",
     defaultW: 6,
     defaultH: 3,
     minW: 4,
@@ -299,6 +418,7 @@ export const WIDGET_REGISTRY: WidgetDefinition[] = [
     name: "Recent Transactions",
     description: "Latest bank movements across accounts",
     provider: "qonto",
+    sourceUrl: "https://app.qonto.com/",
     defaultW: 6,
     defaultH: 4,
     minW: 4,
@@ -319,6 +439,7 @@ export const WIDGET_REGISTRY: WidgetDefinition[] = [
     name: "MRR",
     description: "Monthly recurring revenue across active Stripe subscriptions",
     provider: "stripe",
+    sourceUrl: "https://dashboard.stripe.com/subscriptions",
     defaultW: 3,
     defaultH: 2,
     minW: 2,
@@ -329,6 +450,7 @@ export const WIDGET_REGISTRY: WidgetDefinition[] = [
     name: "Revenue (30d)",
     description: "Gross Stripe volume over the last 30 days",
     provider: "stripe",
+    sourceUrl: "https://dashboard.stripe.com/dashboard",
     defaultW: 3,
     defaultH: 2,
     minW: 2,
@@ -339,6 +461,7 @@ export const WIDGET_REGISTRY: WidgetDefinition[] = [
     name: "Recent Payments",
     description: "Latest Stripe charges and their outcome",
     provider: "stripe",
+    sourceUrl: "https://dashboard.stripe.com/payments",
     defaultW: 6,
     defaultH: 4,
     minW: 4,
@@ -349,6 +472,7 @@ export const WIDGET_REGISTRY: WidgetDefinition[] = [
     name: "MRR",
     description: "Recurring revenue across active Lemon Squeezy subscriptions",
     provider: "lemonsqueezy",
+    sourceUrl: "https://app.lemonsqueezy.com/dashboard",
     defaultW: 3,
     defaultH: 2,
     minW: 2,
@@ -359,6 +483,7 @@ export const WIDGET_REGISTRY: WidgetDefinition[] = [
     name: "Revenue (30d)",
     description: "Lemon Squeezy store revenue over the last 30 days",
     provider: "lemonsqueezy",
+    sourceUrl: "https://app.lemonsqueezy.com/dashboard",
     defaultW: 3,
     defaultH: 2,
     minW: 2,
@@ -369,6 +494,7 @@ export const WIDGET_REGISTRY: WidgetDefinition[] = [
     name: "Recent Orders",
     description: "Latest Lemon Squeezy orders",
     provider: "lemonsqueezy",
+    sourceUrl: "https://app.lemonsqueezy.com/orders",
     defaultW: 6,
     defaultH: 4,
     minW: 4,
@@ -379,6 +505,7 @@ export const WIDGET_REGISTRY: WidgetDefinition[] = [
     name: "Unresolved Issues",
     description: "Open Sentry issues and events in the last 24 hours",
     provider: "sentry",
+    sourceUrl: "https://sentry.io/issues/",
     defaultW: 3,
     defaultH: 2,
     minW: 2,
@@ -389,6 +516,7 @@ export const WIDGET_REGISTRY: WidgetDefinition[] = [
     name: "Recent Errors",
     description: "Newest unresolved Sentry issues",
     provider: "sentry",
+    sourceUrl: "https://sentry.io/issues/",
     defaultW: 6,
     defaultH: 4,
     minW: 4,
@@ -399,6 +527,7 @@ export const WIDGET_REGISTRY: WidgetDefinition[] = [
     name: "Projects Board",
     description: "Sentry projects and whether they are reporting",
     provider: "sentry",
+    sourceUrl: "https://sentry.io/projects/",
     defaultW: 5,
     defaultH: 4,
     minW: 3,
@@ -409,6 +538,7 @@ export const WIDGET_REGISTRY: WidgetDefinition[] = [
     name: "Sending Domains",
     description: "Resend domain verification status",
     provider: "resend",
+    sourceUrl: "https://resend.com/domains",
     defaultW: 5,
     defaultH: 3,
     minW: 3,
@@ -417,11 +547,67 @@ export const WIDGET_REGISTRY: WidgetDefinition[] = [
   {
     type: "resend-emails",
     name: "Recent Emails",
-    description: "Latest emails sent through Resend",
+    description: "Latest emails sent through Resend and how each landed",
     provider: "resend",
+    sourceUrl: "https://resend.com/emails",
     defaultW: 6,
     defaultH: 4,
     minW: 4,
+    minH: 3,
+  },
+  {
+    type: "resend-broadcasts",
+    name: "Broadcasts",
+    description: "Broadcast campaigns and where each one stands",
+    provider: "resend",
+    sourceUrl: "https://resend.com/broadcasts",
+    defaultW: 5,
+    defaultH: 4,
+    minW: 3,
+    minH: 3,
+  },
+  {
+    type: "resend-delivery",
+    name: "Emails & Deliverability",
+    description: "Daily send volume against the share that was delivered",
+    provider: "resend",
+    sourceUrl: "https://resend.com/overview",
+    defaultW: 6,
+    defaultH: 3,
+    minW: 4,
+    minH: 3,
+  },
+  {
+    type: "resend-open-rate",
+    name: "Open Rate",
+    description: "Share of delivered emails opened, day by day",
+    provider: "resend",
+    sourceUrl: "https://resend.com/overview",
+    defaultW: 4,
+    defaultH: 3,
+    minW: 3,
+    minH: 3,
+  },
+  {
+    type: "resend-click-rate",
+    name: "Click Rate",
+    description: "Share of delivered emails clicked, day by day",
+    provider: "resend",
+    sourceUrl: "https://resend.com/overview",
+    defaultW: 4,
+    defaultH: 3,
+    minW: 3,
+    minH: 3,
+  },
+  {
+    type: "resend-outcomes",
+    name: "Email Outcomes",
+    description: "Where emails ended up — each counted at its furthest step",
+    provider: "resend",
+    sourceUrl: "https://resend.com/overview",
+    defaultW: 4,
+    defaultH: 3,
+    minW: 3,
     minH: 3,
   },
   {
@@ -429,6 +615,7 @@ export const WIDGET_REGISTRY: WidgetDefinition[] = [
     name: "Deploy Health",
     description: "Recent Vercel deploy trail per project",
     provider: "vercel",
+    sourceUrl: "https://vercel.com/dashboard",
     defaultW: 5,
     defaultH: 4,
     minW: 3,
@@ -439,6 +626,7 @@ export const WIDGET_REGISTRY: WidgetDefinition[] = [
     name: "Projects Board",
     description: "Latest deploy state for every Vercel project",
     provider: "vercel",
+    sourceUrl: "https://vercel.com/dashboard",
     defaultW: 5,
     defaultH: 4,
     minW: 3,
@@ -449,6 +637,7 @@ export const WIDGET_REGISTRY: WidgetDefinition[] = [
     name: "Recent Deploys",
     description: "Vercel deployment feed",
     provider: "vercel",
+    sourceUrl: "https://vercel.com/dashboard",
     defaultW: 6,
     defaultH: 4,
     minW: 4,
@@ -479,7 +668,13 @@ export function isRailwayWidget(type: WidgetType): boolean {
     type === "railway-fleet" ||
     type === "railway-resources" ||
     type === "railway-usage" ||
-    type === "railway-deploys"
+    type === "railway-deploys" ||
+    type === "railway-projects" ||
+    type === "railway-billing" ||
+    type === "railway-cpu" ||
+    type === "railway-memory" ||
+    type === "railway-egress" ||
+    type === "railway-disk"
   );
 }
 
@@ -490,7 +685,8 @@ export function isSupabaseWidget(type: WidgetType): boolean {
     type === "supabase-services" ||
     type === "supabase-traffic" ||
     type === "supabase-requests" ||
-    type === "supabase-advisors"
+    type === "supabase-advisors" ||
+    type === "supabase-advisor-issues"
   );
 }
 

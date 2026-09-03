@@ -26,6 +26,9 @@ next-env.d.ts
 *.db
 *.db-*
 
+# Recorded demo footage — regenerated on demand, not source
+/demo
+
 # Logs
 *.log
 npm-debug.log*

@@ -87,9 +87,9 @@ export const PROVIDER_CATALOG: Record<Provider, ProviderCatalogEntry> = {
   resend: {
     provider: "resend",
     name: "Resend",
-    tagline: "Sending domain verification and recent delivery status",
+    tagline: "Delivery, open and click rates, broadcasts, domains",
     fields: ["apiKey"],
-    hint: "An API key from resend.com. Full access is needed to list sent emails; a sending key still shows domains.",
+    hint: "An API key from resend.com. Full access is needed for emails, metrics, broadcasts and contacts; a sending key still shows domains.",
     docsUrl: "https://resend.com/api-keys",
   },
   qonto: {

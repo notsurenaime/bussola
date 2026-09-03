@@ -4,89 +4,304 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Connectors — Bussola</title>
-    <meta name="description" content="Bussola connectors: Railway, Supabase, Qonto, Stripe, Resend, Sentry, Lemon Squeezy and Vercel at MVP, with GitHub, GitLab, Linear and Notion as fast-follow." />
+    <meta name="description" content="Nine connectors shipping today: Railway, Vercel, Netlify, Supabase, Sentry, Stripe, Lemon Squeezy, Resend and Qonto. GitHub, GitLab, Linear and Notion next." />
+    <link rel="canonical" href="https://usebussola.com/connectors.html" />
     <link rel="icon" href="assets/favicon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="assets/bussola-mark.svg" />
+    <meta name="theme-color" content="#fdfcfa" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#050806" media="(prefers-color-scheme: dark)" />
+    <meta property="og:site_name" content="Bussola" />
+    <meta property="og:title" content="Connectors — Bussola" />
+    <meta property="og:description" content="Nine connectors shipping today: Railway, Vercel, Netlify, Supabase, Sentry, Stripe, Lemon Squeezy, Resend and Qonto. GitHub, GitLab, Linear and Notion next." />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://usebussola.com/connectors.html" />
+    <meta property="og:image" content="https://usebussola.com/assets/og-card.jpg" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Connectors — Bussola" />
+    <meta name="twitter:description" content="Nine connectors shipping today: Railway, Vercel, Netlify, Supabase, Sentry, Stripe, Lemon Squeezy, Resend and Qonto. GitHub, GitLab, Linear and Notion next." />
+    <meta name="twitter:image" content="https://usebussola.com/assets/og-card.jpg" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="Bussola — finally a beautiful dashboard. A laptop showing a Bussola finance canvas." />
+    <meta property="og:locale" content="en" />
+    <link rel="preload" href="assets/elms-sans-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin />
     <link rel="stylesheet" href="styles.css" />
+    <script>(function(){var d=document.documentElement;try{var t=localStorage.getItem("bussola-theme");if(t==="light"||t==="dark")d.setAttribute("data-theme",t)}catch(e){}try{if("IntersectionObserver" in window&&!matchMedia("(prefers-reduced-motion: reduce)").matches)d.className+=" js-anim"}catch(e){}})();</script>
   </head>
   <body>
+    <a class="skip-link" href="#main">Skip to content</a>
     <header class="site-header">
       <div class="site-header__inner">
-        <a class="brand" href="index.html"><img src="assets/bussola-mark.svg" alt="" /> <span>Bussola</span></a>
-        <nav class="site-nav" id="nav">
+        <a class="brand" href="index.html">
+          <img src="assets/bussola-mark.svg" alt="" width="25" height="25" />
+          <span>Bussola</span>
+        </a>
+        <nav class="site-nav" id="nav" aria-label="Main">
           <a href="features.html">Features</a>
           <a href="connectors.html" aria-current="page">Connectors</a>
           <a href="pricing.html">Pricing</a>
+          <a href="security.html">Security</a>
           <a href="open-source.html">Open source</a>
-          <a href="https://github.com/notsurenaime/bussola">GitHub</a>
+          <a href="https://github.com/notsurenaime/bussola" rel="noopener">GitHub</a>
         </nav>
-        <a class="btn btn--sm header-cta" href="https://usebussola.app">Open app</a>
-        <button class="nav-toggle" aria-label="Menu" aria-expanded="false" onclick="const n=document.getElementById('nav');const o=n.classList.toggle('is-open');this.setAttribute('aria-expanded',o)">☰</button>
+        <div class="header-tools">
+          <button class="icon-btn theme-toggle" type="button" aria-label="Switch colour theme">
+            <svg class="t-auto" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 3v18"/><path d="M12 3a9 9 0 0 1 0 18" fill="currentColor" stroke="none"/></svg>
+            <svg class="t-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
+            <svg class="t-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
+          </button>
+          <a class="btn btn--sm header-cta" href="https://usebussola.app">Open app</a>
+          <button class="icon-btn nav-toggle" type="button" aria-label="Menu" aria-expanded="false" aria-controls="nav">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+          </button>
+        </div>
       </div>
     </header>
 
-    <main>
+    <main id="main">
       <section class="section section--tight">
         <div class="wrap section__head">
           <p class="eyebrow">Connectors</p>
-          <h2>Connect everything you already use</h2>
+          <h1 style="font-size:clamp(2.1rem,4.6vw,3rem)">Connect what you already use</h1>
           <p>
-            Every connector stores its credentials per user, AES-256-GCM
-            encrypted, and is tested with a real request before it is saved.
+            Nine sources ship today, all API-key based — paste a token, pass the
+            connection test, done. Every credential is stored per user, encrypted
+            with AES-256-GCM, and used for reads only.
           </p>
         </div>
       </section>
 
-      <section class="wrap section--tight">
-        <h3>Wave 1 — available at MVP</h3>
-        <p class="lede" style="font-size:1rem;margin:0.4rem 0 1.5rem">API-key based. No OAuth app, no review queue, no waiting.</p>
-        <div class="logos">
-          <span class="logo"><img src="assets/brands/railway/on-light.svg" alt="" /><span><b>Railway</b><small>API token · deploys, services, usage</small></span></span>
-          <span class="logo"><img src="assets/brands/supabase/on-light.svg" alt="" /><span><b>Supabase</b><small>API token · projects, health, traffic</small></span></span>
-          <span class="logo"><img src="assets/brands/qonto/on-light.jpeg" alt="" /><span><b>Qonto</b><small>login:secret · cash &amp; transactions</small></span></span>
-          <span class="logo"><img src="assets/brands/stripe/on-light.jpeg" alt="" /><span><b>Stripe</b><small>Restricted key · revenue &amp; billing</small></span></span>
-          <span class="logo"><span class="mono">R</span><span><b>Resend</b><small>API key · email delivery</small></span></span>
-          <span class="logo"><span class="mono">S</span><span><b>Sentry</b><small>API token · error volume &amp; issues</small></span></span>
-          <span class="logo"><span class="mono">L</span><span><b>Lemon Squeezy</b><small>API key · sales &amp; subscriptions</small></span></span>
-          <span class="logo"><img src="assets/brands/vercel/on-light.svg" alt="" /><span><b>Vercel</b><small>API token · deploys &amp; projects</small></span></span>
+      <section class="section section--tight section--flush-top">
+        <div class="wrap">
+          <div class="stats reveal">
+            <div class="stat"><b>9</b><span>connectors live</span></div>
+            <div class="stat"><b>52</b><span>widgets across them</span></div>
+            <div class="stat"><b>4</b><span>OAuth sources next</span></div>
+            <div class="stat"><b>∞</b><span>connections on every plan</span></div>
+          </div>
         </div>
       </section>
 
-      <section class="wrap section--tight">
-        <h3>Wave 2 — fast-follow</h3>
-        <p class="lede" style="font-size:1rem;margin:0.4rem 0 1.5rem">OAuth apps. Landing shortly after launch.</p>
-        <div class="logos">
-          <span class="logo"><span class="mono">GH</span><span><b>GitHub</b><small>OAuth · reusable flow, GitLab base</small></span></span>
-          <span class="logo"><span class="mono">GL</span><span><b>GitLab</b><small>OAuth · separate implementation</small></span></span>
-          <span class="logo"><span class="mono">Li</span><span><b>Linear</b><small>OAuth · incl. webhook live updates</small></span></span>
-          <span class="logo"><span class="mono">No</span><span><b>Notion</b><small>OAuth · built last (review process)</small></span></span>
+      <section class="section section--tight">
+        <div class="wrap">
+          <div class="section__head" style="margin-bottom:1.5rem">
+            <h2 style="font-size:1.5rem">Shipping today</h2>
+            <p style="font-size:.98rem">API tokens only. No OAuth app to register, no review queue to sit in.</p>
+          </div>
+          <div class="conn-grid reveal">
+            <article class="conn" id="railway">
+              <div class="conn__top"><span class="bmark"><img class="on-light" src="assets/brands/railway/on-light.svg" alt="" width="22" height="22" loading="lazy" /><img class="on-dark" src="assets/brands/railway/on-dark.svg" alt="" width="22" height="22" loading="lazy" /></span><h3>Railway</h3><span class="tag">Live</span></div>
+              <p>Deploy health, crashed services, CPU and memory, billing usage</p>
+              <div class="conn__meta">
+                <span class="n">12 widgets</span>
+                <span><code>API token</code></span>
+                <span>Infrastructure</span>
+              </div>
+              <div class="conn__meta">
+                <span>Account or project token — either works.</span>
+              </div>
+              <p style="margin-top:.35rem"><a class="arrow-link" style="font-size:.86rem" href="https://railway.com/account/tokens" rel="noopener nofollow">Where to get the token <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="width:.85em;height:.85em;display:inline-block;vertical-align:-1px"><path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></svg></a></p>
+            </article>
+            <article class="conn" id="vercel">
+              <div class="conn__top"><span class="bmark"><img class="on-light" src="assets/brands/vercel/on-light.svg" alt="" width="22" height="22" loading="lazy" /><img class="on-dark" src="assets/brands/vercel/on-dark.svg" alt="" width="22" height="22" loading="lazy" /></span><h3>Vercel</h3><span class="tag">Live</span></div>
+              <p>Deploy status and history for every project</p>
+              <div class="conn__meta">
+                <span class="n">3 widgets</span>
+                <span><code>Access token</code></span>
+                <span>Deploys</span>
+              </div>
+              <div class="conn__meta">
+                <span>Team accounts add a team id.</span>
+              </div>
+              <p style="margin-top:.35rem"><a class="arrow-link" style="font-size:.86rem" href="https://vercel.com/account/tokens" rel="noopener nofollow">Where to get the token <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="width:.85em;height:.85em;display:inline-block;vertical-align:-1px"><path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></svg></a></p>
+            </article>
+            <article class="conn" id="netlify">
+              <div class="conn__top"><span class="bmark"><img class="on-light" src="assets/brands/netlify/on-light.svg" alt="" width="22" height="22" loading="lazy" /><img class="on-dark" src="assets/brands/netlify/on-dark.svg" alt="" width="22" height="22" loading="lazy" /></span><h3>Netlify</h3><span class="tag">Live</span></div>
+              <p>Site publish status, build minutes, form submissions</p>
+              <div class="conn__meta">
+                <span class="n">6 widgets</span>
+                <span><code>Personal access token</code></span>
+                <span>Deploys</span>
+              </div>
+              <div class="conn__meta">
+                <span>From your Netlify user settings.</span>
+              </div>
+              <p style="margin-top:.35rem"><a class="arrow-link" style="font-size:.86rem" href="https://app.netlify.com/user/applications#personal-access-tokens" rel="noopener nofollow">Where to get the token <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="width:.85em;height:.85em;display:inline-block;vertical-align:-1px"><path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></svg></a></p>
+            </article>
+            <article class="conn" id="supabase">
+              <div class="conn__top"><span class="bmark"><img class="on-light" src="assets/brands/supabase/on-light.svg" alt="" width="22" height="22" loading="lazy" /><img class="on-dark" src="assets/brands/supabase/on-dark.svg" alt="" width="22" height="22" loading="lazy" /></span><h3>Supabase</h3><span class="tag">Live</span></div>
+              <p>Project and service health, API traffic, security advisors</p>
+              <div class="conn__meta">
+                <span class="n">7 widgets</span>
+                <span><code>Personal access token</code></span>
+                <span>Database</span>
+              </div>
+              <div class="conn__meta">
+                <span>Starts with sbp_ — not an anon or service key.</span>
+              </div>
+              <p style="margin-top:.35rem"><a class="arrow-link" style="font-size:.86rem" href="https://supabase.com/dashboard/account/tokens" rel="noopener nofollow">Where to get the token <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="width:.85em;height:.85em;display:inline-block;vertical-align:-1px"><path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></svg></a></p>
+            </article>
+            <article class="conn" id="sentry">
+              <div class="conn__top"><span class="bmark bmark--glyph" style="--glyph:#362D59;--glyph-dark:#9A8FD8"><svg viewBox="0 0 24 24" role="img" aria-hidden="true"><path d="M12 2.2a1.9 1.9 0 0 0-1.65.95L8.1 7.06a13.6 13.6 0 0 1 7.05 10.5h-2.1A11.5 11.5 0 0 0 7.05 8.9l-2 3.47a7.6 7.6 0 0 1 3.6 5.19H5.03a.42.42 0 0 1-.36-.63l1.28-2.2a5.1 5.1 0 0 0-1.6-.9l-1.3 2.24A2.2 2.2 0 0 0 4.95 19.4h5.86a9.4 9.4 0 0 0-4.2-7.9l1-1.72a11.4 11.4 0 0 1 5.1 9.62h4.4a2.2 2.2 0 0 0 1.9-3.3L13.65 3.15A1.9 1.9 0 0 0 12 2.2z"/></svg></span><h3>Sentry</h3><span class="tag">Live</span></div>
+              <p>Unresolved issues, error volume, which projects are reporting</p>
+              <div class="conn__meta">
+                <span class="n">3 widgets</span>
+                <span><code>Auth token</code></span>
+                <span>Errors</span>
+              </div>
+              <div class="conn__meta">
+                <span>Needs org:read and project:read.</span>
+              </div>
+              <p style="margin-top:.35rem"><a class="arrow-link" style="font-size:.86rem" href="https://sentry.io/settings/account/api/auth-tokens/" rel="noopener nofollow">Where to get the token <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="width:.85em;height:.85em;display:inline-block;vertical-align:-1px"><path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></svg></a></p>
+            </article>
+            <article class="conn" id="stripe">
+              <div class="conn__top"><span class="bmark"><img class="on-light" src="assets/brands/stripe/on-light.jpeg" alt="" width="22" height="22" loading="lazy" /><img class="on-dark" src="assets/brands/stripe/on-dark.jpeg" alt="" width="22" height="22" loading="lazy" /></span><h3>Stripe</h3><span class="tag">Live</span></div>
+              <p>MRR, revenue, recent payments and payouts</p>
+              <div class="conn__meta">
+                <span class="n">3 widgets</span>
+                <span><code>Restricted key</code></span>
+                <span>Payments</span>
+              </div>
+              <div class="conn__meta">
+                <span>Read-only on Charges, Subscriptions, Balance.</span>
+              </div>
+              <p style="margin-top:.35rem"><a class="arrow-link" style="font-size:.86rem" href="https://dashboard.stripe.com/apikeys" rel="noopener nofollow">Where to get the token <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="width:.85em;height:.85em;display:inline-block;vertical-align:-1px"><path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></svg></a></p>
+            </article>
+            <article class="conn" id="lemonsqueezy">
+              <div class="conn__top"><span class="bmark bmark--glyph" style="--glyph:#FFC233"><svg viewBox="0 0 24 24" role="img" aria-hidden="true"><path d="M12.6 2c-.5 0-.9.4-1 .9l-.4 3.6a7.9 7.9 0 0 0-6.8 7.8A7.7 7.7 0 0 0 12 22a7.7 7.7 0 0 0 7.6-7.7c0-3.3-2.1-6.2-5.1-7.4l.4-3.4a1 1 0 0 0-1-1.1h-1.3zM12 8.7a5.6 5.6 0 1 1 0 11.2 5.6 5.6 0 0 1 0-11.2z"/></svg></span><h3>Lemon Squeezy</h3><span class="tag">Live</span></div>
+              <p>Recurring revenue, store revenue, recent orders</p>
+              <div class="conn__meta">
+                <span class="n">3 widgets</span>
+                <span><code>API key</code></span>
+                <span>Payments</span>
+              </div>
+              <div class="conn__meta">
+                <span>From Settings → API.</span>
+              </div>
+              <p style="margin-top:.35rem"><a class="arrow-link" style="font-size:.86rem" href="https://app.lemonsqueezy.com/settings/api" rel="noopener nofollow">Where to get the token <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="width:.85em;height:.85em;display:inline-block;vertical-align:-1px"><path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></svg></a></p>
+            </article>
+            <article class="conn" id="resend">
+              <div class="conn__top"><span class="bmark bmark--glyph" style="--glyph:#000000;--glyph-dark:#FFFBFF"><svg viewBox="0 0 24 24" role="img" aria-hidden="true"><path d="M4 3h7.6c3.2 0 5.4 1.9 5.4 4.9 0 2.2-1.2 3.8-3.2 4.5l3.9 8.6h-4.2l-3.4-7.9H7.9V21H4V3zm3.9 3.2v3.9h3.3c1.3 0 2.1-.7 2.1-1.9s-.8-2-2.1-2H7.9z"/></svg></span><h3>Resend</h3><span class="tag">Live</span></div>
+              <p>Delivery, open and click rates, broadcasts, domains</p>
+              <div class="conn__meta">
+                <span class="n">7 widgets</span>
+                <span><code>API key</code></span>
+                <span>Email</span>
+              </div>
+              <div class="conn__meta">
+                <span>A sending key still shows domains.</span>
+              </div>
+              <p style="margin-top:.35rem"><a class="arrow-link" style="font-size:.86rem" href="https://resend.com/api-keys" rel="noopener nofollow">Where to get the token <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="width:.85em;height:.85em;display:inline-block;vertical-align:-1px"><path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></svg></a></p>
+            </article>
+            <article class="conn" id="qonto">
+              <div class="conn__top"><span class="bmark"><img class="on-light" src="assets/brands/qonto/on-light.jpeg" alt="" width="22" height="22" loading="lazy" /><img class="on-dark" src="assets/brands/qonto/on-dark.jpeg" alt="" width="22" height="22" loading="lazy" /></span><h3>Qonto</h3><span class="tag">Live</span></div>
+              <p>Cash balance, liquidity, 30-day cashflow, transactions</p>
+              <div class="conn__meta">
+                <span class="n">7 widgets</span>
+                <span><code>login:secret</code></span>
+                <span>Banking</span>
+              </div>
+              <div class="conn__meta">
+                <span>Paste as one value, or fill both fields.</span>
+              </div>
+              <p style="margin-top:.35rem"><a class="arrow-link" style="font-size:.86rem" href="https://app.qonto.com/settings/integrations" rel="noopener nofollow">Where to get the token <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="width:.85em;height:.85em;display:inline-block;vertical-align:-1px"><path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></svg></a></p>
+            </article>
+          </div>
         </div>
       </section>
 
-      <section class="wrap section--tight" style="padding-bottom:3rem">
-        <h3>Planned</h3>
-        <p class="lede" style="font-size:1rem;margin:0.4rem 0 1.5rem">On the roadmap, not yet scheduled.</p>
-        <div class="logos">
-          <span class="logo"><img src="assets/brands/attio/on-light.svg" alt="" /><span><b>Attio</b><small>CRM</small></span></span>
-          <span class="logo"><img src="assets/brands/polar/on-light.png" alt="" /><span><b>Polar</b><small>Payments</small></span></span>
-          <span class="logo"><img src="assets/brands/netlify/on-light.svg" alt="" /><span><b>Netlify</b><small>Deploys</small></span></span>
-          <span class="logo"><span class="mono">W</span><span><b>Web analytics</b><small>Radically minimal, cookieless</small></span></span>
+      <section class="section section--tight">
+        <div class="wrap">
+          <div class="section__head" style="margin-bottom:1.5rem">
+            <h2 style="font-size:1.5rem">Next up</h2>
+            <p style="font-size:.98rem">These need an OAuth app on the provider's side, which is why they follow rather than lead.</p>
+          </div>
+          <div class="conn-grid reveal">
+            <article class="conn conn--soon" id="github">
+              <div class="conn__top"><span class="bmark bmark--glyph" style="--glyph:#181717;--glyph-dark:#FFFBFF"><svg viewBox="0 0 24 24" role="img" aria-hidden="true"><path d="M12 .5a12 12 0 0 0-3.8 23.4c.6.1.8-.3.8-.6v-2c-3.3.7-4-1.6-4-1.6-.6-1.4-1.4-1.8-1.4-1.8-1.1-.7 0-.7 0-.7 1.2.1 1.9 1.2 1.9 1.2 1.1 1.9 2.9 1.3 3.6 1 .1-.8.4-1.3.8-1.6-2.7-.3-5.5-1.3-5.5-5.9 0-1.3.5-2.4 1.2-3.2-.1-.3-.5-1.5.1-3.2 0 0 1-.3 3.3 1.2a11.5 11.5 0 0 1 6 0C17.3 4.7 18.3 5 18.3 5c.6 1.7.2 2.9.1 3.2.8.8 1.2 1.9 1.2 3.2 0 4.6-2.8 5.6-5.5 5.9.4.4.8 1.1.8 2.2v3.3c0 .3.2.7.8.6A12 12 0 0 0 12 .5z"/></svg></span><h3>GitHub</h3><span class="tag tag--muted">Next</span></div>
+              <p>Open pull requests, CI status, release cadence</p>
+              <div class="conn__meta">
+                <span>Code</span><span><code>OAuth app</code></span>
+              </div>
+            </article>
+            <article class="conn conn--soon" id="gitlab">
+              <div class="conn__top"><span class="bmark bmark--glyph" style="--glyph:#FC6D26"><svg viewBox="0 0 24 24" role="img" aria-hidden="true"><path d="M12 23 8.1 11h7.8L12 23zM3.2 11l-1.1 3.4a.8.8 0 0 0 .3.9L12 23 3.2 11zm17.6 0L12 23l9.6-7.7a.8.8 0 0 0 .3-.9L20.8 11zM6.5 1.4 3.2 11h5.5L6.5 1.4a.4.4 0 0 0-.8 0h.8zm11 0L15.3 11h5.5l-2.5-9.6a.4.4 0 0 0-.8 0h.5z"/></svg></span><h3>GitLab</h3><span class="tag tag--muted">Next</span></div>
+              <p>Pipelines, merge requests, release cadence</p>
+              <div class="conn__meta">
+                <span>Code</span><span><code>OAuth app</code></span>
+              </div>
+            </article>
+            <article class="conn conn--soon" id="linear">
+              <div class="conn__top"><span class="bmark bmark--glyph" style="--glyph:#5E6AD2"><svg viewBox="0 0 24 24" role="img" aria-hidden="true"><path d="M2.2 13.6a10 10 0 0 0 8.2 8.2L2.2 13.6zm-.2-2.5 11 11q.9 0 1.7-.2L2.2 9.4q-.2.8-.2 1.7zm.7-3.5 12.7 12.7q.7-.3 1.3-.7L3.4 6.3q-.4.6-.7 1.3zm1.6-2.4 13 13q.6-.5 1-1L5.3 4.2q-.6.5-1 1zM21.9 12A10 10 0 0 0 12 2.1L21.9 12z"/></svg></span><h3>Linear</h3><span class="tag tag--muted">Next</span></div>
+              <p>Cycle progress and open issues</p>
+              <div class="conn__meta">
+                <span>Planning</span><span><code>OAuth app</code></span>
+              </div>
+            </article>
+            <article class="conn conn--soon" id="notion">
+              <div class="conn__top"><span class="bmark bmark--glyph" style="--glyph:#000000;--glyph-dark:#FFFBFF"><svg viewBox="0 0 24 24" role="img" aria-hidden="true"><path d="M4.5 3.3 15.6 2.5c1.4-.1 1.7.1 2.5.7l3.1 2.2c.6.4.8.5.8 1v13.2c0 .9-.3 1.4-1.4 1.5l-12.9.8c-.9.1-1.3-.1-1.8-.7l-2.6-3.4c-.5-.7-.7-1.2-.7-1.8V4.7c0-.7.3-1.3 1.9-1.4zm11.3 1.5-11 .8c-.3 0-.4.2-.3.3l1.9 1.5c.2.2.5.3.9.3l10.5-.6c.3 0 .2-.2.1-.3l-1.6-1.2c-.2-.2-.4-.3-.5-.8zM6.9 9v10.4c0 .6.3.8.9.7l11.4-.7c.6 0 .7-.4.7-.9V8.2c0-.5-.2-.8-.6-.7L7.4 8.2c-.4 0-.5.3-.5.8z"/></svg></span><h3>Notion</h3><span class="tag tag--muted">Next</span></div>
+              <p>Docs and database rollups</p>
+              <div class="conn__meta">
+                <span>Docs</span><span><code>OAuth app</code></span>
+              </div>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section class="section section--tight" style="padding-bottom:clamp(3rem,7vw,5rem)">
+        <div class="wrap">
+          <div class="section__head" style="margin-bottom:1.5rem">
+            <h2 style="font-size:1.5rem">On the roadmap</h2>
+            <p style="font-size:.98rem">Wanted, designed, not yet scheduled. Vote for one by opening an issue.</p>
+          </div>
+          <div class="conn-grid reveal">
+            <article class="conn conn--soon" id="polar">
+              <div class="conn__top"><span class="bmark"><img class="on-light" src="assets/brands/polar/on-light.png" alt="" width="22" height="22" loading="lazy" /><img class="on-dark" src="assets/brands/polar/on-dark.png" alt="" width="22" height="22" loading="lazy" /></span><h3>Polar</h3><span class="tag tag--muted">Planned</span></div>
+              <p>Subscriptions and revenue</p>
+              <div class="conn__meta">
+                <span>Payments</span>
+              </div>
+            </article>
+            <article class="conn conn--soon" id="attio">
+              <div class="conn__top"><span class="bmark"><img class="on-light" src="assets/brands/attio/on-light.svg" alt="" width="22" height="22" loading="lazy" /><img class="on-dark" src="assets/brands/attio/on-dark.svg" alt="" width="22" height="22" loading="lazy" /></span><h3>Attio</h3><span class="tag tag--muted">Planned</span></div>
+              <p>Pipeline and CRM activity</p>
+              <div class="conn__meta">
+                <span>CRM</span>
+              </div>
+            </article>
+            <article class="conn conn--soon" id="webtraffic">
+              <div class="conn__top"><span class="bmark bmark--glyph"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6a2 2 0 0 1 2-2h4v6H4V6zm10-2h4a2 2 0 0 1 2 2v4h-6V4zM4 14h6v6H6a2 2 0 0 1-2-2v-4zm10 0h6v4a2 2 0 0 1-2 2h-4v-6z"/></svg></span><h3>Web traffic</h3><span class="tag tag--muted">Planned</span></div>
+              <p>Page views and unique visitors, cookieless</p>
+              <div class="conn__meta">
+                <span>Analytics</span>
+              </div>
+            </article>
+          </div>
         </div>
       </section>
 
       <section class="section section--alt">
+        <div class="wrap section__head section__head--center reveal">
+          <p class="eyebrow">How connections behave</p>
+          <h2>Careful with your tokens, and with theirs</h2>
+        </div>
         <div class="wrap">
           <div class="grid grid--3">
-            <div class="card">
+            <div class="card reveal">
+              <div class="card__icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="10" width="16" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg></div>
               <h3>Encrypted at rest</h3>
-              <p>Every secret is sealed with AES-256-GCM before it touches storage. Nothing is logged in the clear.</p>
+              <p>Every secret is sealed with AES-256-GCM before it touches storage, and never written to a log in the clear.</p>
             </div>
-            <div class="card">
+            <div class="card reveal">
+              <div class="card__icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></div>
               <h3>Tested on add</h3>
-              <p>Bussola makes a live call when you connect a source, so a bad key fails now — not silently at render time.</p>
+              <p>Bussola makes a live call when you connect a source, so a bad or under-scoped key fails now rather than at render time.</p>
             </div>
-            <div class="card">
-              <h3>Cached politely</h3>
-              <p>Widget responses are cached ~45–60s per tenant to keep upstream rate limits and local load low.</p>
+            <div class="card reveal">
+              <div class="card__icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/></svg></div>
+              <h3>Polite when it breaks</h3>
+              <p>A failing connection backs off exponentially to at most hourly and stops after ten failures, so a revoked token cannot get you rate-limited.</p>
             </div>
           </div>
         </div>
@@ -94,46 +309,69 @@
 
       <section class="section">
         <div class="wrap">
-          <div class="cta">
-            <h2>Missing a connector you need?</h2>
-            <p>The connector layer is open source. Open an issue, or send a pull request.</p>
+          <div class="cta reveal">
+            <h2>Missing the one you need?</h2>
+            <p>The connector layer is open source and deliberately small: a fetch function, a shape, a widget. Open an issue, or send the pull request.</p>
             <div class="btn-row btn-row--center">
-              <a class="btn" href="https://github.com/notsurenaime/bussola/issues">Request one</a>
-              <a class="btn btn--ghost" href="open-source.html">How connectors work</a>
+              <a class="btn btn--lg" href="https://github.com/notsurenaime/bussola/issues" rel="noopener">Request a connector <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
+              <a class="btn btn--ghost btn--lg" href="open-source.html">How connectors work</a>
             </div>
           </div>
         </div>
       </section>
+
     </main>
 
     <footer class="site-footer">
       <div class="site-footer__inner">
         <div class="site-footer__brand">
-          <a class="brand" href="index.html"><img src="assets/bussola-mark.svg" alt="" /> <span>Bussola</span></a>
-          <p>Local-first, plug-and-play dashboard for infrastructure and finances.</p>
+          <a class="brand" href="index.html"><img src="assets/bussola-mark.svg" alt="" width="25" height="25" /> <span>Bussola</span></a>
+          <p>One dashboard for the numbers you check every day — deploys, errors, revenue and cash. Open source, self-hostable.</p>
         </div>
-        <div><h4>Product</h4><ul>
-          <li><a href="features.html">Features</a></li>
-          <li><a href="connectors.html">Connectors</a></li>
-          <li><a href="pricing.html">Pricing</a></li>
-          <li><a href="https://usebussola.app">Open app</a></li>
-        </ul></div>
-        <div><h4>Project</h4><ul>
-          <li><a href="open-source.html">Open source</a></li>
-          <li><a href="https://github.com/notsurenaime/bussola">GitHub</a></li>
-          <li><a href="open-source.html#mcp">MCP server</a></li>
-        </ul></div>
-        <div><h4>Legal</h4><ul>
-          <li><a href="/privacy">Privacy</a></li>
-          <li><a href="/terms">Terms</a></li>
-          <li><a href="/imprint">Imprint</a></li>
-        </ul></div>
+        <div>
+          <h2 class="footer-h">Product</h2>
+          <ul>
+            <li><a href="features.html">Features</a></li>
+            <li><a href="connectors.html">Connectors</a></li>
+            <li><a href="pricing.html">Pricing</a></li>
+            <li><a href="features.html#catalog">Widget catalog</a></li>
+          </ul>
+        </div>
+        <div>
+          <h2 class="footer-h">Project</h2>
+          <ul>
+            <li><a href="open-source.html">Open source</a></li>
+            <li><a href="open-source.html#quickstart">Self-host guide</a></li>
+            <li><a href="open-source.html#mcp">MCP server</a></li>
+            <li><a href="https://github.com/notsurenaime/bussola" rel="noopener">GitHub</a></li>
+          </ul>
+        </div>
+        <div>
+          <h2 class="footer-h">Trust</h2>
+          <ul>
+            <li><a href="security.html">Security</a></li>
+            <li><a href="privacy.html">Privacy</a></li>
+            <li><a href="terms.html">Terms</a></li>
+            <li><a href="imprint.html">Imprint</a></li>
+          </ul>
+        </div>
+        <div>
+          <h2 class="footer-h">Get started</h2>
+          <ul>
+            <li><a href="https://usebussola.app">Open the app</a></li>
+            <li><a href="https://github.com/notsurenaime/bussola/issues" rel="noopener">Request a connector</a></li>
+            <li><a href="mailto:hello@usebussola.com">hello@usebussola.com</a></li>
+          </ul>
+        </div>
         <div class="site-footer__legal">
-          <span>© <span id="year">2026</span> Malango Tech UG</span>
+          <span>© <span data-year>2026</span> Malango Tech UG (haftungsbeschränkt)</span>
+          <span class="sep">·</span>
+          <span>MIT-licensed. Built in Europe.</span>
+          <span class="spacer"></span>
           <span>Made for solo founders and small dev teams</span>
         </div>
       </div>
     </footer>
-    <script>document.getElementById("year").textContent = new Date().getFullYear();</script>
+    <script src="site.js" defer></script>
   </body>
 </html>

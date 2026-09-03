@@ -19,13 +19,19 @@ export default async function AppLayout({
   }
 
   const repos = await requirePageTenant();
-  const [dashboardCount, connectionCount, widgetCount, starredDashboards] =
-    await Promise.all([
-      repos.dashboards.count(),
-      repos.connections.count(),
-      repos.widgets.countAll(),
-      repos.dashboards.listStarred(),
-    ]);
+  const [
+    dashboardCount,
+    connectionCount,
+    widgetCount,
+    starredDashboards,
+    unacknowledgedAlerts,
+  ] = await Promise.all([
+    repos.dashboards.count(),
+    repos.connections.count(),
+    repos.widgets.countAll(),
+    repos.dashboards.listStarred(),
+    repos.alertEvents.unacknowledgedCount(),
+  ]);
 
   return (
     <AppShell
@@ -38,6 +44,7 @@ export default async function AppLayout({
         id: dashboard.id,
         name: dashboard.name,
       }))}
+      unacknowledgedAlerts={unacknowledgedAlerts}
     >
       {children}
     </AppShell>

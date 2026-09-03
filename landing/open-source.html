@@ -4,56 +4,95 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Open source — Bussola</title>
-    <meta name="description" content="Bussola is open source and self-hostable. Local-first by default, AES-256-GCM encrypted secrets, an MCP server, and a modern Next.js stack." />
+    <meta name="description" content="Bussola is MIT-licensed and self-hostable: PGlite or your own Postgres, encrypted secrets, a sync worker, an MCP server and a modern Next.js stack." />
+    <link rel="canonical" href="https://usebussola.com/open-source.html" />
     <link rel="icon" href="assets/favicon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="assets/bussola-mark.svg" />
+    <meta name="theme-color" content="#fdfcfa" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#050806" media="(prefers-color-scheme: dark)" />
+    <meta property="og:site_name" content="Bussola" />
+    <meta property="og:title" content="Open source — Bussola" />
+    <meta property="og:description" content="Bussola is MIT-licensed and self-hostable: PGlite or your own Postgres, encrypted secrets, a sync worker, an MCP server and a modern Next.js stack." />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://usebussola.com/open-source.html" />
+    <meta property="og:image" content="https://usebussola.com/assets/og-card.jpg" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Open source — Bussola" />
+    <meta name="twitter:description" content="Bussola is MIT-licensed and self-hostable: PGlite or your own Postgres, encrypted secrets, a sync worker, an MCP server and a modern Next.js stack." />
+    <meta name="twitter:image" content="https://usebussola.com/assets/og-card.jpg" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="Bussola — finally a beautiful dashboard. A laptop showing a Bussola finance canvas." />
+    <meta property="og:locale" content="en" />
+    <link rel="preload" href="assets/elms-sans-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin />
     <link rel="stylesheet" href="styles.css" />
+    <script>(function(){var d=document.documentElement;try{var t=localStorage.getItem("bussola-theme");if(t==="light"||t==="dark")d.setAttribute("data-theme",t)}catch(e){}try{if("IntersectionObserver" in window&&!matchMedia("(prefers-reduced-motion: reduce)").matches)d.className+=" js-anim"}catch(e){}})();</script>
   </head>
   <body>
+    <a class="skip-link" href="#main">Skip to content</a>
     <header class="site-header">
       <div class="site-header__inner">
-        <a class="brand" href="index.html"><img src="assets/bussola-mark.svg" alt="" /> <span>Bussola</span></a>
-        <nav class="site-nav" id="nav">
+        <a class="brand" href="index.html">
+          <img src="assets/bussola-mark.svg" alt="" width="25" height="25" />
+          <span>Bussola</span>
+        </a>
+        <nav class="site-nav" id="nav" aria-label="Main">
           <a href="features.html">Features</a>
           <a href="connectors.html">Connectors</a>
           <a href="pricing.html">Pricing</a>
+          <a href="security.html">Security</a>
           <a href="open-source.html" aria-current="page">Open source</a>
-          <a href="https://github.com/notsurenaime/bussola">GitHub</a>
+          <a href="https://github.com/notsurenaime/bussola" rel="noopener">GitHub</a>
         </nav>
-        <a class="btn btn--sm header-cta" href="https://usebussola.app">Open app</a>
-        <button class="nav-toggle" aria-label="Menu" aria-expanded="false" onclick="const n=document.getElementById('nav');const o=n.classList.toggle('is-open');this.setAttribute('aria-expanded',o)">☰</button>
+        <div class="header-tools">
+          <button class="icon-btn theme-toggle" type="button" aria-label="Switch colour theme">
+            <svg class="t-auto" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 3v18"/><path d="M12 3a9 9 0 0 1 0 18" fill="currentColor" stroke="none"/></svg>
+            <svg class="t-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
+            <svg class="t-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
+          </button>
+          <a class="btn btn--sm header-cta" href="https://usebussola.app">Open app</a>
+          <button class="icon-btn nav-toggle" type="button" aria-label="Menu" aria-expanded="false" aria-controls="nav">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+          </button>
+        </div>
       </div>
     </header>
 
-    <main>
+    <main id="main">
       <section class="section section--tight">
         <div class="wrap section__head">
           <p class="eyebrow">Open source</p>
-          <h2>Self-hosting is the trust anchor</h2>
+          <h1 style="font-size:clamp(2.1rem,4.6vw,3rem)">Self-hosting is the trust anchor</h1>
           <p>
-            The whole app is on GitHub. The hosted version is a convenience, not
-            a lock-in — run Bussola on your own box and you lose nothing.
+            The whole application is on GitHub under the MIT licence. The hosted
+            version is a convenience, not a lock-in: run Bussola on your own box
+            and you lose nothing — not a connector, not a widget, not a feature.
           </p>
           <div class="btn-row mt-lg">
-            <a class="btn" href="https://github.com/notsurenaime/bussola">View the repo</a>
-            <a class="btn btn--ghost" href="#quickstart">Quick start</a>
+            <a class="btn btn--lg" href="https://github.com/notsurenaime/bussola" rel="noopener">
+              <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 .5a12 12 0 0 0-3.8 23.4c.6.1.8-.3.8-.6v-2c-3.3.7-4-1.6-4-1.6-.6-1.4-1.4-1.8-1.4-1.8-1.1-.7 0-.7 0-.7 1.2.1 1.9 1.2 1.9 1.2 1.1 1.9 2.9 1.3 3.6 1 .1-.8.4-1.3.8-1.6-2.7-.3-5.5-1.3-5.5-5.9 0-1.3.5-2.4 1.2-3.2-.1-.3-.5-1.5.1-3.2 0 0 1-.3 3.3 1.2a11.5 11.5 0 0 1 6 0C17.3 4.7 18.3 5 18.3 5c.6 1.7.2 2.9.1 3.2.8.8 1.2 1.9 1.2 3.2 0 4.6-2.8 5.6-5.5 5.9.4.4.8 1.1.8 2.2v3.3c0 .3.2.7.8.6A12 12 0 0 0 12 .5z"/></svg>
+              View the repository
+            </a>
+            <a class="btn btn--ghost btn--lg" href="#quickstart">Quick start</a>
           </div>
         </div>
       </section>
 
       <section class="section section--alt section--tight">
         <div class="wrap">
+          <h2 class="sr-only">Why self-host</h2>
           <div class="grid grid--3">
-            <div class="card">
+            <div class="card reveal">
               <h3>Local-first</h3>
-              <p>Data lives in <code>./data/bussola.db</code> (or <code>BUSSOLA_DATA_DIR</code>). Nothing leaves your machine unless you host it.</p>
+              <p>With no <code>DATABASE_URL</code>, Bussola runs on PGlite — Postgres compiled to WASM, stored in <code>./data/pgdata</code>. No server, no Docker, nothing to install.</p>
             </div>
-            <div class="card">
+            <div class="card reveal">
               <h3>Encrypted secrets</h3>
-              <p>API keys are sealed with AES-256-GCM at rest. Single-user password auth over an HTTP-only session cookie.</p>
+              <p>API keys are sealed with AES-256-GCM at rest. Identity is Better Auth: email and password, sessions in your own database, no third-party identity provider.</p>
             </div>
-            <div class="card">
-              <h3>Migratable</h3>
-              <p>Designed to move storage to Postgres with row-level security for cloud and multi-user later, without a rewrite.</p>
+            <div class="card reveal">
+              <h3>One schema, one path</h3>
+              <p>Postgres, and only Postgres — the same schema and the same queries on a laptop as in production. Moving from PGlite to a real server is one environment variable.</p>
             </div>
           </div>
         </div>
@@ -62,31 +101,102 @@
       <section class="section" id="quickstart">
         <div class="wrap section__head">
           <p class="eyebrow">Quick start</p>
-          <h2>Running in a few commands</h2>
-          <p>Node and pnpm, then three steps. Open <code>localhost:3000</code> and set a local admin password.</p>
+          <h2>Running in three commands</h2>
+          <p>Node, then three steps. The database migrates itself on first start, so there is nothing to run first.</p>
         </div>
         <div class="wrap">
-<pre><span class="c"># install & configure</span>
-pnpm install
+          <div class="reveal">
+            <div class="code-head">Terminal</div>
+<pre><span class="c"># install &amp; configure</span>
+npm install
 cp .env.example .env.local
-<span class="c"># recommended: set an encryption key</span>
-openssl rand -hex 32   <span class="c"># → BUSSOLA_ENCRYPTION_KEY</span>
 
-<span class="c"># migrate & run</span>
-pnpm db:migrate
-pnpm dev</pre>
-          <div class="steps mt-lg">
+<span class="c"># optional but recommended — set it as BUSSOLA_ENCRYPTION_KEY</span>
+openssl rand -hex 32
+
+<span class="c"># run it</span>
+npm run dev</pre>
+          </div>
+          <p style="color:var(--muted);font-size:.93rem;margin-top:1rem">
+            Open <code>localhost:3000</code> and claim the instance with an account only you hold.
+            Self-hosted accepts exactly one account: the first person to reach <code>/signup</code>
+            takes it, and every later attempt is refused.
+          </p>
+          <div class="steps mt-lg reveal">
             <div class="step">
               <h3>Connections</h3>
-              <p>Paste API tokens for Railway, Supabase, Qonto and the rest. Each is tested on save.</p>
+              <p>Paste API tokens for Railway, Vercel, Netlify, Supabase, Sentry, Stripe, Lemon Squeezy, Resend and Qonto. Each is tested against the provider before it is saved.</p>
             </div>
             <div class="step">
               <h3>Dashboards</h3>
-              <p>Create a canvas. Start from demo data if you want to see the shape first.</p>
+              <p>Create a canvas. Widgets render labelled sample data until a source syncs, so you can lay the whole thing out before pasting a single token.</p>
             </div>
             <div class="step">
               <h3>Edit</h3>
-              <p>Drag, resize and add Tremor trackers and KPI blocks. The layout saves itself.</p>
+              <p>Drag, resize and add trackers, KPI blocks and charts. The layout saves itself as you go.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="section section--alt">
+        <div class="wrap section__head">
+          <p class="eyebrow">Deployment</p>
+          <h2>From a laptop to a shared instance</h2>
+          <p>The same build runs both ways. Set <code>DATABASE_URL</code> the moment more than one person depends on the install — PGlite serves exactly one process by design.</p>
+        </div>
+        <div class="wrap table-scroll reveal">
+          <table>
+            <thead>
+              <tr><th scope="col">&nbsp;</th><th scope="col">Self-hosted (default)</th><th scope="col">Cloud</th></tr>
+            </thead>
+            <tbody>
+              <tr><td><strong>Tenancy</strong></td><td>One organization, created on first signup</td><td>One per customer</td></tr>
+              <tr><td><strong>Sign-in</strong></td><td>Email + password, exactly one account</td><td>Email + password, open signup</td></tr>
+              <tr><td><strong>Database</strong></td><td>PGlite, or your own Postgres</td><td>Managed Postgres, required</td></tr>
+              <tr><td><strong>Secrets</strong></td><td>Fall back to local dev values</td><td>Encryption + auth secrets required</td></tr>
+              <tr><td><strong>Billing</strong></td><td>None. Everything unlocked</td><td>Stripe checkout, portal, webhook</td></tr>
+              <tr><td><strong>Sync worker</strong></td><td>In-process, automatic</td><td>Separate process or cron endpoint</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="wrap mt-md">
+          <p style="color:var(--muted);font-size:.93rem">
+            This is not two builds. Every query against tenant-owned data goes through the same
+            organization-scoped repositories in both editions — so the self-hosted path exercises
+            the very isolation code that keeps hosted customers apart, and the linter refuses to
+            compile a route handler that reaches around it.
+          </p>
+        </div>
+      </section>
+
+      <section class="section" id="architecture">
+        <div class="wrap section__head">
+          <p class="eyebrow">Architecture</p>
+          <h2>Why a worker instead of fetch-on-render</h2>
+          <p>
+            Widgets never trigger a provider call. A background worker refreshes each
+            connection on its own schedule and writes a snapshot; every widget request
+            is then a single local query.
+          </p>
+        </div>
+        <div class="wrap">
+          <div class="grid grid--2">
+            <div class="card reveal">
+              <h3>Traffic that scales with connections</h3>
+              <p>Upstream calls track how many connections exist, not how many people are looking. That is what keeps a shared deployment from being rate-limited — or banned — by Railway, Supabase and especially Qonto.</p>
+            </div>
+            <div class="card reveal">
+              <h3>Failure that gets quieter</h3>
+              <p>A failing connection backs off exponentially to at most hourly, and after ten consecutive failures it stops syncing and the widget asks its owner to reconnect. Pasting new credentials clears the count and resumes immediately.</p>
+            </div>
+            <div class="card reveal">
+              <h3>Workers that can be many</h3>
+              <p>Workers claim connections with <code>FOR UPDATE SKIP LOCKED</code> and a lease, so several run at once without fetching the same connection twice — and one that dies mid-fetch just leaves its work to become due again.</p>
+            </div>
+            <div class="card reveal">
+              <h3>History at a resolution you would plot</h3>
+              <p>One sample per connection per hour, alongside the latest snapshot. A 60-second interval would write tens of thousands of rows per connection per month at a resolution nobody looks at.</p>
             </div>
           </div>
         </div>
@@ -96,31 +206,33 @@ pnpm dev</pre>
         <div class="wrap section__head">
           <p class="eyebrow">MCP server</p>
           <h2>Give an agent a safe seat</h2>
-          <p>Bussola ships an MCP server so an assistant can work with your data and your dashboards — within clear limits.</p>
+          <p>Bussola ships an MCP server so an assistant can work with your data and your dashboards — inside limits that live in the server, not in a prompt.</p>
         </div>
         <div class="wrap">
           <div class="grid grid--2">
-            <div class="card">
-              <h3>Can do</h3>
-              <ul style="margin:0.6rem 0 0;padding-left:1.1rem;color:var(--muted);font-size:0.95rem;line-height:1.9">
+            <div class="card reveal">
+              <h3 style="color:var(--accent-ink)">Can do</h3>
+              <ul>
                 <li>Read data from every connector</li>
                 <li>Create and delete dashboards</li>
                 <li>Add, remove and move widgets</li>
                 <li>Enable or disable a connection</li>
               </ul>
             </div>
-            <div class="card">
+            <div class="card reveal">
               <h3>Cannot do</h3>
-              <ul style="margin:0.6rem 0 0;padding-left:1.1rem;color:var(--muted);font-size:0.95rem;line-height:1.9">
+              <ul>
                 <li>Edit connection credentials — web UI only</li>
-                <li>Write to third-party systems (restart a service, move money)</li>
-                <li>Bypass plan limits or auth</li>
+                <li>Write to a third-party system: restart a service, issue a refund, move money</li>
+                <li>Bypass plan limits or authentication</li>
+                <li>Reach another organization's data</li>
               </ul>
             </div>
           </div>
-          <p class="mt-lg" style="color:var(--muted);font-size:0.95rem">
-            Write actions on third-party systems are deliberately out of scope for
-            the MVP — that needs its own confirmation and audit design.
+          <p class="mt-md" style="color:var(--muted);font-size:.93rem">
+            Write actions on third-party systems are deliberately out of scope: doing that safely
+            needs its own confirmation and audit design, and shipping it early would undo the
+            read-only guarantee that makes handing over a token reasonable in the first place.
           </p>
         </div>
       </section>
@@ -130,62 +242,101 @@ pnpm dev</pre>
           <p class="eyebrow">Stack</p>
           <h2>Modern, boring in the right places</h2>
         </div>
-        <div class="wrap">
+        <div class="wrap reveal">
           <div class="logos">
-            <span class="logo"><span class="mono">N</span><span><b>Next.js 16</b><small>App runtime</small></span></span>
-            <span class="logo"><span class="mono">R</span><span><b>React 19</b><small>UI</small></span></span>
-            <span class="logo"><span class="mono">TS</span><span><b>TypeScript</b><small>End to end</small></span></span>
-            <span class="logo"><span class="mono">T</span><span><b>Tailwind v4</b><small>Styling</small></span></span>
-            <span class="logo"><span class="mono">S</span><span><b>shadcn/ui</b><small>Primitives</small></span></span>
-            <span class="logo"><span class="mono">Tr</span><span><b>Tremor Raw</b><small>Charts &amp; trackers</small></span></span>
-            <span class="logo"><span class="mono">D</span><span><b>Drizzle ORM</b><small>SQLite → Postgres</small></span></span>
-            <span class="logo"><span class="mono">G</span><span><b>react-grid-layout</b><small>Drag &amp; resize</small></span></span>
+            <span class="logo"><span class="bmark bmark--glyph" style="--glyph:var(--accent-ink)"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="5"/></svg></span><span><b>Next.js 16</b><small>App runtime</small></span></span>
+            <span class="logo"><span class="bmark bmark--glyph" style="--glyph:var(--accent-ink)"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="5"/></svg></span><span><b>React 19</b><small>UI</small></span></span>
+            <span class="logo"><span class="bmark bmark--glyph" style="--glyph:var(--accent-ink)"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="5"/></svg></span><span><b>TypeScript</b><small>End to end</small></span></span>
+            <span class="logo"><span class="bmark bmark--glyph" style="--glyph:var(--accent-ink)"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="5"/></svg></span><span><b>Tailwind v4</b><small>Styling</small></span></span>
+            <span class="logo"><span class="bmark bmark--glyph" style="--glyph:var(--accent-ink)"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="5"/></svg></span><span><b>shadcn/ui</b><small>Primitives</small></span></span>
+            <span class="logo"><span class="bmark bmark--glyph" style="--glyph:var(--accent-ink)"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="5"/></svg></span><span><b>Recharts</b><small>Charts &amp; trackers</small></span></span>
+            <span class="logo"><span class="bmark bmark--glyph" style="--glyph:var(--accent-ink)"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="5"/></svg></span><span><b>Drizzle ORM</b><small>Postgres schema</small></span></span>
+            <span class="logo"><span class="bmark bmark--glyph" style="--glyph:var(--accent-ink)"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="5"/></svg></span><span><b>Better Auth</b><small>Sessions in your DB</small></span></span>
+            <span class="logo"><span class="bmark bmark--glyph" style="--glyph:var(--accent-ink)"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="5"/></svg></span><span><b>PGlite</b><small>Postgres, no server</small></span></span>
+            <span class="logo"><span class="bmark bmark--glyph" style="--glyph:var(--accent-ink)"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="5"/></svg></span><span><b>react-grid-layout</b><small>Drag &amp; resize</small></span></span>
+          </div>
+        </div>
+      </section>
+
+      <section class="section section--alt section--tight" style="padding-block:clamp(2.5rem,6vw,4rem)">
+        <div class="wrap section__head" style="margin-bottom:1.5rem">
+          <p class="eyebrow">Contributing</p>
+          <h2 style="font-size:1.5rem">A connector is a small pull request</h2>
+        </div>
+        <div class="wrap">
+          <div class="steps reveal">
+            <div class="step"><h3>Describe it</h3><p>Add an entry to the provider catalog: name, tagline, which credential fields the form should ask for, and where to get the token.</p></div>
+            <div class="step"><h3>Fetch it</h3><p>Write one module that turns credentials into a typed snapshot. Connector modules stay purely about fetching — no UI, no storage.</p></div>
+            <div class="step"><h3>Render it</h3><p>Register the widgets: a name, a description, a default size. The catalog, the picker and the connections page pick it up from there.</p></div>
           </div>
         </div>
       </section>
 
       <section class="section">
         <div class="wrap">
-          <div class="cta">
+          <div class="cta reveal">
             <h2>Star it, fork it, ship a connector</h2>
-            <p>The 3-month success metric for Bussola is community traction — issues and pull requests welcome.</p>
+            <p>Issues and pull requests are the point. If Bussola is missing the one source you check every morning, that is a small, well-scoped patch.</p>
             <div class="btn-row btn-row--center">
-              <a class="btn" href="https://github.com/notsurenaime/bussola">Open on GitHub</a>
-              <a class="btn btn--ghost" href="connectors.html">Connector roadmap</a>
+              <a class="btn btn--lg" href="https://github.com/notsurenaime/bussola" rel="noopener">Open on GitHub <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
+              <a class="btn btn--ghost btn--lg" href="connectors.html">Connector roadmap</a>
             </div>
           </div>
         </div>
       </section>
+
     </main>
 
     <footer class="site-footer">
       <div class="site-footer__inner">
         <div class="site-footer__brand">
-          <a class="brand" href="index.html"><img src="assets/bussola-mark.svg" alt="" /> <span>Bussola</span></a>
-          <p>Local-first, plug-and-play dashboard for infrastructure and finances.</p>
+          <a class="brand" href="index.html"><img src="assets/bussola-mark.svg" alt="" width="25" height="25" /> <span>Bussola</span></a>
+          <p>One dashboard for the numbers you check every day — deploys, errors, revenue and cash. Open source, self-hostable.</p>
         </div>
-        <div><h4>Product</h4><ul>
-          <li><a href="features.html">Features</a></li>
-          <li><a href="connectors.html">Connectors</a></li>
-          <li><a href="pricing.html">Pricing</a></li>
-          <li><a href="https://usebussola.app">Open app</a></li>
-        </ul></div>
-        <div><h4>Project</h4><ul>
-          <li><a href="open-source.html">Open source</a></li>
-          <li><a href="https://github.com/notsurenaime/bussola">GitHub</a></li>
-          <li><a href="open-source.html#mcp">MCP server</a></li>
-        </ul></div>
-        <div><h4>Legal</h4><ul>
-          <li><a href="/privacy">Privacy</a></li>
-          <li><a href="/terms">Terms</a></li>
-          <li><a href="/imprint">Imprint</a></li>
-        </ul></div>
+        <div>
+          <h2 class="footer-h">Product</h2>
+          <ul>
+            <li><a href="features.html">Features</a></li>
+            <li><a href="connectors.html">Connectors</a></li>
+            <li><a href="pricing.html">Pricing</a></li>
+            <li><a href="features.html#catalog">Widget catalog</a></li>
+          </ul>
+        </div>
+        <div>
+          <h2 class="footer-h">Project</h2>
+          <ul>
+            <li><a href="open-source.html">Open source</a></li>
+            <li><a href="open-source.html#quickstart">Self-host guide</a></li>
+            <li><a href="open-source.html#mcp">MCP server</a></li>
+            <li><a href="https://github.com/notsurenaime/bussola" rel="noopener">GitHub</a></li>
+          </ul>
+        </div>
+        <div>
+          <h2 class="footer-h">Trust</h2>
+          <ul>
+            <li><a href="security.html">Security</a></li>
+            <li><a href="privacy.html">Privacy</a></li>
+            <li><a href="terms.html">Terms</a></li>
+            <li><a href="imprint.html">Imprint</a></li>
+          </ul>
+        </div>
+        <div>
+          <h2 class="footer-h">Get started</h2>
+          <ul>
+            <li><a href="https://usebussola.app">Open the app</a></li>
+            <li><a href="https://github.com/notsurenaime/bussola/issues" rel="noopener">Request a connector</a></li>
+            <li><a href="mailto:hello@usebussola.com">hello@usebussola.com</a></li>
+          </ul>
+        </div>
         <div class="site-footer__legal">
-          <span>© <span id="year">2026</span> Malango Tech UG</span>
+          <span>© <span data-year>2026</span> Malango Tech UG (haftungsbeschränkt)</span>
+          <span class="sep">·</span>
+          <span>MIT-licensed. Built in Europe.</span>
+          <span class="spacer"></span>
           <span>Made for solo founders and small dev teams</span>
         </div>
       </div>
     </footer>
-    <script>document.getElementById("year").textContent = new Date().getFullYear();</script>
+    <script src="site.js" defer></script>
   </body>
 </html>
